@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111417">
+<title>Ledger</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --bg:#f7f7f8; --panel:#fff; --line:#e2e4e7; --text:#16181b; --dim:#6b7076;
+  --accent:#2f6df6; --ok:#1a7f4b; --warn:#b8860b; --bad:#c0392b; --chip:#eef0f3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111417; --panel:#191d21; --line:#2a2f35; --text:#e8eaed; --dim:#8b9198;
+    --accent:#5b8dff; --ok:#3fbd7a; --warn:#d8a537; --bad:#e5705f; --chip:#22272c;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:env(safe-area-inset-bottom);
+  -webkit-text-size-adjust:100%;
+}
+header{
+  position:sticky; top:0; z-index:10; background:var(--panel);
+  border-bottom:1px solid var(--line); padding:10px 14px;
+  padding-top:calc(10px + env(safe-area-inset-top));
+  display:flex; align-items:center; gap:10px;
+}
+header h1{font-size:17px; margin:0; flex:1; letter-spacing:-.2px}
+#sync{font-size:12px; padding:4px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap}
+#sync.ok{color:var(--ok)} #sync.pending{color:var(--warn)} #sync.bad{color:var(--bad)}
+nav{display:flex; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:52px; z-index:9}
+nav button{
+  flex:1; padding:11px 4px; background:none; border:none; border-bottom:2px solid transparent;
+  color:var(--dim); font-size:14px; font-family:inherit; cursor:pointer;
+}
+nav button.on{color:var(--text); border-bottom-color:var(--accent); font-weight:600}
+main{padding:14px; max-width:640px; margin:0 auto}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:11px}
+.card h3{margin:0 0 3px; font-size:15px}
+.sub{color:var(--dim); font-size:12.5px}
+label{display:block; font-size:12.5px; color:var(--dim); margin:10px 0 4px}
+input,select,textarea,button{font-family:inherit; font-size:16px}
+input,select,textarea{
+  width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+  background:var(--bg); color:var(--text);
+}
+textarea{min-height:70px; resize:vertical}
+.btn{
+  padding:10px 14px; border-radius:9px; border:1px solid var(--line);
+  background:var(--chip); color:var(--text); cursor:pointer; font-size:14.5px;
+}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+.btn.wide{width:100%}
+.btn.sm{padding:6px 10px; font-size:13px}
+.btn.danger{color:var(--bad)}
+.row{display:flex; gap:8px; align-items:center}
+.row.wrap{flex-wrap:wrap}
+.grow{flex:1}
+.sets{margin-top:8px}
+.sethead,.setrow{display:grid; gap:6px; align-items:center; margin-bottom:6px}
+.sethead{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px}
+.setrow input{padding:8px 6px; text-align:center}
+.setrow .n{color:var(--dim); font-size:13px; text-align:center}
+.done{background:var(--chip); border:1px solid var(--line); border-radius:7px; padding:8px 0; cursor:pointer; color:var(--dim); font-size:15px}
+.done.on{color:var(--ok); border-color:var(--ok)}
+.hint{font-size:12px; color:var(--dim); margin-top:6px}
+.hint b{color:var(--text)}
+.sug{color:var(--accent); font-weight:600}
+.pill{display:inline-block; font-size:11.5px; padding:2px 8px; border-radius:99px; background:var(--chip); color:var(--dim); margin-right:5px}
+.empty{text-align:center; color:var(--dim); padding:30px 10px; font-size:14px}
+.banner{border-radius:10px; padding:10px 12px; font-size:13.5px; margin-bottom:11px}
+.banner.warn{background:rgba(184,134,11,.13); color:var(--warn); border:1px solid rgba(184,134,11,.3)}
+.banner.bad{background:rgba(192,57,43,.12); color:var(--bad); border:1px solid rgba(192,57,43,.3)}
+.hist{border-bottom:1px solid var(--line); padding:10px 0; cursor:pointer}
+.hist:last-child{border-bottom:none}
+.hist b{font-size:14.5px}
+details summary{cursor:pointer; font-size:13.5px; color:var(--dim); padding:4px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="title">Ledger</h1>
+  <span id="sync">–</span>
+</header>
+
+<nav>
+  <button data-tab="log" class="on">Log</button>
+  <button data-tab="history">History</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+
+<main id="view"></main>
+
+<script>
+/* ---------------------------------------------------------------- state */
+const LS = 'ledger_v3';
+const DEFAULTS = {
+  settings:{ token:'', owner:'danbeseda-axolt', repo:'dan-brain', branch:'main', path:'training/log' },
+  draft:null, queue:[], history:[], historyFetched:0
+};
+let S = load();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(LS);
+    if(!raw) return structuredClone(DEFAULTS);
+    return Object.assign(structuredClone(DEFAULTS), JSON.parse(raw));
+  }catch(e){ return structuredClone(DEFAULTS); }
+}
+function save(){
+  try{ localStorage.setItem(LS, JSON.stringify(S)); }
+  catch(e){ setSync('bad','storage full'); }
+}
+
+/* ------------------------------------------------------------ templates */
+/* Programme v2 — see training/programme-v2-draft.md
+   kind: weight (kg/reps/rir) | time (seconds) | distance (kg/metres) | rounds */
+const TEMPLATES = {
+  'upper-push':{ name:'Upper Push', day:'Mon', ex:[
+    {n:'Bench press (heavy)',      kind:'weight', sets:4, rep:[5,5],   rir:2, note:'Top set paused 1s. Hold, don’t chase.'},
+    {n:'Overhead press',           kind:'weight', sets:3, rep:[6,8],   rir:2, note:'Strict, standing.'},
+    {n:'Close-grip bench / dip',   kind:'weight', sets:3, rep:[6,8],   rir:2},
+    {n:'Incline DB curl',          kind:'weight', sets:3, rep:[10,12], rir:1, note:'Biceps fresh.'},
+    {n:'Pallof press',             kind:'weight', sets:3, rep:[10,10], rir:2, note:'Per side.'}
+  ]},
+  'lower-b':{ name:'Lower B — hinge', day:'Tue', ex:[
+    {n:'Trap-bar / conventional DL',kind:'weight',sets:3, rep:[5,5],   rir:3, note:'Rebuild. Film from the side.'},
+    {n:'Romanian deadlift',        kind:'weight', sets:3, rep:[8,8],   rir:2, note:'Full ROM.'},
+    {n:'45° back extension',  kind:'weight', sets:3, rep:[10,15], rir:1},
+    {n:'Suitcase carry',           kind:'distance',sets:3, note:'Per side, 30m.'},
+    {n:'McGill Big 3',             kind:'rounds', sets:2},
+    {n:'Dead hang',                kind:'time',   sets:2, note:'Build to 60s.'}
+  ]},
+  'upper-pull':{ name:'Upper Pull', day:'Wed', ex:[
+    {n:'Pull-up (EMOM 10×3)', kind:'weight', sets:1, rep:[30,30],rir:null, note:'Log total reps for the EMOM.'},
+    {n:'Chin-up',                  kind:'weight', sets:3, rep:[5,10],  rir:2, note:'Bodyweight = 0kg, or added kg.'},
+    {n:'Chest-supported row',      kind:'weight', sets:3, rep:[8,12],  rir:1},
+    {n:'Face pull',                kind:'weight', sets:3, rep:[12,15], rir:1},
+    {n:'Hammer curl',              kind:'weight', sets:3, rep:[10,12], rir:1}
+  ]},
+  'lower-a':{ name:'Lower A — squat', day:'Fri', ex:[
+    {n:'High-bar back squat',      kind:'weight', sets:4, rep:[5,5],   rir:2, note:'The lift being built.'},
+    {n:'Bulgarian split squat',    kind:'weight', sets:3, rep:[8,8],   rir:2, note:'Per leg.'},
+    {n:'Hanging knee/leg raise',   kind:'weight', sets:3, rep:[8,12],  rir:1},
+    {n:'Ab wheel rollout',         kind:'weight', sets:3, rep:[6,10],  rir:1},
+    {n:'Farmer’s carry',      kind:'distance',sets:3, note:'40m.'}
+  ]},
+  'floor':{ name:'Daily floor', day:'Any', ex:[
+    {n:'Knee-to-wall L (cm)',      kind:'weight', sets:1, rep:[1,1], rir:null, note:'Log cm in the kg field.'},
+    {n:'Knee-to-wall R (cm)',      kind:'weight', sets:1, rep:[1,1], rir:null},
+    {n:'Deep squat hold',          kind:'time',   sets:1},
+    {n:'Pancake — fingertips to floor (cm)', kind:'weight', sets:1, rep:[1,1], rir:null},
+    {n:'Hip flexor ladder',        kind:'time',   sets:1, note:'Note the rung in exercise notes.'},
+    {n:'L-sit',                    kind:'time',   sets:1},
+    {n:'Wall handstand',           kind:'time',   sets:1}
+  ]},
+  'custom':{ name:'Custom', day:'Any', ex:[] }
+};
+
+/* ------------------------------------------------------------- utilities */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+
+function b64enc(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin=''; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function b64dec(b64){
+  const bin = atob(String(b64).replace(/\s/g,''));
+  return new TextDecoder().decode(Uint8Array.from(bin, c=>c.charCodeAt(0)));
+}
+function setSync(cls, msg){
+  const el=$('#sync'); el.className=cls||''; el.textContent=msg;
+}
+
+/* ---------------------------------------------------------- github layer */
+function cfgOk(){
+  const c=S.settings;
+  return !!(c.token && c.owner && c.repo && c.path);
+}
+async function gh(path, opts={}){
+  const c = S.settings;
+  const res = await fetch(`https://api.github.com${path}`, {
+    ...opts,
+    headers:{
+      'Authorization':`Bearer ${c.token}`,
+      'Accept':'application/vnd.github+json',
+      'X-GitHub-Api-Version':'2022-11-28',
+      ...(opts.body ? {'Content-Type':'application/json'} : {}),
+      ...(opts.headers||{})
+    }
+  });
+  if(res.status === 404) return null;
+  if(!res.ok){
+    let detail='';
+    try{ detail = (await res.json()).message || ''; }catch(e){}
+    throw new Error(`${res.status} ${detail}`.trim());
+  }
+  return res.status === 204 ? true : res.json();
+}
+function fileName(s){ return `${s.date}-${s.key}.json`; }
+function filePath(s){ return `${S.settings.path.replace(/^\/|\/$/g,'')}/${fileName(s)}`; }
+
+async function pushSession(s){
+  const c=S.settings, p=filePath(s);
+  let sha;
+  const existing = await gh(`/repos/${c.owner}/${c.repo}/contents/${p}?ref=${encodeURIComponent(c.branch)}`);
+  if(existing && existing.sha) sha = existing.sha;
+  await gh(`/repos/${c.owner}/${c.repo}/contents/${p}`, {
+    method:'PUT',
+    body: JSON.stringify({
+      message:`Training: ${s.name} — ${s.date}`,
+      content: b64enc(JSON.stringify(s, null, 2)),
+      branch: c.branch,
+      ...(sha?{sha}:{})
+    })
+  });
+  return true;
+}
+
+async function flushQueue({quiet=false}={}){
+  if(!cfgOk()){ setSync('bad','no token'); return; }
+  if(!S.queue.length){ if(!quiet) setSync('ok','synced'); return; }
+  setSync('pending', `syncing ${S.queue.length}…`);
+  const rest=[];
+  for(const s of S.queue){
+    try{ await pushSession(s); mergeHistory(s); }
+    catch(e){ rest.push(s); setSync('bad', String(e.message).slice(0,28)); }
+  }
+  S.queue = rest; save();
+  if(!rest.length) setSync('ok','synced');
+  else setSync('pending', `${rest.length} pending`);
+  render();
+}
+
+function mergeHistory(s){
+  S.history = S.history.filter(h => !(h.date===s.date && h.key===s.key));
+  S.history.push(s);
+  S.history.sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0);
+  save();
+}
+
+async function pullHistory(){
+  if(!cfgOk()) return;
+  const c=S.settings;
+  setSync('pending','loading…');
+  try{
+    const list = await gh(`/repos/${c.owner}/${c.repo}/contents/${c.path.replace(/^\/|\/$/g,'')}?ref=${encodeURIComponent(c.branch)}`);
+    if(!list){ S.history=[]; save(); setSync('ok','no log yet'); render(); return; }
+    const files = list.filter(f => f.type==='file' && f.name.endsWith('.json'))
+                      .sort((a,b)=> a.name<b.name?1:-1).slice(0,60);
+    const out=[];
+    for(const f of files){
+      try{
+        const blob = await gh(`/repos/${c.owner}/${c.repo}/contents/${f.path}?ref=${encodeURIComponent(c.branch)}`);
+        out.push(JSON.parse(b64dec(blob.content)));
+      }catch(e){ /* skip unreadable file */ }
+    }
+    S.history = out; S.historyFetched = Date.now(); save();
+    setSync('ok','synced');
+  }catch(e){ setSync('bad', String(e.message).slice(0,28)); }
+  render();
+}
+
+/* ------------------------------------------------------- progression aid */
+function lastFor(exName, beforeDate){
+  for(const h of S.history){
+    if(beforeDate && h.date >= beforeDate) continue;
+    const ex = h.exercises.find(e => e.n === exName);
+    if(ex && ex.sets.some(hasData)) return {date:h.date, ex};
+  }
+  return null;
+}
+const hasData = st => st.kg!=null || st.reps!=null || st.seconds!=null || st.metres!=null || st.rounds!=null;
+
+function summarise(ex){
+  return ex.sets.filter(hasData).map(st=>{
+    if(ex.kind==='time')     return `${st.seconds??'?'}s`;
+    if(ex.kind==='distance') return `${st.kg??'?'}kg×${st.metres??'?'}m`;
+    if(ex.kind==='rounds')   return `${st.rounds??'?'}r`;
+    const rir = st.rir!=null ? ` @${st.rir}` : '';
+    return `${st.kg??0}×${st.reps??'?'}${rir}`;
+  }).join('  ');
+}
+
+/* Double progression: all working sets at top of range with RIR <= target -> +2.5kg */
+function suggestion(tpl, prev){
+  if(!prev || tpl.kind!=='weight' || !tpl.rep || tpl.rir==null) return null;
+  const sets = prev.ex.sets.filter(hasData);
+  if(!sets.length) return null;
+  const top = tpl.rep[1];
+  const allTop = sets.every(st => (st.reps??0) >= top);
+  // RIR at or ABOVE target means there was still room. Hitting the reps at a
+  // lower RIR than prescribed means the load was already too heavy — repeat it.
+  const allRir = sets.every(st => st.rir==null || st.rir >= tpl.rir);
+  const kg = sets.map(st=>st.kg??0).filter(k=>k>0);
+  if(!kg.length) return null;
+  const base = Math.max(...kg);
+  if(allTop && allRir) return {kg: base+2.5, why:`hit ${top} on every set at RIR ${tpl.rir}+`};
+  if(allTop) return {kg: base, why:'reps hit but RIR below target — repeat'};
+  return {kg: base, why:'repeat the load'};
+}
+
+/* Stall / deload watch */
+function deloadWatch(){
+  const flags=[];
+  const mains=['Bench press (heavy)','High-bar back squat','Trap-bar / conventional DL','Overhead press'];
+  for(const m of mains){
+    const hits=[];
+    for(const h of S.history){
+      const ex=h.exercises.find(e=>e.n===m);
+      if(ex && ex.sets.some(hasData)) hits.push(Math.max(...ex.sets.filter(hasData).map(s=>s.kg??0)));
+      if(hits.length===3) break;
+    }
+    if(hits.length===3 && hits[0]===hits[1] && hits[1]===hits[2] && hits[0]>0) flags.push(m);
+  }
+  return flags;
+}
+
+/* -------------------------------------------------------------- session */
+function newSession(key){
+  const t = TEMPLATES[key];
+  return {
+    date: todayISO(), key, name:t.name, bodyweight:null, notes:'',
+    exercises: t.ex.map(e => ({
+      n:e.n, kind:e.kind, note:'', tplNote:e.note||'', rep:e.rep||null, tplRir:e.rir??null,
+      sets: Array.from({length:e.sets||3}, ()=>blankSet(e.kind))
+    }))
+  };
+}
+const blankSet = k => k==='time' ? {seconds:null,done:false}
+                    : k==='distance' ? {kg:null,metres:null,done:false}
+                    : k==='rounds' ? {rounds:null,done:false}
+                    : {kg:null,reps:null,rir:null,done:false};
+
+/* ----------------------------------------------------------------- views */
+let tab='log';
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{ tab=b.dataset.tab;
+    document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+    render(); };
+});
+
+function render(){
+  const v=$('#view');
+  if(tab==='log') v.innerHTML = viewLog();
+  else if(tab==='history') v.innerHTML = viewHistory();
+  else v.innerHTML = viewSettings();
+  wire();
+}
+
+function viewLog(){
+  // Logging must ALWAYS work, token or not. A missing or expired token is a
+  // sync problem, never a reason to block the session in front of you.
+  const warn = cfgOk() ? '' : `<div class="banner warn">No working GitHub token. You can log normally — sessions are held on this phone and pushed once a token is set in <b>Settings</b>.</div>`;
+  if(!S.draft) return warn+queueBanner()+deloadBanner()+pickerHTML();
+
+  const d=S.draft;
+  let h = warn+queueBanner()+deloadBanner();
+  h += `<div class="card">
+    <div class="row"><h3 class="grow">${esc(d.name)}</h3>
+    <button class="btn sm danger" data-act="discard">Discard</button></div>
+    <div class="sub">${esc(d.date)}</div>
+    <label>Bodyweight (kg)</label>
+    <input type="number" inputmode="decimal" step="0.1" data-bw value="${d.bodyweight??''}" placeholder="72.0">
+  </div>`;
+
+  d.exercises.forEach((ex,i)=>{
+    const prev = lastFor(ex.n, d.date);
+    const sug  = suggestion({kind:ex.kind, rep:ex.rep, rir:ex.tplRir}, prev);
+    h += `<div class="card">
+      <div class="row"><h3 class="grow">${esc(ex.n)}</h3>
+      <button class="btn sm" data-act="delex" data-i="${i}">×</button></div>
+      <div class="sub">${ex.rep?`${ex.rep[0]}–${ex.rep[1]} reps`:''}${ex.tplRir!=null?` · RIR ${ex.tplRir}`:''}${ex.tplNote?` · ${esc(ex.tplNote)}`:''}</div>
+      ${setsHTML(ex,i)}
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm" data-act="addset" data-i="${i}">+ set</button>
+        <span class="grow"></span>
+      </div>
+      ${prev?`<div class="hint">Last (${esc(prev.date)}): <b>${esc(summarise(prev.ex))}</b>${sug?` — <span class="sug">${sug.kg}kg</span> <span class="sub">${esc(sug.why)}</span>`:''}</div>`:`<div class="hint">No previous data.</div>`}
+      <label>Notes</label>
+      <input type="text" data-exnote="${i}" value="${esc(ex.note)}" placeholder="cues, pain, how it felt">
+    </div>`;
+  });
+
+  h += `<div class="card">
+    <label>Session notes</label>
+    <textarea data-notes placeholder="Energy, sleep, anything the trainer should know">${esc(d.notes)}</textarea>
+  </div>
+  <div class="card">
+    <div class="row wrap">
+      <input type="text" data-newex placeholder="Add an exercise" class="grow">
+      <button class="btn" data-act="addex">Add</button>
+    </div>
+  </div>
+  <button class="btn primary wide" data-act="finish">Finish session</button>
+  <div class="hint" style="text-align:center;margin:8px 0 30px">Saved on this phone as you type. Pushed to <b>${esc(S.settings.owner)}/${esc(S.settings.repo)}</b> on finish${cfgOk()?'':' — once a token is set'}.</div>`;
+  return h;
+}
+
+function setsHTML(ex,i){
+  const cols = ex.kind==='time' ? '28px 1fr 52px'
+             : ex.kind==='distance' ? '28px 1fr 1fr 52px'
+             : ex.kind==='rounds' ? '28px 1fr 52px'
+             : '28px 1fr 1fr 1fr 52px';
+  const head = ex.kind==='time' ? '<span></span><span>sec</span><span></span>'
+             : ex.kind==='distance' ? '<span></span><span>kg</span><span>m</span><span></span>'
+             : ex.kind==='rounds' ? '<span></span><span>rounds</span><span></span>'
+             : '<span></span><span>kg</span><span>reps</span><span>rir</span><span></span>';
+  let h=`<div class="sets"><div class="sethead" style="grid-template-columns:${cols}">${head}</div>`;
+  ex.sets.forEach((st,j)=>{
+    const f = (k,ph,step) => `<input type="number" inputmode="decimal" step="${step}" data-set="${i}.${j}.${k}" value="${st[k]??''}" placeholder="${ph}">`;
+    let mid;
+    if(ex.kind==='time') mid = f('seconds','0','1');
+    else if(ex.kind==='distance') mid = f('kg','0','0.5')+f('metres','0','1');
+    else if(ex.kind==='rounds') mid = f('rounds','0','1');
+    else mid = f('kg','0','0.5')+f('reps','0','1')+f('rir','','1');
+    h+=`<div class="setrow" style="grid-template-columns:${cols}">
+      <span class="n">${j+1}</span>${mid}
+      <div class="done${st.done?' on':''}" data-act="done" data-i="${i}" data-j="${j}">✓</div>
+    </div>`;
+  });
+  return h+'</div>';
+}
+
+function pickerHTML(){
+  let h=`<div class="card"><h3>Start a session</h3><div class="sub">Pre-filled from programme v2</div></div>`;
+  for(const [k,t] of Object.entries(TEMPLATES)){
+    h+=`<div class="card" data-act="start" data-key="${k}" style="cursor:pointer">
+      <div class="row"><b class="grow">${esc(t.name)}</b><span class="pill">${esc(t.day)}</span></div>
+      <div class="sub">${t.ex.length?esc(t.ex.map(e=>e.n).join(' · ')):'Empty — add your own'}</div>
+    </div>`;
+  }
+  return h;
+}
+function queueBanner(){
+  return S.queue.length ? `<div class="banner warn"><b>${S.queue.length} session${S.queue.length>1?'s':''} not yet on GitHub.</b> Saved on this phone. <button class="btn sm" data-act="retry">Retry now</button></div>` : '';
+}
+function deloadBanner(){
+  const f=deloadWatch();
+  return f.length ? `<div class="banner warn">Stalled 3 sessions running: <b>${f.map(esc).join(', ')}</b>. Deload due — 60–65% for a week.</div>` : '';
+}
+
+function viewHistory(){
+  let h=`<div class="row" style="margin-bottom:11px">
+    <button class="btn grow" data-act="pull">Reload from GitHub</button></div>`;
+  if(!S.history.length) return h+`<div class="empty">No sessions yet.${cfgOk()?' Pull to load, or log one.':' Add a token in Settings first.'}</div>`;
+  h+='<div class="card">';
+  S.history.forEach((s,i)=>{
+    h+=`<div class="hist" data-act="hist" data-i="${i}">
+      <div class="row"><b class="grow">${esc(s.name)}</b><span class="sub">${esc(s.date)}</span></div>
+      <div class="sub">${s.bodyweight?`${s.bodyweight}kg · `:''}${s.exercises.filter(e=>e.sets.some(hasData)).length} exercises</div>
+      <details><summary>detail</summary>
+      ${s.exercises.filter(e=>e.sets.some(hasData)).map(e=>`<div class="hint"><b>${esc(e.n)}</b> ${esc(summarise(e))}${e.note?` — ${esc(e.note)}`:''}</div>`).join('')}
+      ${s.notes?`<div class="hint" style="margin-top:6px">${esc(s.notes)}</div>`:''}
+      </details></div>`;
+  });
+  return h+'</div>';
+}
+
+function viewSettings(){
+  const c=S.settings;
+  return `<div class="card">
+    <h3>GitHub</h3>
+    <div class="sub">Sessions are written as one JSON file each into the repo below.</div>
+    <label>Owner</label><input data-cfg="owner" value="${esc(c.owner)}">
+    <label>Repo</label><input data-cfg="repo" value="${esc(c.repo)}">
+    <label>Branch</label><input data-cfg="branch" value="${esc(c.branch)}">
+    <label>Path</label><input data-cfg="path" value="${esc(c.path)}">
+    <label>Fine-grained token</label>
+    <input data-cfg="token" type="password" value="${esc(c.token)}" placeholder="github_pat_…" autocomplete="off">
+    <div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only — never send it to anyone, including me.</div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary grow" data-act="savecfg">Save</button>
+      <button class="btn" data-act="test">Test</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Data</h3>
+    <div class="sub">${S.history.length} sessions cached · ${S.queue.length} pending upload</div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn grow" data-act="export">Export JSON backup</button>
+    </div>
+    <div class="hint">The repo is the source of truth. This phone holds a cache and any unsynced sessions — that is the only thing a lost phone can lose.</div>
+  </div>`;
+}
+
+/* ------------------------------------------------------------------ wire */
+function wire(){
+  document.querySelectorAll('[data-set]').forEach(el=>{
+    el.oninput = () => {
+      const [i,j,k]=el.dataset.set.split('.');
+      const v = el.value==='' ? null : parseFloat(el.value);
+      S.draft.exercises[i].sets[j][k] = Number.isNaN(v)?null:v;
+      save();
+    };
+  });
+  document.querySelectorAll('[data-exnote]').forEach(el=>{
+    el.oninput = () => { S.draft.exercises[el.dataset.exnote].note = el.value; save(); };
+  });
+  const bw=$('[data-bw]'); if(bw) bw.oninput = () => { S.draft.bodyweight = bw.value===''?null:parseFloat(bw.value); save(); };
+  const nt=$('[data-notes]'); if(nt) nt.oninput = () => { S.draft.notes = nt.value; save(); };
+  document.querySelectorAll('[data-cfg]').forEach(el=>{
+    el.onchange = () => { S.settings[el.dataset.cfg] = el.value.trim(); };
+  });
+
+  document.querySelectorAll('[data-act]').forEach(el=>{
+    el.onclick = async (ev) => {
+      const a=el.dataset.act;
+      if(a==='start'){ S.draft = newSession(el.dataset.key); save(); render(); }
+      else if(a==='discard'){ if(confirm('Discard this session? It has not been saved to GitHub.')){ S.draft=null; save(); render(); } }
+      else if(a==='addset'){ const ex=S.draft.exercises[el.dataset.i]; ex.sets.push(blankSet(ex.kind)); save(); render(); }
+      else if(a==='delex'){ S.draft.exercises.splice(el.dataset.i,1); save(); render(); }
+      else if(a==='done'){ const st=S.draft.exercises[el.dataset.i].sets[el.dataset.j]; st.done=!st.done; save(); render(); }
+      else if(a==='addex'){
+        const inp=$('[data-newex]'); const n=inp.value.trim(); if(!n) return;
+        S.draft.exercises.push({n, kind:'weight', note:'', tplNote:'', rep:null, tplRir:null, sets:[blankSet('weight'),blankSet('weight'),blankSet('weight')]});
+        save(); render();
+      }
+      else if(a==='finish'){
+        const d=S.draft;
+        d.exercises = d.exercises.map(e=>({...e, sets:e.sets.filter(hasData)})).filter(e=>e.sets.length);
+        if(!d.exercises.length && !d.notes){ alert('Nothing logged yet.'); return; }
+        d.savedAt = new Date().toISOString();
+        S.queue.push(d); S.draft=null; save(); render();
+        await flushQueue();
+      }
+      else if(a==='retry'){ await flushQueue(); }
+      else if(a==='pull'){ await pullHistory(); }
+      else if(a==='savecfg'){ save(); setSync('', 'saved'); await flushQueue({quiet:true}); }
+      else if(a==='test'){
+        save();
+        try{
+          const r = await gh(`/repos/${S.settings.owner}/${S.settings.repo}`);
+          if(!r) throw new Error('repo not found');
+          setSync('ok','connected');
+          alert(`Connected to ${r.full_name}\nPrivate: ${r.private}\nWrite access: ${r.permissions?.push ? 'yes' : 'NO — token lacks Contents: write'}`);
+        }catch(e){ setSync('bad','failed'); alert('Failed: '+e.message); }
+      }
+      else if(a==='export'){
+        const blob=new Blob([JSON.stringify({history:S.history,queue:S.queue},null,2)],{type:'application/json'});
+        const u=URL.createObjectURL(blob); const a2=document.createElement('a');
+        a2.href=u; a2.download=`ledger-backup-${todayISO()}.json`; a2.click(); URL.revokeObjectURL(u);
+      }
+      else if(a==='hist'){ el.querySelector('details')?.toggleAttribute('open'); }
+    };
+  });
+}
+
+/* ------------------------------------------------------------------ boot */
+if(S.draft) $('#title').textContent = 'Ledger · in progress';
+setSync(S.queue.length?'pending':'', S.queue.length?`${S.queue.length} pending`:(cfgOk()?'ready':'no token'));
+render();
+if(cfgOk()){
+  flushQueue({quiet:true}).then(()=>{ if(!S.history.length) pullHistory(); });
+}
+window.addEventListener('online', ()=> flushQueue({quiet:true}));
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
