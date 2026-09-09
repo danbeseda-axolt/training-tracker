@@ -33,6 +33,10 @@ Why it is built this way rather than on a hosted database:
 - Flags a deload, with the evidence that raised it
 - Separate **Body** tab for bodyweight on non-training days and the four-weekly
   floor benchmarks from [daily-floor.md](../training/daily-floor.md)
+- **Backdating.** The date field at the top of a session can be set to any past
+  day, for a session you did but never logged. Changing it also moves the window
+  the progression rules read, so a session logged late is progressed against the
+  sessions that actually came before it, not after
 - Works offline; writes to the repo when signal returns
 - Installs to the home screen (PWA)
 

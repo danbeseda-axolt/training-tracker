@@ -669,7 +669,9 @@ function viewLog(){
   h += '<div class="card">'
     + '<div class="row"><h3 class="grow">'+esc(d.name)+'</h3>'
     + '<button class="btn sm danger" data-act="discard">Discard</button></div>'
-    + '<div class="sub">'+esc(d.date)+(d.editing?' · editing a saved session':'')+'</div>'
+    + '<div class="sub">'+(d.editing?'Editing a saved session':'Change the date to log a session you did earlier')+'</div>'
+    + '<label>Date</label>'
+    + '<input type="date" data-date value="'+esc(d.date)+'" max="'+todayISO()+'">'
     + '<label>Bodyweight (kg)</label>'
     + '<input type="number" inputmode="decimal" step="0.1" data-bw value="'+(d.bodyweight??'')+'" placeholder="72.0">'
     + '<label><input type="checkbox" data-deload style="width:auto;margin-right:7px"'+(d.isDeload?' checked':'')+'>This is a deload session</label>'
@@ -893,10 +895,22 @@ function wire(){
   document.querySelectorAll('[data-exnote]').forEach(el=>{
     el.oninput = () => { S.draft.exercises[el.dataset.exnote].note = el.value; save(); };
   });
+  /* Backdating a session has to move the window the rules read, or a session
+     logged late is progressed against sessions that came after it. */
+  const rerec = () => S.draft.exercises.forEach(e=>{
+    e.rec = recommend({n:e.n, kind:e.kind, rep:e.rep, rir:e.tplRir, inc:e.inc}, S.draft.date, S.draft.isDeload);
+  });
+  const dt=$('[data-date]');
+  if(dt) dt.onchange = () => {
+    if(!dt.value) { dt.value = S.draft.date; return; }
+    S.draft.date = dt.value;
+    S.draft.week = weekOf(dt.value);
+    rerec(); save(); render();
+  };
   const bw=$('[data-bw]');    if(bw) bw.oninput = () => { S.draft.bodyweight = num(bw.value); save(); };
   const sr=$('[data-srpe]');  if(sr) sr.oninput = () => { S.draft.sessionRpe = num(sr.value); save(); };
   const nt=$('[data-notes]'); if(nt) nt.oninput = () => { S.draft.notes = nt.value; save(); };
-  const dl=$('[data-deload]');if(dl) dl.onchange = () => { S.draft.isDeload = dl.checked; save(); render(); };
+  const dl=$('[data-deload]');if(dl) dl.onchange = () => { S.draft.isDeload = dl.checked; rerec(); save(); render(); };
   document.querySelectorAll('[data-cfg]').forEach(el=>{
     el.onchange = () => {
       const k=el.dataset.cfg;

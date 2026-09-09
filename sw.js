@@ -1,5 +1,5 @@
 /* Ledger service worker — app shell only. Never caches GitHub API responses. */
-const VERSION = 'ledger-v4';
+const VERSION = 'ledger-v4-1';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
