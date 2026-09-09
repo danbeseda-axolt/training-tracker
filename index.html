@@ -22,7 +22,6 @@ html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--text);
   font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  padding-bottom:env(safe-area-inset-bottom);
   -webkit-text-size-adjust:100%;
 }
 header{
@@ -36,11 +35,11 @@ header h1{font-size:17px; margin:0; flex:1; letter-spacing:-.2px}
 #sync.ok{color:var(--ok)} #sync.pending{color:var(--warn)} #sync.bad{color:var(--bad)}
 nav{display:flex; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:52px; z-index:9}
 nav button{
-  flex:1; padding:11px 4px; background:none; border:none; border-bottom:2px solid transparent;
-  color:var(--dim); font-size:14px; font-family:inherit; cursor:pointer;
+  flex:1; padding:11px 2px; background:none; border:none; border-bottom:2px solid transparent;
+  color:var(--dim); font-size:13.5px; font-family:inherit; cursor:pointer;
 }
 nav button.on{color:var(--text); border-bottom-color:var(--accent); font-weight:600}
-main{padding:14px; max-width:640px; margin:0 auto}
+main{padding:14px; max-width:640px; margin:0 auto; padding-bottom:calc(100px + env(safe-area-inset-bottom))}
 .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:11px}
 .card h3{margin:0 0 3px; font-size:15px}
 .sub{color:var(--dim); font-size:12.5px}
@@ -63,24 +62,47 @@ textarea{min-height:70px; resize:vertical}
 .row.wrap{flex-wrap:wrap}
 .grow{flex:1}
 .sets{margin-top:8px}
-.sethead,.setrow{display:grid; gap:6px; align-items:center; margin-bottom:6px}
-.sethead{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px}
-.setrow input{padding:8px 6px; text-align:center}
-.setrow .n{color:var(--dim); font-size:13px; text-align:center}
-.done{background:var(--chip); border:1px solid var(--line); border-radius:7px; padding:8px 0; cursor:pointer; color:var(--dim); font-size:15px}
+.sethead,.setrow{display:grid; gap:4px; align-items:center; margin-bottom:6px}
+.sethead{font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px; text-align:center}
+.setrow input{padding:9px 2px; text-align:center; font-size:15px}
+.setrow.warm input{opacity:.55}
+.setrow .n{
+  color:var(--dim); font-size:12px; text-align:center; cursor:pointer;
+  border:1px solid transparent; border-radius:6px; padding:7px 0; user-select:none;
+}
+.setrow .n.warm{color:var(--warn); border-color:var(--warn); font-weight:700}
+.stp{
+  background:var(--chip); border:1px solid var(--line); border-radius:7px;
+  padding:9px 0; text-align:center; color:var(--dim); cursor:pointer; user-select:none; font-size:16px;
+}
+.stp:active{background:var(--accent); color:#fff}
+.done{background:var(--chip); border:1px solid var(--line); border-radius:7px; padding:9px 0; cursor:pointer; color:var(--dim); font-size:15px; text-align:center}
 .done.on{color:var(--ok); border-color:var(--ok)}
 .hint{font-size:12px; color:var(--dim); margin-top:6px}
 .hint b{color:var(--text)}
 .sug{color:var(--accent); font-weight:600}
+.plates{font-size:11.5px; color:var(--dim); margin-top:5px; font-variant-numeric:tabular-nums}
 .pill{display:inline-block; font-size:11.5px; padding:2px 8px; border-radius:99px; background:var(--chip); color:var(--dim); margin-right:5px}
+.pill.warn{color:var(--warn)} .pill.ok{color:var(--ok)} .pill.bad{color:var(--bad)}
 .empty{text-align:center; color:var(--dim); padding:30px 10px; font-size:14px}
 .banner{border-radius:10px; padding:10px 12px; font-size:13.5px; margin-bottom:11px}
 .banner.warn{background:rgba(184,134,11,.13); color:var(--warn); border:1px solid rgba(184,134,11,.3)}
 .banner.bad{background:rgba(192,57,43,.12); color:var(--bad); border:1px solid rgba(192,57,43,.3)}
-.hist{border-bottom:1px solid var(--line); padding:10px 0; cursor:pointer}
+.banner.info{background:rgba(47,109,246,.10); color:var(--accent); border:1px solid rgba(47,109,246,.28)}
+.hist{border-bottom:1px solid var(--line); padding:10px 0}
 .hist:last-child{border-bottom:none}
 .hist b{font-size:14.5px}
 details summary{cursor:pointer; font-size:13.5px; color:var(--dim); padding:4px 0}
+#rest{
+  position:fixed; left:0; right:0; bottom:0; z-index:20;
+  background:var(--panel); border-top:1px solid var(--line);
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  display:none; align-items:center; gap:10px;
+}
+#rest.on{display:flex}
+#rest .t{font-size:26px; font-variant-numeric:tabular-nums; font-weight:600; min-width:74px}
+#rest.over .t{color:var(--ok)}
+#rest .who{flex:1; font-size:12.5px; color:var(--dim); line-height:1.25}
 </style>
 </head>
 <body>
@@ -93,25 +115,37 @@ details summary{cursor:pointer; font-size:13.5px; color:var(--dim); padding:4px 
 <nav>
   <button data-tab="log" class="on">Log</button>
   <button data-tab="history">History</button>
+  <button data-tab="body">Body</button>
   <button data-tab="settings">Settings</button>
 </nav>
 
 <main id="view"></main>
 
+<div id="rest">
+  <span class="t" id="restT">0:00</span>
+  <span class="who" id="restWho"></span>
+  <button class="btn sm" data-act="rest30">+30s</button>
+  <button class="btn sm" data-act="restStop">Done</button>
+</div>
+
 <script>
 /* ---------------------------------------------------------------- state */
-const LS = 'ledger_v3';
+const LS = 'ledger_v4', LS_OLD = 'ledger_v3';
 const DEFAULTS = {
-  settings:{ token:'', owner:'danbeseda-axolt', repo:'dan-brain', branch:'main', path:'training/log' },
-  draft:null, queue:[], history:[], historyFetched:0
+  settings:{ token:'', owner:'danbeseda-axolt', repo:'dan-brain', branch:'main',
+             path:'training/log', restOn:true, phase:'cut', deloadWeeks:5 },
+  draft:null, queue:[], bwQueue:[], history:[], bw:[], historyFetched:0
 };
 let S = load();
 
 function load(){
   try{
-    const raw = localStorage.getItem(LS);
+    const raw = localStorage.getItem(LS) || localStorage.getItem(LS_OLD);
     if(!raw) return structuredClone(DEFAULTS);
-    return Object.assign(structuredClone(DEFAULTS), JSON.parse(raw));
+    const prev = JSON.parse(raw);
+    const s = Object.assign(structuredClone(DEFAULTS), prev);
+    s.settings = Object.assign(structuredClone(DEFAULTS.settings), prev.settings||{});
+    return s;
   }catch(e){ return structuredClone(DEFAULTS); }
 }
 function save(){
@@ -120,56 +154,91 @@ function save(){
 }
 
 /* ------------------------------------------------------------ templates */
-/* Programme v2 — see training/programme-v2-draft.md
-   kind: weight (kg/reps/rir) | time (seconds) | distance (kg/metres) | rounds */
+/* Programme v2 — ../training/programme-v2-draft.md, as of 2026-08-30.
+   kind : weight (kg/reps/rir) | reps (a bare count) | time (s) | distance (kg/m) | rounds
+   rep  : [min,max] prescribed range     rir : target reps in reserve
+   inc  : smallest useful load jump      rest: prescribed rest, seconds
+   bar  : bar weight — enables the plate breakdown
+   key  : counts as a main lift for deload trigger D1                        */
 const TEMPLATES = {
   'upper-push':{ name:'Upper Push', day:'Mon', ex:[
-    {n:'Bench press (heavy)',      kind:'weight', sets:4, rep:[5,5],   rir:2, note:'Top set paused 1s. Hold, don’t chase.'},
-    {n:'Overhead press',           kind:'weight', sets:3, rep:[6,8],   rir:2, note:'Strict, standing.'},
-    {n:'Close-grip bench / dip',   kind:'weight', sets:3, rep:[6,8],   rir:2},
-    {n:'Incline DB curl',          kind:'weight', sets:3, rep:[10,12], rir:1, note:'Biceps fresh.'},
-    {n:'Pallof press',             kind:'weight', sets:3, rep:[10,10], rir:2, note:'Per side.'}
+    {n:'Bench press (heavy)', kind:'weight', sets:4, rep:[5,5], rir:2, inc:2.5, rest:180, bar:20, key:true,
+     note:'First set paused 1s. Hold, don’t chase — only add load if a whole session lands at RIR 3–4.'},
+    {n:'Overhead press', kind:'weight', sets:3, rep:[6,8], rir:2, inc:2.5, rest:150, bar:20, key:true, note:'Strict, standing.'},
+    {n:'Weighted dip', kind:'weight', sets:3, rep:[6,8], rir:2, inc:2.5, rest:150, note:'Added kg (0 = bodyweight). Shoulders just below elbows.'},
+    {n:'Incline DB curl', kind:'weight', sets:3, rep:[10,12], rir:1, inc:2, rest:75, note:'Per hand. Biceps fresh.'},
+    {n:'Pallof press', kind:'weight', sets:3, rep:[10,10], rir:2, inc:2.5, rest:60, note:'Per side.'}
   ]},
   'lower-b':{ name:'Lower B — hinge', day:'Tue', ex:[
-    {n:'Trap-bar / conventional DL',kind:'weight',sets:3, rep:[5,5],   rir:3, note:'Rebuild. Film from the side.'},
-    {n:'Romanian deadlift',        kind:'weight', sets:3, rep:[8,8],   rir:2, note:'Full ROM.'},
-    {n:'45° back extension',  kind:'weight', sets:3, rep:[10,15], rir:1},
-    {n:'Suitcase carry',           kind:'distance',sets:3, note:'Per side, 30m.'},
-    {n:'McGill Big 3',             kind:'rounds', sets:2},
-    {n:'Dead hang',                kind:'time',   sets:2, note:'Build to 60s.'}
+    {n:'Trap-bar / conventional DL', kind:'weight', sets:3, rep:[5,5], rir:3, inc:2.5, rest:210, bar:20, key:true,
+     note:'Rebuild from 85–95 kg. Film from the side. Stop on any one-sided pinch.'},
+    {n:'Romanian deadlift', kind:'weight', sets:3, rep:[8,8], rir:2, inc:2.5, rest:150, bar:20, note:'Full ROM.'},
+    {n:'45° back extension', kind:'weight', sets:3, rep:[10,15], rir:1, inc:2.5, rest:90, note:'The missing erector work. Added kg, 0 = bodyweight.'},
+    {n:'Suitcase carry', kind:'distance', sets:3, rest:90, note:'Per side, 30 m.'},
+    {n:'McGill Big 3', kind:'rounds', sets:2, rest:60},
+    {n:'Dead hang', kind:'time', sets:2, rest:90, note:'Build to 60s.'}
   ]},
   'upper-pull':{ name:'Upper Pull', day:'Wed', ex:[
-    {n:'Pull-up (EMOM 10×3)', kind:'weight', sets:1, rep:[30,30],rir:null, note:'Log total reps for the EMOM.'},
-    {n:'Chin-up',                  kind:'weight', sets:3, rep:[5,10],  rir:2, note:'Bodyweight = 0kg, or added kg.'},
-    {n:'Chest-supported row',      kind:'weight', sets:3, rep:[8,12],  rir:1},
-    {n:'Face pull',                kind:'weight', sets:3, rep:[12,15], rir:1},
-    {n:'Hammer curl',              kind:'weight', sets:3, rep:[10,12], rir:1}
+    {n:'Pull-up (EMOM 10×3)', kind:'reps', sets:1, rep:[30,30], rest:0,
+     note:'Log total reps for the whole 10 min. Progress by reps per minute, not by adding minutes.'},
+    {n:'Chin-up', kind:'weight', sets:3, rep:[5,10], rir:2, inc:2.5, rest:150, note:'Added kg, 0 = bodyweight.'},
+    {n:'Single-arm DB row', kind:'weight', sets:3, rep:[8,12], rir:1, inc:2, rest:120, note:'Per side. Hand AND knee on the bench — never bent-over.'},
+    {n:'Face pull', kind:'weight', sets:3, rep:[12,15], rir:1, inc:2.5, rest:75},
+    {n:'Hammer curl', kind:'weight', sets:3, rep:[10,12], rir:1, inc:2, rest:75, note:'Per hand.'}
   ]},
   'lower-a':{ name:'Lower A — squat', day:'Fri', ex:[
-    {n:'High-bar back squat',      kind:'weight', sets:4, rep:[5,5],   rir:2, note:'The lift being built.'},
-    {n:'Bulgarian split squat',    kind:'weight', sets:3, rep:[8,8],   rir:2, note:'Per leg.'},
-    {n:'Hanging knee/leg raise',   kind:'weight', sets:3, rep:[8,12],  rir:1},
-    {n:'Ab wheel rollout',         kind:'weight', sets:3, rep:[6,10],  rir:1},
-    {n:'Farmer’s carry',      kind:'distance',sets:3, note:'40m.'}
+    {n:'High-bar back squat', kind:'weight', sets:4, rep:[5,5], rir:2, inc:2.5, rest:210, bar:20, key:true, note:'The lift being built.'},
+    {n:'Bulgarian split squat', kind:'weight', sets:3, rep:[8,8], rir:2, inc:2, rest:120, note:'Per leg.'},
+    {n:'Hanging knee/leg raise', kind:'weight', sets:3, rep:[8,12], rir:1, inc:2, rest:90, note:'Strict. Added kg, 0 = bodyweight.'},
+    {n:'Ab wheel rollout', kind:'weight', sets:3, rep:[6,10], rir:1, inc:2.5, rest:90, note:'Knees down. Added kg, 0 = bodyweight.'},
+    {n:'Farmer’s carry', kind:'distance', sets:3, rest:90, note:'40 m.'}
   ]},
-  'floor':{ name:'Daily floor', day:'Any', ex:[
-    {n:'Knee-to-wall L (cm)',      kind:'weight', sets:1, rep:[1,1], rir:null, note:'Log cm in the kg field.'},
-    {n:'Knee-to-wall R (cm)',      kind:'weight', sets:1, rep:[1,1], rir:null},
-    {n:'Deep squat hold',          kind:'time',   sets:1},
-    {n:'Pancake — fingertips to floor (cm)', kind:'weight', sets:1, rep:[1,1], rir:null},
-    {n:'Hip flexor ladder',        kind:'time',   sets:1, note:'Note the rung in exercise notes.'},
-    {n:'L-sit',                    kind:'time',   sets:1},
-    {n:'Wall handstand',           kind:'time',   sets:1}
+  'floor':{ name:'Daily floor', day:'Every day', ex:[
+    {n:'Deep squat hold', kind:'time', sets:1, rest:0, note:'Block 1. 90s, broken as needed.'},
+    {n:'Knee-to-wall L (cm)', kind:'reps', sets:1, rest:0, note:'Block 1. Log centimetres.'},
+    {n:'Knee-to-wall R (cm)', kind:'reps', sets:1, rest:0},
+    {n:'Length block A or B', kind:'rounds', sets:1, rest:0, note:'A = posterior, Tue/Thu/Sat. B = anterior hip, Mon/Wed/Fri/Sun. Log 1 when done.'},
+    {n:'Hip flexor ladder', kind:'time', sets:4, rest:45, note:'Mon/Tue/Thu/Sat. Log hold seconds; put the rung in the note.'},
+    {n:'L-sit', kind:'time', sets:5, rest:45, note:'Tue/Thu/Sat. 10–15s per set.'},
+    {n:'Wall handstand', kind:'time', sets:2, rest:60, note:'Mon/Wed/Fri/Sun. Chest to wall, up to 60s.'}
   ]},
   'custom':{ name:'Custom', day:'Any', ex:[] }
 };
+
+/* The programme fixes the deload cadence ("every 4–6 weeks, non-negotiable in a
+   deficit") but not the dose. These three numbers are a proposal, not the
+   coach’s — change them here if he says otherwise. */
+const DELOAD = { loadPct:0.65, resumePct:0.95 };
 
 /* ------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const todayISO = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
-const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const num = v => (v===''||v==null) ? null : (Number.isNaN(parseFloat(v)) ? null : parseFloat(v));
 
+/* ISO Monday of the week containing an ISO date. Weeks are the unit every
+   deload trigger is evaluated over, so they have to agree everywhere.
+   Formatted from local parts, never toISOString — east of UTC that rounds
+   local midnight back into the previous day and labels every week a day
+   early. */
+const localISO = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function weekOf(iso){
+  const d = new Date(iso+'T00:00:00');
+  const dow = (d.getDay()+6)%7;            // Mon = 0
+  d.setDate(d.getDate()-dow);
+  return localISO(d);
+}
+function weeksBetween(aIso,bIso){
+  return Math.round((new Date(bIso+'T00:00:00') - new Date(aIso+'T00:00:00')) / 6048e5);
+}
+function daysAgo(iso){
+  return Math.round((new Date(todayISO()+'T00:00:00') - new Date(iso+'T00:00:00')) / 864e5);
+}
+function median(a){
+  if(!a.length) return null;
+  const s=[...a].sort((x,y)=>x-y), m=s.length>>1;
+  return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+}
 function b64enc(str){
   const bytes = new TextEncoder().encode(str);
   let bin=''; bytes.forEach(b => bin += String.fromCharCode(b));
@@ -179,8 +248,20 @@ function b64dec(b64){
   const bin = atob(String(b64).replace(/\s/g,''));
   return new TextDecoder().decode(Uint8Array.from(bin, c=>c.charCodeAt(0)));
 }
-function setSync(cls, msg){
-  const el=$('#sync'); el.className=cls||''; el.textContent=msg;
+function setSync(cls, msg){ const el=$('#sync'); el.className=cls||''; el.textContent=msg; }
+
+/* Plate breakdown per side. Returns null when the load cannot be made from
+   the plates on hand, which is itself worth knowing before you get under it. */
+const PLATES = [25,20,15,10,5,2.5,1.25];
+function plateBreak(total, bar){
+  if(!bar || total==null || total < bar) return null;
+  if(total === bar) return 'bar only';
+  let side=(total-bar)/2, out=[];
+  for(const p of PLATES){
+    const n = Math.floor(side/p + 1e-9);
+    if(n){ out.push(n>1 ? n+'×'+p : String(p)); side -= n*p; }
+  }
+  return side > 0.01 ? null : out.join(' + ')+' / side';
 }
 
 /* ---------------------------------------------------------- github layer */
@@ -190,10 +271,10 @@ function cfgOk(){
 }
 async function gh(path, opts={}){
   const c = S.settings;
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await fetch('https://api.github.com'+path, {
     ...opts,
     headers:{
-      'Authorization':`Bearer ${c.token}`,
+      'Authorization':'Bearer '+c.token,
       'Accept':'application/vnd.github+json',
       'X-GitHub-Api-Version':'2022-11-28',
       ...(opts.body ? {'Content-Type':'application/json'} : {}),
@@ -204,49 +285,80 @@ async function gh(path, opts={}){
   if(!res.ok){
     let detail='';
     try{ detail = (await res.json()).message || ''; }catch(e){}
-    throw new Error(`${res.status} ${detail}`.trim());
+    throw new Error((res.status+' '+detail).trim());
   }
   return res.status === 204 ? true : res.json();
 }
-function fileName(s){ return `${s.date}-${s.key}.json`; }
-function filePath(s){ return `${S.settings.path.replace(/^\/|\/$/g,'')}/${fileName(s)}`; }
+const dir = () => S.settings.path.replace(/^\/|\/$/g,'');
+function filePath(s){ return dir()+'/'+s.date+'-'+s.key+'.json'; }
 
-async function pushSession(s){
-  const c=S.settings, p=filePath(s);
+async function putFile(p, obj, msg){
+  const c=S.settings;
   let sha;
-  const existing = await gh(`/repos/${c.owner}/${c.repo}/contents/${p}?ref=${encodeURIComponent(c.branch)}`);
+  const existing = await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+p+'?ref='+encodeURIComponent(c.branch));
   if(existing && existing.sha) sha = existing.sha;
-  await gh(`/repos/${c.owner}/${c.repo}/contents/${p}`, {
+  await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+p, {
     method:'PUT',
     body: JSON.stringify({
-      message:`Training: ${s.name} — ${s.date}`,
-      content: b64enc(JSON.stringify(s, null, 2)),
+      message: msg,
+      content: b64enc(JSON.stringify(obj, null, 2)),
       branch: c.branch,
       ...(sha?{sha}:{})
     })
   });
   return true;
 }
+async function getFile(p){
+  const c=S.settings;
+  const blob = await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+p+'?ref='+encodeURIComponent(c.branch));
+  if(!blob || !blob.content) return null;
+  try{ return JSON.parse(b64dec(blob.content)); }catch(e){ return null; }
+}
+const pushSession = s => putFile(filePath(s), s, 'Training: '+s.name+' — '+s.date + (s.deleted?' (deleted)':''));
+
+/* Bodyweight and the floor benchmarks go one file per month rather than one
+   per entry — a year of daily weigh-ins is 12 files, not 365. */
+function bwPath(iso){ return dir()+'/bw-'+iso.slice(0,7)+'.json'; }
+async function pushBw(entry){
+  const p = bwPath(entry.date);
+  const cur = (await getFile(p)) || {month:entry.date.slice(0,7), entries:[]};
+  cur.entries = (cur.entries||[]).filter(e => !(e.date===entry.date && e.type===entry.type));
+  cur.entries.push(entry);
+  cur.entries.sort((a,b)=> a.date<b.date?1:-1);
+  await putFile(p, cur, 'Training: '+(entry.type==='bw'?'bodyweight':'floor benchmark')+' — '+entry.date);
+  return true;
+}
 
 async function flushQueue({quiet=false}={}){
-  if(!cfgOk()){ setSync('bad','no token'); return; }
-  if(!S.queue.length){ if(!quiet) setSync('ok','synced'); return; }
-  setSync('pending', `syncing ${S.queue.length}…`);
-  const rest=[];
+  const total = S.queue.length + S.bwQueue.length;
+  if(!cfgOk()){ if(total) setSync('bad','no token'); return; }
+  if(!total){ if(!quiet) setSync('ok','synced'); return; }
+  setSync('pending','syncing '+total+'…');
+  const restS=[], restB=[];
   for(const s of S.queue){
     try{ await pushSession(s); mergeHistory(s); }
-    catch(e){ rest.push(s); setSync('bad', String(e.message).slice(0,28)); }
+    catch(e){ restS.push(s); setSync('bad', String(e.message).slice(0,28)); }
   }
-  S.queue = rest; save();
-  if(!rest.length) setSync('ok','synced');
-  else setSync('pending', `${rest.length} pending`);
+  for(const b of S.bwQueue){
+    try{ await pushBw(b); mergeBw(b); }
+    catch(e){ restB.push(b); setSync('bad', String(e.message).slice(0,28)); }
+  }
+  S.queue = restS; S.bwQueue = restB; save();
+  const left = restS.length + restB.length;
+  setSync(left?'pending':'ok', left ? left+' pending' : 'synced');
   render();
 }
 
 function mergeHistory(s){
   S.history = S.history.filter(h => !(h.date===s.date && h.key===s.key));
-  S.history.push(s);
+  if(!s.deleted) S.history.push(s);
   S.history.sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0);
+  save();
+}
+function mergeBw(b){
+  S.bw = S.bw.filter(x => !(x.date===b.date && x.type===b.type));
+  S.bw.push(b);
+  S.bw.sort((a,b2)=> a.date<b2.date?1:-1);
   save();
 }
 
@@ -255,95 +367,267 @@ async function pullHistory(){
   const c=S.settings;
   setSync('pending','loading…');
   try{
-    const list = await gh(`/repos/${c.owner}/${c.repo}/contents/${c.path.replace(/^\/|\/$/g,'')}?ref=${encodeURIComponent(c.branch)}`);
-    if(!list){ S.history=[]; save(); setSync('ok','no log yet'); render(); return; }
+    const list = await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+dir()+'?ref='+encodeURIComponent(c.branch));
+    if(!list){ setSync('ok','no log yet'); render(); return; }
     const files = list.filter(f => f.type==='file' && f.name.endsWith('.json'))
-                      .sort((a,b)=> a.name<b.name?1:-1).slice(0,60);
+                      .sort((a,b)=> a.name<b.name?1:-1);
+    const sessions = files.filter(f => !f.name.startsWith('bw-')).slice(0,80);
+    const months   = files.filter(f =>  f.name.startsWith('bw-')).slice(0,18);
     const out=[];
-    for(const f of files){
-      try{
-        const blob = await gh(`/repos/${c.owner}/${c.repo}/contents/${f.path}?ref=${encodeURIComponent(c.branch)}`);
-        out.push(JSON.parse(b64dec(blob.content)));
-      }catch(e){ /* skip unreadable file */ }
+    for(const f of sessions){
+      const j = await getFile(f.path).catch(()=>null);
+      if(j && !j.deleted) out.push(j);
     }
-    S.history = out; S.historyFetched = Date.now(); save();
+    const bw=[];
+    for(const f of months){
+      const j = await getFile(f.path).catch(()=>null);
+      if(j && Array.isArray(j.entries)) bw.push(...j.entries);
+    }
+    S.history = out;
+    S.bw = bw.sort((a,b)=> a.date<b.date?1:-1);
+    S.historyFetched = Date.now(); save();
     setSync('ok','synced');
   }catch(e){ setSync('bad', String(e.message).slice(0,28)); }
   render();
 }
 
-/* ------------------------------------------------------- progression aid */
-function lastFor(exName, beforeDate){
-  for(const h of S.history){
-    if(beforeDate && h.date >= beforeDate) continue;
-    const ex = h.exercises.find(e => e.n === exName);
-    if(ex && ex.sets.some(hasData)) return {date:h.date, ex};
-  }
-  return null;
-}
+/* ------------------------------------------------------------- analysis */
 const hasData = st => st.kg!=null || st.reps!=null || st.seconds!=null || st.metres!=null || st.rounds!=null;
+/* Warm-ups are excluded from every calculation below. Counting them drags
+   every recommendation down, which is a correctness problem, not a nicety. */
+const working = ex => (ex.sets||[]).filter(st => hasData(st) && !st.warmup);
 
 function summarise(ex){
-  return ex.sets.filter(hasData).map(st=>{
-    if(ex.kind==='time')     return `${st.seconds??'?'}s`;
-    if(ex.kind==='distance') return `${st.kg??'?'}kg×${st.metres??'?'}m`;
-    if(ex.kind==='rounds')   return `${st.rounds??'?'}r`;
-    const rir = st.rir!=null ? ` @${st.rir}` : '';
-    return `${st.kg??0}×${st.reps??'?'}${rir}`;
+  return working(ex).map(st=>{
+    if(ex.kind==='time')     return (st.seconds??'?')+'s';
+    if(ex.kind==='distance') return (st.kg??'?')+'kg×'+(st.metres??'?')+'m';
+    if(ex.kind==='rounds')   return (st.rounds??'?')+'r';
+    if(ex.kind==='reps')     return String(st.reps??'?');
+    return (st.kg??0)+'×'+(st.reps??'?')+(st.rir!=null?' @'+st.rir:'');
   }).join('  ');
 }
 
-/* Double progression: all working sets at top of range with RIR <= target -> +2.5kg */
-function suggestion(tpl, prev){
-  if(!prev || tpl.kind!=='weight' || !tpl.rep || tpl.rir==null) return null;
-  const sets = prev.ex.sets.filter(hasData);
-  if(!sets.length) return null;
-  const top = tpl.rep[1];
-  const allTop = sets.every(st => (st.reps??0) >= top);
-  // RIR at or ABOVE target means there was still room. Hitting the reps at a
-  // lower RIR than prescribed means the load was already too heavy — repeat it.
-  const allRir = sets.every(st => st.rir==null || st.rir >= tpl.rir);
-  const kg = sets.map(st=>st.kg??0).filter(k=>k>0);
-  if(!kg.length) return null;
-  const base = Math.max(...kg);
-  if(allTop && allRir) return {kg: base+2.5, why:`hit ${top} on every set at RIR ${tpl.rir}+`};
-  if(allTop) return {kg: base, why:'reps hit but RIR below target — repeat'};
-  return {kg: base, why:'repeat the load'};
+/* Epley, extended by RIR so a set stopped short still estimates honestly.
+   Degrades badly past ~12 reps, so D1 only reads the main lifts. */
+function e1rm(kg, reps, rir){
+  if(!kg || !reps) return null;
+  const eff = reps + (rir??0);
+  if(eff > 12) return null;
+  return kg * (1 + eff/30);
+}
+function sessionE1rm(ex){
+  const v = working(ex).map(st => e1rm(st.kg, st.reps, st.rir)).filter(x=>x);
+  return v.length ? Math.max(...v) : null;
 }
 
-/* Stall / deload watch */
-function deloadWatch(){
-  const flags=[];
-  const mains=['Bench press (heavy)','High-bar back squat','Trap-bar / conventional DL','Overhead press'];
-  for(const m of mains){
-    const hits=[];
-    for(const h of S.history){
-      const ex=h.exercises.find(e=>e.n===m);
-      if(ex && ex.sets.some(hasData)) hits.push(Math.max(...ex.sets.filter(hasData).map(s=>s.kg??0)));
-      if(hits.length===3) break;
-    }
-    if(hits.length===3 && hits[0]===hits[1] && hits[1]===hits[2] && hits[0]>0) flags.push(m);
+function lastFor(exName, beforeDate){
+  for(const h of S.history){
+    if(beforeDate && h.date >= beforeDate) continue;
+    if(h.isDeload) continue;              // deload numbers would poison the next call
+    const ex = (h.exercises||[]).find(e => e.n === exName);
+    if(ex && working(ex).length) return {date:h.date, ex, session:h};
   }
-  return flags;
+  return null;
+}
+function lastRules(exName, n){
+  const out=[];
+  for(const h of S.history){
+    const d = (h.decisions||[]).find(x => x.ex === exName);
+    if(d){ out.push(d.rule); if(out.length===n) break; }
+  }
+  return out;
 }
 
-/* -------------------------------------------------------------- session */
-function newSession(key){
+/* Rules are evaluated in order and the first match wins. R3 is the catch-all
+   so no session falls through unhandled. */
+function recommend(tpl, beforeDate, deloadOn){
+  if(tpl.kind!=='weight' || !tpl.rep || tpl.rir==null) return null;
+  if(deloadOn){
+    const prev = lastFor(tpl.n, beforeDate);
+    if(!prev) return null;
+    const base = Math.max(...working(prev.ex).map(s=>s.kg??0));
+    return {rule:'R6', kg: Math.round(base*DELOAD.loadPct/2.5)*2.5, reps:tpl.rep[0],
+            why:'Deload week — '+Math.round(DELOAD.loadPct*100)+'% for '+tpl.rep[0]+'. Should feel easy.'};
+  }
+  const prev = lastFor(tpl.n, beforeDate);
+  if(!prev) return null;
+  const sets = working(prev.ex);
+  if(!sets.length) return null;
+
+  const base = Math.max(...sets.map(s=>s.kg??0));
+  const inc  = tpl.inc || 2.5;
+  const top  = tpl.rep[1], bot = tpl.rep[0];
+  const target = prev.ex.targetSets || sets.length;
+  const mRir = median(sets.map(s=>s.rir).filter(r=>r!=null));
+
+  if(sets.length < target)
+    return {rule:'R0', kg:base, reps:top, why:'Last session was cut short — same again.'};
+
+  const r5 = lastRules(tpl.n, 2);
+  if(r5.length===2 && r5[0]==='R4' && r5[1]==='R4')
+    return {rule:'R5', kg: Math.round(base*0.9/inc)*inc, reps:bot, why:'Stalled twice. Down 10% to rebuild.'};
+
+  const allTop = sets.every(s => (s.reps??0) >= top);
+  /* RIR at or above the prescribed target means there was room left. Hitting
+     the reps at a lower RIR means the load was already too heavy — repeat it. */
+  const hadRoom = mRir==null ? false : mRir >= tpl.rir;
+
+  if(allTop && hadRoom){
+    /* One increment on a light dumbbell can be a 20% jump, so cap by rep
+       extension rather than by load — a percentage cap would deadlock. */
+    if(base>0 && inc/base > 0.10)
+      return {rule:'R1b', kg:base, reps:top+1,
+              why:'Topped the range, but +'+inc+'kg is over 10% here. Add a rep first.'};
+    return {rule:'R1', kg:base+inc, reps:bot, why:'Topped the range at RIR '+tpl.rir+'+. Up '+inc+' kg.'};
+  }
+  if(allTop)
+    return {rule:'R2', kg:base, reps:top, why:'Topped the range but nothing left. Same weight — own it first.'};
+
+  const below = sets.filter(s => (s.reps??0) < bot).length;
+  if(below >= 2)
+    return {rule:'R4', kg:base, reps:bot, why:'Two or more sets below range. Same weight again.'};
+
+  return {rule:'R3', kg:base, reps:Math.min(top, (Math.min(...sets.map(s=>s.reps??0)))+1),
+          why:'Same weight. Add a rep to the weakest set.'};
+}
+
+/* ---------------------------------------------------------- deload check */
+function weeksSinceDeload(){
+  const d = S.history.find(h => h.isDeload);
+  const first = S.history[S.history.length-1];
+  const from = d ? d.date : (first ? first.date : null);
+  return from ? weeksBetween(weekOf(from), weekOf(todayISO())) : 0;
+}
+function sessionsInWeek(w){ return S.history.filter(h => weekOf(h.date)===w && !h.isDeload); }
+
+function deloadCheck(){
+  const codes=[];
+  const thisWeek = weekOf(todayISO());
+  const prevWeek = S.history.length ? weekOf(S.history[0].date) : thisWeek;
+  const wk = sessionsInWeek(thisWeek).length ? thisWeek : prevWeek;
+  const week = sessionsInWeek(wk);
+
+  /* Cadence. This one is the coach’s, not a proposal: programme v2 says
+     every 4–6 weeks and non-negotiable in a deficit. */
+  const wsd = weeksSinceDeload();
+  if(S.history.length && wsd >= S.settings.deloadWeeks)
+    codes.push({c:'CADENCE', sev:'severe', t:wsd+' weeks since the last deload. Programme says every 4–6.'});
+
+  /* D1 — estimated 1RM regression on the main lifts. */
+  const keys=[]; for(const t of Object.values(TEMPLATES)) for(const e of t.ex) if(e.key) keys.push(e.n);
+  let regressed=[];
+  for(const k of [...new Set(keys)]){
+    const series = S.history.filter(h=>!h.isDeload)
+      .map(h => { const ex=(h.exercises||[]).find(e=>e.n===k); return ex?{d:h.date, v:sessionE1rm(ex)}:null; })
+      .filter(x=>x && x.v);
+    if(series.length < 5) continue;
+    const recent = median(series.slice(0,3).map(x=>x.v));
+    const older  = series.filter(x => daysAgo(x.d) <= 42).slice(3).map(x=>x.v);
+    if(!older.length) continue;
+    if(recent < Math.max(...older) * 0.95) regressed.push(k);
+  }
+  if(regressed.length >= 2)
+    codes.push({c:'D1', sev:'severe', t:'Estimated 1RM down over 5% on '+regressed.join(' and ')+'.'});
+
+  /* D2 — RIR compression against the programme’s own targets. */
+  let compressed=0;
+  for(const h of week) for(const ex of (h.exercises||[])){
+    if(ex.tplRir==null) continue;
+    const m = median(working(ex).map(s=>s.rir).filter(r=>r!=null));
+    if(m!=null && m <= ex.tplRir - 1.5) compressed++;
+  }
+  if(compressed >= 3)
+    codes.push({c:'D2', sev:'severe', t:'Sets landing 1.5 RIR harder than prescribed on '+compressed+' exercises.'});
+
+  /* D3 — rep failure rate, counted over sets actually logged. */
+  let tot=0, miss=0;
+  for(const h of week) for(const ex of (h.exercises||[])){
+    if(!ex.rep || ex.kind!=='weight') continue;
+    for(const s of working(ex)){ tot++; if((s.reps??0) < ex.rep[0]) miss++; }
+  }
+  if(tot >= 6 && miss/tot >= 0.30)
+    codes.push({c:'D3', sev:'mod', t:Math.round(miss/tot*100)+'% of working sets fell below the rep range.'});
+
+  /* D4 — whole-session effort, Borg CR10. A different scale from set RIR,
+     which is why it lives in its own field. */
+  const rpes = week.map(h=>h.sessionRpe).filter(v=>v!=null);
+  if(rpes.length >= 2 && rpes.reduce((a,b)=>a+b,0)/rpes.length >= 9)
+    codes.push({c:'D4', sev:'mod', t:'Session RPE averaging 9+ this week.'});
+
+  /* D5 — attendance. Informational only: missing sessions reduces fatigue,
+     so it is context for the others, never evidence on its own. */
+  if(S.history.length >= 4 && week.length && week.length <= 2)
+    codes.push({c:'D5', sev:'info', t:'Only '+week.length+' of 4 sessions logged this week.'});
+
+  /* D6 — bodyweight drop. Off while the block is a deliberate cut. */
+  if(S.settings.phase !== 'cut'){
+    const w = S.bw.filter(b=>b.type==='bw' && b.kg);
+    const recent = w.filter(b=>daysAgo(b.date)<=7).map(b=>b.kg);
+    const before = w.filter(b=>daysAgo(b.date)>7 && daysAgo(b.date)<=14).map(b=>b.kg);
+    if(recent.length>=3 && before.length>=3){
+      const a=median(before), b=median(recent);
+      if(b < a*0.98) codes.push({c:'D6', sev:'mod', t:'Bodyweight down over 2% in a week outside a cut.'});
+    }
+  }
+
+  const severe = codes.filter(x=>x.sev==='severe');
+  const mods   = codes.filter(x=>x.sev==='mod');
+  return { codes, fire: severe.length>=1 || mods.length>=2 };
+}
+
+/* --------------------------------------------------------------- session */
+const blankSet = k => k==='time' ? {seconds:null,done:false,warmup:false}
+                    : k==='distance' ? {kg:null,metres:null,done:false,warmup:false}
+                    : k==='rounds' ? {rounds:null,done:false,warmup:false}
+                    : k==='reps' ? {reps:null,done:false,warmup:false}
+                    : {kg:null,reps:null,rir:null,done:false,warmup:false};
+
+function newSession(key, isDeload){
   const t = TEMPLATES[key];
+  const date = todayISO();
   return {
-    date: todayISO(), key, name:t.name, bodyweight:null, notes:'',
-    exercises: t.ex.map(e => ({
-      n:e.n, kind:e.kind, note:'', tplNote:e.note||'', rep:e.rep||null, tplRir:e.rir??null,
-      sets: Array.from({length:e.sets||3}, ()=>blankSet(e.kind))
-    }))
+    date, key, name:t.name, week:weekOf(date), bodyweight:null, sessionRpe:null,
+    isDeload: !!isDeload, notes:'', startedAt:new Date().toISOString(),
+    exercises: t.ex.map(e => {
+      const tpl = {...e};
+      const rec = recommend(tpl, date, isDeload);
+      const sets = Array.from({length:e.sets||3}, ()=>blankSet(e.kind));
+      /* Load and reps pre-fill from the recommendation; effort never does.
+         A pre-filled RIR saved untouched is a copy, not an observation, and
+         every rule above reads RIR. */
+      if(rec && e.kind==='weight') sets.forEach(s => { s.kg = rec.kg; s.reps = rec.reps; });
+      return {
+        n:e.n, kind:e.kind, note:'', tplNote:e.note||'', rep:e.rep||null,
+        tplRir:e.rir??null, inc:e.inc??null, rest:e.rest??null, bar:e.bar??null,
+        key:!!e.key, targetSets:e.sets||3, substitutedFor:null, rec:rec||null, sets
+      };
+    }),
+    decisions:[]
   };
 }
-const blankSet = k => k==='time' ? {seconds:null,done:false}
-                    : k==='distance' ? {kg:null,metres:null,done:false}
-                    : k==='rounds' ? {rounds:null,done:false}
-                    : {kg:null,reps:null,rir:null,done:false};
 
-/* ----------------------------------------------------------------- views */
+/* --------------------------------------------------------- the rest timer */
+let restIv=null, restEnd=0, restWho='';
+function fmt(sec){ const s=Math.abs(sec); return (sec<0?'+':'')+Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function startRest(sec, who){
+  if(!S.settings.restOn || !sec) return;
+  restEnd = Date.now()+sec*1000; restWho = who;
+  $('#rest').classList.add('on');
+  tickRest();
+  clearInterval(restIv); restIv = setInterval(tickRest, 250);
+}
+function tickRest(){
+  const left = Math.round((restEnd-Date.now())/1000);
+  $('#restT').textContent = fmt(left);
+  $('#restWho').textContent = restWho;
+  const over = left<=0;
+  $('#rest').classList.toggle('over', over);
+  if(over && left>-1 && navigator.vibrate) navigator.vibrate([120,80,120]);
+  if(left < -180) stopRest();
+}
+function stopRest(){ clearInterval(restIv); restIv=null; $('#rest').classList.remove('on','over'); }
+
+/* ------------------------------------------------------------------ views */
 let tab='log';
 document.querySelectorAll('nav button').forEach(b=>{
   b.onclick=()=>{ tab=b.dataset.tab;
@@ -355,144 +639,246 @@ function render(){
   const v=$('#view');
   if(tab==='log') v.innerHTML = viewLog();
   else if(tab==='history') v.innerHTML = viewHistory();
+  else if(tab==='body') v.innerHTML = viewBody();
   else v.innerHTML = viewSettings();
   wire();
 }
 
+function queueBanner(){
+  const n = S.queue.length + S.bwQueue.length;
+  return n ? '<div class="banner warn"><b>'+n+' item'+(n>1?'s':'')+' not yet on GitHub.</b> Held on this phone. <button class="btn sm" data-act="retry">Retry now</button></div>' : '';
+}
+function deloadBanner(){
+  const r = deloadCheck();
+  if(!r.codes.length) return '';
+  const list = r.codes.map(c=>'<div class="hint">· '+esc(c.t)+' <span class="pill'+(c.sev==='severe'?' bad':c.sev==='mod'?' warn':'')+'">'+c.c+'</span></div>').join('');
+  const head = r.fire
+    ? '<b>Deload due.</b> '+Math.round(DELOAD.loadPct*100)+'% of working load at the bottom of each rep range, one week, then resume at '+Math.round(DELOAD.resumePct*100)+'%.'
+    : '<b>Watch.</b> Not enough to call a deload yet.';
+  return '<div class="banner '+(r.fire?'bad':'warn')+'">'+head+list+'</div>';
+}
+
 function viewLog(){
-  // Logging must ALWAYS work, token or not. A missing or expired token is a
-  // sync problem, never a reason to block the session in front of you.
-  const warn = cfgOk() ? '' : `<div class="banner warn">No working GitHub token. You can log normally — sessions are held on this phone and pushed once a token is set in <b>Settings</b>.</div>`;
+  /* Logging must always work, token or not. A missing token is a sync
+     problem, never a reason to block the session in front of you. */
+  const warn = cfgOk() ? '' : '<div class="banner warn">No GitHub token. You can log normally — sessions are held on this phone and pushed once a token is set in <b>Settings</b>.</div>';
   if(!S.draft) return warn+queueBanner()+deloadBanner()+pickerHTML();
 
   const d=S.draft;
   let h = warn+queueBanner()+deloadBanner();
-  h += `<div class="card">
-    <div class="row"><h3 class="grow">${esc(d.name)}</h3>
-    <button class="btn sm danger" data-act="discard">Discard</button></div>
-    <div class="sub">${esc(d.date)}</div>
-    <label>Bodyweight (kg)</label>
-    <input type="number" inputmode="decimal" step="0.1" data-bw value="${d.bodyweight??''}" placeholder="72.0">
-  </div>`;
+  h += '<div class="card">'
+    + '<div class="row"><h3 class="grow">'+esc(d.name)+'</h3>'
+    + '<button class="btn sm danger" data-act="discard">Discard</button></div>'
+    + '<div class="sub">'+esc(d.date)+(d.editing?' · editing a saved session':'')+'</div>'
+    + '<label>Bodyweight (kg)</label>'
+    + '<input type="number" inputmode="decimal" step="0.1" data-bw value="'+(d.bodyweight??'')+'" placeholder="72.0">'
+    + '<label><input type="checkbox" data-deload style="width:auto;margin-right:7px"'+(d.isDeload?' checked':'')+'>This is a deload session</label>'
+    + '</div>';
 
   d.exercises.forEach((ex,i)=>{
     const prev = lastFor(ex.n, d.date);
-    const sug  = suggestion({kind:ex.kind, rep:ex.rep, rir:ex.tplRir}, prev);
-    h += `<div class="card">
-      <div class="row"><h3 class="grow">${esc(ex.n)}</h3>
-      <button class="btn sm" data-act="delex" data-i="${i}">×</button></div>
-      <div class="sub">${ex.rep?`${ex.rep[0]}–${ex.rep[1]} reps`:''}${ex.tplRir!=null?` · RIR ${ex.tplRir}`:''}${ex.tplNote?` · ${esc(ex.tplNote)}`:''}</div>
-      ${setsHTML(ex,i)}
-      <div class="row" style="margin-top:8px">
-        <button class="btn sm" data-act="addset" data-i="${i}">+ set</button>
-        <span class="grow"></span>
-      </div>
-      ${prev?`<div class="hint">Last (${esc(prev.date)}): <b>${esc(summarise(prev.ex))}</b>${sug?` — <span class="sug">${sug.kg}kg</span> <span class="sub">${esc(sug.why)}</span>`:''}</div>`:`<div class="hint">No previous data.</div>`}
-      <label>Notes</label>
-      <input type="text" data-exnote="${i}" value="${esc(ex.note)}" placeholder="cues, pain, how it felt">
-    </div>`;
+    const rec  = ex.rec;
+    /* Plate breakdown follows the working load, not a heavy warm-up. */
+    const topKg = Math.max(0, ...(ex.sets||[]).filter(s=>!s.warmup).map(s=>s.kg??0));
+    const pb = ex.bar ? plateBreak(topKg, ex.bar) : null;
+    h += '<div class="card">'
+      + '<div class="row"><h3 class="grow">'+esc(ex.n)+'</h3>'
+      + '<button class="btn sm" data-act="swap" data-i="'+i+'">swap</button>'
+      + '<button class="btn sm" data-act="delex" data-i="'+i+'">×</button></div>'
+      + '<div class="sub">'
+        + (ex.rep? (ex.rep[0]===ex.rep[1] ? ex.rep[0]+' reps' : ex.rep[0]+'–'+ex.rep[1]+' reps') : '')
+        + (ex.tplRir!=null?' · RIR '+ex.tplRir:'')
+        + (ex.rest?' · rest '+ex.rest+'s':'')
+        + (ex.substitutedFor?' · <b>swapped in for '+esc(ex.substitutedFor)+'</b>':'')
+        + (ex.tplNote?' · '+esc(ex.tplNote):'')
+      + '</div>'
+      + setsHTML(ex,i)
+      + '<div class="row" style="margin-top:8px">'
+      + '<button class="btn sm" data-act="addset" data-i="'+i+'">+ set</button>'
+      + (ex.rest?'<button class="btn sm" data-act="restnow" data-i="'+i+'">rest '+ex.rest+'s</button>':'')
+      + '<span class="grow"></span></div>'
+      + (pb?'<div class="plates">'+topKg+' kg = '+esc(pb)+'</div>':'')
+      + (prev
+          ? '<div class="hint">Last ('+esc(prev.date)+'): <b>'+esc(summarise(prev.ex))+'</b></div>'
+          : '<div class="hint">No previous data — nothing to progress from yet.</div>')
+      + (rec
+          ? '<div class="hint"><span class="sug">'+(rec.kg!=null?rec.kg+' kg':'')+(rec.reps?' × '+rec.reps:'')+'</span> <span class="pill">'+rec.rule+'</span> '+esc(rec.why)+'</div>'
+          : '')
+      + '<label>Notes</label>'
+      + '<input type="text" data-exnote="'+i+'" value="'+esc(ex.note)+'" placeholder="cues, pain, how it felt">'
+      + '</div>';
   });
 
-  h += `<div class="card">
-    <label>Session notes</label>
-    <textarea data-notes placeholder="Energy, sleep, anything the trainer should know">${esc(d.notes)}</textarea>
-  </div>
-  <div class="card">
-    <div class="row wrap">
-      <input type="text" data-newex placeholder="Add an exercise" class="grow">
-      <button class="btn" data-act="addex">Add</button>
-    </div>
-  </div>
-  <button class="btn primary wide" data-act="finish">Finish session</button>
-  <div class="hint" style="text-align:center;margin:8px 0 30px">Saved on this phone as you type. Pushed to <b>${esc(S.settings.owner)}/${esc(S.settings.repo)}</b> on finish${cfgOk()?'':' — once a token is set'}.</div>`;
+  h += '<div class="card">'
+    + '<label>Session RPE — the whole session, 0–10 (Borg CR10)</label>'
+    + '<input type="number" inputmode="decimal" step="0.5" min="0" max="10" data-srpe value="'+(d.sessionRpe??'')+'" placeholder="7">'
+    + '<label>Session notes</label>'
+    + '<textarea data-notes placeholder="Energy, sleep, anything the trainer should know">'+esc(d.notes)+'</textarea>'
+    + '</div>'
+    + '<div class="card"><div class="row wrap">'
+    + '<input type="text" data-newex placeholder="Add an exercise" class="grow">'
+    + '<button class="btn" data-act="addex">Add</button></div></div>'
+    + '<button class="btn primary wide" data-act="finish">Finish session</button>'
+    + '<div class="hint" style="text-align:center;margin:8px 0 20px">Saved to this phone as you type. Pushed to <b>'
+    + esc(S.settings.owner)+'/'+esc(S.settings.repo)+'</b> on finish'+(cfgOk()?'':' — once a token is set')+'.</div>';
   return h;
 }
 
 function setsHTML(ex,i){
-  const cols = ex.kind==='time' ? '28px 1fr 52px'
-             : ex.kind==='distance' ? '28px 1fr 1fr 52px'
-             : ex.kind==='rounds' ? '28px 1fr 52px'
-             : '28px 1fr 1fr 1fr 52px';
-  const head = ex.kind==='time' ? '<span></span><span>sec</span><span></span>'
-             : ex.kind==='distance' ? '<span></span><span>kg</span><span>m</span><span></span>'
-             : ex.kind==='rounds' ? '<span></span><span>rounds</span><span></span>'
-             : '<span></span><span>kg</span><span>reps</span><span>rir</span><span></span>';
-  let h=`<div class="sets"><div class="sethead" style="grid-template-columns:${cols}">${head}</div>`;
+  const w = ex.kind==='weight';
+  const cols = ex.kind==='time' ? '30px 1fr 44px'
+             : ex.kind==='distance' ? '30px 1fr 1fr 44px'
+             : ex.kind==='rounds' || ex.kind==='reps' ? '30px 1fr 44px'
+             : '30px 30px 1fr 30px 1fr 42px 42px';
+  const head = ex.kind==='time' ? '<span>set</span><span>sec</span><span></span>'
+             : ex.kind==='distance' ? '<span>set</span><span>kg</span><span>m</span><span></span>'
+             : ex.kind==='rounds' ? '<span>set</span><span>rounds</span><span></span>'
+             : ex.kind==='reps' ? '<span>set</span><span>reps</span><span></span>'
+             : '<span>set</span><span></span><span>kg</span><span></span><span>reps</span><span>rir</span><span></span>';
+  let h='<div class="sets"><div class="sethead" style="grid-template-columns:'+cols+'">'+head+'</div>';
   ex.sets.forEach((st,j)=>{
-    const f = (k,ph,step) => `<input type="number" inputmode="decimal" step="${step}" data-set="${i}.${j}.${k}" value="${st[k]??''}" placeholder="${ph}">`;
+    const f = (k,ph,step) => '<input type="number" inputmode="decimal" step="'+step+'" data-set="'+i+'.'+j+'.'+k+'" value="'+(st[k]??'')+'" placeholder="'+ph+'">';
     let mid;
     if(ex.kind==='time') mid = f('seconds','0','1');
     else if(ex.kind==='distance') mid = f('kg','0','0.5')+f('metres','0','1');
     else if(ex.kind==='rounds') mid = f('rounds','0','1');
-    else mid = f('kg','0','0.5')+f('reps','0','1')+f('rir','','1');
-    h+=`<div class="setrow" style="grid-template-columns:${cols}">
-      <span class="n">${j+1}</span>${mid}
-      <div class="done${st.done?' on':''}" data-act="done" data-i="${i}" data-j="${j}">✓</div>
-    </div>`;
+    else if(ex.kind==='reps') mid = f('reps','0','1');
+    else mid = '<div class="stp" data-act="step" data-i="'+i+'" data-j="'+j+'" data-k="kg" data-d="-'+(ex.inc||2.5)+'">−</div>'
+             + f('kg','0','0.5')
+             + '<div class="stp" data-act="step" data-i="'+i+'" data-j="'+j+'" data-k="kg" data-d="'+(ex.inc||2.5)+'">+</div>'
+             + f('reps','0','1') + f('rir','','0.5');
+    h+='<div class="setrow'+(st.warmup?' warm':'')+'" style="grid-template-columns:'+cols+'">'
+      + '<div class="n'+(st.warmup?' warm':'')+'" data-act="warm" data-i="'+i+'" data-j="'+j+'">'+(st.warmup?'W':(j+1))+'</div>'
+      + mid
+      + '<div class="done'+(st.done?' on':'')+'" data-act="done" data-i="'+i+'" data-j="'+j+'">✓</div>'
+      + '</div>';
   });
-  return h+'</div>';
+  h += '</div>';
+  if(w) h += '<div class="hint">Tap a set number to mark it a warm-up — warm-ups are excluded from every calculation.</div>';
+  return h;
 }
 
 function pickerHTML(){
-  let h=`<div class="card"><h3>Start a session</h3><div class="sub">Pre-filled from programme v2</div></div>`;
+  const r = deloadCheck();
+  let h='<div class="card"><h3>Start a session</h3><div class="sub">Pre-filled from programme v2'
+       + (r.fire?' · <b>deload week</b>':'')+'</div></div>';
   for(const [k,t] of Object.entries(TEMPLATES)){
-    h+=`<div class="card" data-act="start" data-key="${k}" style="cursor:pointer">
-      <div class="row"><b class="grow">${esc(t.name)}</b><span class="pill">${esc(t.day)}</span></div>
-      <div class="sub">${t.ex.length?esc(t.ex.map(e=>e.n).join(' · ')):'Empty — add your own'}</div>
-    </div>`;
+    h+='<div class="card" data-act="start" data-key="'+k+'" style="cursor:pointer">'
+      +'<div class="row"><b class="grow">'+esc(t.name)+'</b><span class="pill">'+esc(t.day)+'</span></div>'
+      +'<div class="sub">'+(t.ex.length?esc(t.ex.map(e=>e.n).join(' · ')):'Empty — add your own')+'</div>'
+      +'</div>';
   }
   return h;
 }
-function queueBanner(){
-  return S.queue.length ? `<div class="banner warn"><b>${S.queue.length} session${S.queue.length>1?'s':''} not yet on GitHub.</b> Saved on this phone. <button class="btn sm" data-act="retry">Retry now</button></div>` : '';
-}
-function deloadBanner(){
-  const f=deloadWatch();
-  return f.length ? `<div class="banner warn">Stalled 3 sessions running: <b>${f.map(esc).join(', ')}</b>. Deload due — 60–65% for a week.</div>` : '';
-}
 
 function viewHistory(){
-  let h=`<div class="row" style="margin-bottom:11px">
-    <button class="btn grow" data-act="pull">Reload from GitHub</button></div>`;
-  if(!S.history.length) return h+`<div class="empty">No sessions yet.${cfgOk()?' Pull to load, or log one.':' Add a token in Settings first.'}</div>`;
+  let h='<div class="row" style="margin-bottom:11px"><button class="btn grow" data-act="pull">Reload from GitHub</button></div>';
+  if(!S.history.length) return h+'<div class="empty">No sessions yet.'+(cfgOk()?' Pull to load, or log one.':' Add a token in Settings first.')+'</div>';
   h+='<div class="card">';
   S.history.forEach((s,i)=>{
-    h+=`<div class="hist" data-act="hist" data-i="${i}">
-      <div class="row"><b class="grow">${esc(s.name)}</b><span class="sub">${esc(s.date)}</span></div>
-      <div class="sub">${s.bodyweight?`${s.bodyweight}kg · `:''}${s.exercises.filter(e=>e.sets.some(hasData)).length} exercises</div>
-      <details><summary>detail</summary>
-      ${s.exercises.filter(e=>e.sets.some(hasData)).map(e=>`<div class="hint"><b>${esc(e.n)}</b> ${esc(summarise(e))}${e.note?` — ${esc(e.note)}`:''}</div>`).join('')}
-      ${s.notes?`<div class="hint" style="margin-top:6px">${esc(s.notes)}</div>`:''}
-      </details></div>`;
+    const logged = (s.exercises||[]).filter(e=>working(e).length);
+    h+='<div class="hist">'
+      +'<div class="row"><b class="grow">'+esc(s.name)+'</b><span class="sub">'+esc(s.date)+'</span></div>'
+      +'<div class="sub">'+(s.bodyweight?s.bodyweight+'kg · ':'')+logged.length+' exercises'
+        +(s.sessionRpe!=null?' · sRPE '+s.sessionRpe:'')+(s.isDeload?' · <b>deload</b>':'')+'</div>'
+      +'<details>'
+      +'<summary>detail</summary>'
+      + logged.map(e=>'<div class="hint"><b>'+esc(e.n)+'</b> '+esc(summarise(e))
+          +(e.substitutedFor?' <span class="pill">for '+esc(e.substitutedFor)+'</span>':'')
+          +(e.note?' — '+esc(e.note):'')+'</div>').join('')
+      +(s.notes?'<div class="hint" style="margin-top:6px">'+esc(s.notes)+'</div>':'')
+      +((s.decisions||[]).length?'<div class="hint" style="margin-top:6px">'+s.decisions.map(d=>
+          esc(d.ex)+': '+d.rule+' said '+(d.recKg!=null?d.recKg+'kg':'—')+' → <b>'+d.outcome+'</b>').join('<br>')+'</div>':'')
+      +'<div class="row" style="margin-top:9px">'
+        +'<button class="btn sm" data-act="edit" data-i="'+i+'">Edit</button>'
+        +'<button class="btn sm danger" data-act="del" data-i="'+i+'">Delete</button>'
+      +'</div>'
+      +'</details></div>';
   });
   return h+'</div>';
+}
+
+const FLOOR_MARKS = [
+  ['kneeL','Knee-to-wall L (cm)'], ['kneeR','Knee-to-wall R (cm)'],
+  ['squat','Deep squat, longest unbroken (s)'], ['pancake','Pancake — fingertips to floor (cm)'],
+  ['hipRung','Hip flexor rung (1–5)'], ['hipHold','Hip flexor best hold (s)'],
+  ['lsit','L-sit best (s)'], ['handstand','Wall handstand best (s)'], ['hang','Dead hang best (s)']
+];
+
+function viewBody(){
+  const w = S.bw.filter(b=>b.type==='bw' && b.kg);
+  const last7 = w.filter(b=>daysAgo(b.date)<=7).map(b=>b.kg);
+  const prev7 = w.filter(b=>daysAgo(b.date)>7 && daysAgo(b.date)<=14).map(b=>b.kg);
+  const a = median(prev7), b = median(last7);
+  const trend = (a&&b) ? ((b-a)/a*100) : null;
+  const marks = S.bw.filter(x=>x.type==='floor');
+
+  let h = '<div class="card"><h3>Bodyweight</h3>'
+    + '<div class="sub">Logged on rest days too — gaps in the trend line are what make it useless.</div>'
+    + '<label>Weight today (kg)</label>'
+    + '<input type="number" inputmode="decimal" step="0.1" data-bwkg placeholder="72.0">'
+    + '<div class="row" style="margin-top:10px"><button class="btn primary grow" data-act="logbw">Log '+todayISO()+'</button></div>'
+    + (last7.length
+        ? '<div class="hint">7-day median <b>'+b.toFixed(1)+' kg</b> from '+last7.length+' weigh-in'+(last7.length>1?'s':'')
+          + (trend!=null?' · '+(trend>0?'+':'')+trend.toFixed(1)+'% on the week':'')
+          + (S.settings.phase==='cut'?' · target −0.3 to −0.5%/week':'')+'</div>'
+        : '<div class="hint">No weigh-ins in the last 7 days.</div>')
+    + '</div>';
+
+  h += '<div class="card"><h3>Floor benchmark</h3>'
+    + '<div class="sub">Every 4 weeks. These move too slowly to notice by feel.</div>'
+    + FLOOR_MARKS.map(([k,lab]) => '<label>'+esc(lab)+'</label><input type="number" inputmode="decimal" step="0.5" data-mark="'+k+'">').join('')
+    + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="logmark">Save benchmark</button></div>'
+    + '</div>';
+
+  if(marks.length){
+    h += '<div class="card"><h3>Benchmark history</h3>'
+      + marks.slice(0,8).map(m=>'<div class="hist"><b>'+esc(m.date)+'</b><div class="sub">'
+        + FLOOR_MARKS.filter(([k])=>m[k]!=null).map(([k,lab])=>esc(lab.replace(/ \(.*\)/,''))+' '+m[k]).join(' · ')
+        + '</div></div>').join('')
+      + '</div>';
+  }
+  if(w.length){
+    h += '<div class="card"><h3>Weigh-ins</h3>'
+      + w.slice(0,20).map(x=>'<div class="hist"><div class="row"><b class="grow">'+x.kg+' kg</b><span class="sub">'+esc(x.date)+'</span></div></div>').join('')
+      + '</div>';
+  }
+  return h;
 }
 
 function viewSettings(){
   const c=S.settings;
-  return `<div class="card">
-    <h3>GitHub</h3>
-    <div class="sub">Sessions are written as one JSON file each into the repo below.</div>
-    <label>Owner</label><input data-cfg="owner" value="${esc(c.owner)}">
-    <label>Repo</label><input data-cfg="repo" value="${esc(c.repo)}">
-    <label>Branch</label><input data-cfg="branch" value="${esc(c.branch)}">
-    <label>Path</label><input data-cfg="path" value="${esc(c.path)}">
-    <label>Fine-grained token</label>
-    <input data-cfg="token" type="password" value="${esc(c.token)}" placeholder="github_pat_…" autocomplete="off">
-    <div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only — never send it to anyone, including me.</div>
-    <div class="row" style="margin-top:12px">
-      <button class="btn primary grow" data-act="savecfg">Save</button>
-      <button class="btn" data-act="test">Test</button>
-    </div>
-  </div>
-  <div class="card">
-    <h3>Data</h3>
-    <div class="sub">${S.history.length} sessions cached · ${S.queue.length} pending upload</div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn grow" data-act="export">Export JSON backup</button>
-    </div>
-    <div class="hint">The repo is the source of truth. This phone holds a cache and any unsynced sessions — that is the only thing a lost phone can lose.</div>
-  </div>`;
+  return '<div class="card">'
+    + '<h3>GitHub</h3>'
+    + '<div class="sub">Sessions are written as one JSON file each into the repo below.</div>'
+    + '<label>Owner</label><input data-cfg="owner" value="'+esc(c.owner)+'">'
+    + '<label>Repo</label><input data-cfg="repo" value="'+esc(c.repo)+'">'
+    + '<label>Branch</label><input data-cfg="branch" value="'+esc(c.branch)+'">'
+    + '<label>Path</label><input data-cfg="path" value="'+esc(c.path)+'">'
+    + '<label>Fine-grained token</label>'
+    + '<input data-cfg="token" type="password" value="'+esc(c.token)+'" placeholder="github_pat_…" autocomplete="off">'
+    + '<div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only — never send it to anyone, including me.</div>'
+    + '<div class="row" style="margin-top:12px">'
+    + '<button class="btn primary grow" data-act="savecfg">Save</button>'
+    + '<button class="btn" data-act="test">Test</button></div>'
+    + '</div>'
+    + '<div class="card"><h3>Programme</h3>'
+    + '<label>Block goal</label>'
+    + '<select data-cfg="phase">'
+      + ['cut','maintain','gain'].map(p=>'<option value="'+p+'"'+(c.phase===p?' selected':'')+'>'+p+'</option>').join('')
+    + '</select>'
+    + '<div class="hint">On <b>cut</b>, the bodyweight deload trigger is off — otherwise it fires every time you deliberately diet.</div>'
+    + '<label>Deload every N weeks</label>'
+    + '<input type="number" min="3" max="8" data-cfg="deloadWeeks" value="'+c.deloadWeeks+'">'
+    + '<div class="hint">Programme v2 says every 4–6 weeks and non-negotiable in a deficit.</div>'
+    + '<label><input type="checkbox" data-cfg-bool="restOn" style="width:auto;margin-right:7px"'+(c.restOn?' checked':'')+'>Auto-start the rest timer</label>'
+    + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button></div>'
+    + '</div>'
+    + '<div class="card"><h3>Data</h3>'
+    + '<div class="sub">'+S.history.length+' sessions · '+S.bw.length+' body entries · '+(S.queue.length+S.bwQueue.length)+' pending upload</div>'
+    + '<div class="row" style="margin-top:10px"><button class="btn grow" data-act="export">Export JSON backup</button></div>'
+    + '<div class="hint">The repo is the source of truth, and every push is a git commit — an edit never destroys what it replaced. This phone holds a cache and anything unsynced, which is the only thing a lost phone can lose.</div>'
+    + '</div>';
 }
 
 /* ------------------------------------------------------------------ wire */
@@ -500,66 +886,150 @@ function wire(){
   document.querySelectorAll('[data-set]').forEach(el=>{
     el.oninput = () => {
       const [i,j,k]=el.dataset.set.split('.');
-      const v = el.value==='' ? null : parseFloat(el.value);
-      S.draft.exercises[i].sets[j][k] = Number.isNaN(v)?null:v;
+      S.draft.exercises[i].sets[j][k] = num(el.value);
       save();
     };
   });
   document.querySelectorAll('[data-exnote]').forEach(el=>{
     el.oninput = () => { S.draft.exercises[el.dataset.exnote].note = el.value; save(); };
   });
-  const bw=$('[data-bw]'); if(bw) bw.oninput = () => { S.draft.bodyweight = bw.value===''?null:parseFloat(bw.value); save(); };
+  const bw=$('[data-bw]');    if(bw) bw.oninput = () => { S.draft.bodyweight = num(bw.value); save(); };
+  const sr=$('[data-srpe]');  if(sr) sr.oninput = () => { S.draft.sessionRpe = num(sr.value); save(); };
   const nt=$('[data-notes]'); if(nt) nt.oninput = () => { S.draft.notes = nt.value; save(); };
+  const dl=$('[data-deload]');if(dl) dl.onchange = () => { S.draft.isDeload = dl.checked; save(); render(); };
   document.querySelectorAll('[data-cfg]').forEach(el=>{
-    el.onchange = () => { S.settings[el.dataset.cfg] = el.value.trim(); };
+    el.onchange = () => {
+      const k=el.dataset.cfg;
+      S.settings[k] = (k==='deloadWeeks') ? (parseInt(el.value,10)||5) : el.value.trim();
+    };
+  });
+  document.querySelectorAll('[data-cfg-bool]').forEach(el=>{
+    el.onchange = () => { S.settings[el.dataset.cfgBool] = el.checked; save(); };
   });
 
   document.querySelectorAll('[data-act]').forEach(el=>{
-    el.onclick = async (ev) => {
-      const a=el.dataset.act;
-      if(a==='start'){ S.draft = newSession(el.dataset.key); save(); render(); }
-      else if(a==='discard'){ if(confirm('Discard this session? It has not been saved to GitHub.')){ S.draft=null; save(); render(); } }
-      else if(a==='addset'){ const ex=S.draft.exercises[el.dataset.i]; ex.sets.push(blankSet(ex.kind)); save(); render(); }
-      else if(a==='delex'){ S.draft.exercises.splice(el.dataset.i,1); save(); render(); }
-      else if(a==='done'){ const st=S.draft.exercises[el.dataset.i].sets[el.dataset.j]; st.done=!st.done; save(); render(); }
-      else if(a==='addex'){
-        const inp=$('[data-newex]'); const n=inp.value.trim(); if(!n) return;
-        S.draft.exercises.push({n, kind:'weight', note:'', tplNote:'', rep:null, tplRir:null, sets:[blankSet('weight'),blankSet('weight'),blankSet('weight')]});
+    el.onclick = async () => {
+      const a=el.dataset.act, i=el.dataset.i, j=el.dataset.j;
+
+      if(a==='start'){ S.draft = newSession(el.dataset.key, deloadCheck().fire); save(); render(); }
+
+      else if(a==='discard'){
+        if(confirm('Discard this session? It has not been pushed to GitHub.')){ S.draft=null; save(); render(); }
+      }
+      else if(a==='addset'){ const ex=S.draft.exercises[i]; ex.sets.push(blankSet(ex.kind)); save(); render(); }
+      else if(a==='delex'){ S.draft.exercises.splice(i,1); save(); render(); }
+      else if(a==='warm'){
+        const st=S.draft.exercises[i].sets[j]; st.warmup=!st.warmup; save(); render();
+      }
+      else if(a==='step'){
+        const st=S.draft.exercises[i].sets[j], k=el.dataset.k, d=parseFloat(el.dataset.d);
+        st[k] = Math.max(0, Math.round(((st[k]??0)+d)*100)/100); save(); render();
+      }
+      else if(a==='done'){
+        const ex=S.draft.exercises[i], st=ex.sets[j];
+        st.done=!st.done; save(); render();
+        if(st.done && !st.warmup) startRest(ex.rest, ex.n+' · set '+(Number(j)+1)+' done');
+      }
+      else if(a==='restnow'){ const ex=S.draft.exercises[i]; startRest(ex.rest, ex.n); }
+      else if(a==='rest30'){ restEnd += 30000; tickRest(); }
+      else if(a==='restStop'){ stopRest(); }
+
+      else if(a==='swap'){
+        const ex=S.draft.exercises[i];
+        const n = prompt('Swapped in what instead of "'+ex.n+'"?', '');
+        if(!n) return;
+        /* Recorded as a substitution rather than logged under the prescribed
+           name — otherwise the history quietly becomes fiction. */
+        ex.substitutedFor = ex.substitutedFor || ex.n;
+        ex.n = n.trim(); ex.rec = recommend({...ex, n:ex.n}, S.draft.date, S.draft.isDeload);
         save(); render();
       }
+      else if(a==='addex'){
+        const inp=$('[data-newex]'); const n=inp.value.trim(); if(!n) return;
+        S.draft.exercises.push({n, kind:'weight', note:'', tplNote:'', rep:null, tplRir:null,
+          inc:2.5, rest:120, bar:null, key:false, targetSets:3, substitutedFor:null, rec:null,
+          sets:[blankSet('weight'),blankSet('weight'),blankSet('weight')]});
+        save(); render();
+      }
+
       else if(a==='finish'){
         const d=S.draft;
-        d.exercises = d.exercises.map(e=>({...e, sets:e.sets.filter(hasData)})).filter(e=>e.sets.length);
+        /* The decision log: what each rule proposed, and whether it survived
+           contact with the session. Override rate per rule is the only honest
+           signal that a threshold is wrong. */
+        d.decisions = d.exercises.filter(e=>e.rec && working(e).length).map(e=>{
+          const top = Math.max(...working(e).map(s=>s.kg??0));
+          return {ex:e.n, rule:e.rec.rule, recKg:e.rec.kg, actualKg:top,
+                  why:e.rec.why, outcome: (e.rec.kg!=null && Math.abs(top-e.rec.kg)<0.01) ? 'accepted' : 'overridden'};
+        });
+        d.exercises = d.exercises
+          .map(e=>({...e, sets:e.sets.filter(hasData)}))
+          .filter(e=>e.sets.length);
         if(!d.exercises.length && !d.notes){ alert('Nothing logged yet.'); return; }
+        d.endedAt = new Date().toISOString();
         d.savedAt = new Date().toISOString();
-        S.queue.push(d); S.draft=null; save(); render();
+        d.week = weekOf(d.date);
+        delete d.editing;
+        if(d.bodyweight!=null) S.bwQueue.push({type:'bw', date:d.date, kg:d.bodyweight, note:'from session'});
+        S.queue.push(d); S.draft=null; stopRest(); save(); render();
         await flushQueue();
       }
+
+      else if(a==='edit'){
+        if(S.draft && !confirm('Replace the session in progress?')) return;
+        S.draft = {...structuredClone(S.history[i]), editing:true};
+        S.draft.exercises.forEach(e=>{ if(!e.sets.length) e.sets=[blankSet(e.kind)]; });
+        tab='log'; document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='log'));
+        save(); render();
+      }
+      else if(a==='del'){
+        const s=S.history[i];
+        if(!confirm('Delete '+s.name+' on '+s.date+'? The file is marked deleted, and git keeps every earlier version.')) return;
+        S.queue.push({...s, deleted:true, savedAt:new Date().toISOString()});
+        S.history.splice(i,1); save(); render();
+        await flushQueue();
+      }
+
+      else if(a==='logbw'){
+        const v = num($('[data-bwkg]').value);
+        if(v==null){ alert('Enter a weight first.'); return; }
+        S.bwQueue.push({type:'bw', date:todayISO(), kg:v}); save(); render();
+        await flushQueue();
+      }
+      else if(a==='logmark'){
+        const e = {type:'floor', date:todayISO()};
+        let any=false;
+        FLOOR_MARKS.forEach(([k])=>{ const v=num($('[data-mark="'+k+'"]').value); if(v!=null){ e[k]=v; any=true; } });
+        if(!any){ alert('Nothing filled in.'); return; }
+        S.bwQueue.push(e); save(); render();
+        await flushQueue();
+      }
+
       else if(a==='retry'){ await flushQueue(); }
       else if(a==='pull'){ await pullHistory(); }
-      else if(a==='savecfg'){ save(); setSync('', 'saved'); await flushQueue({quiet:true}); }
+      else if(a==='savecfg'){ save(); setSync('','saved'); await flushQueue({quiet:true}); render(); }
       else if(a==='test'){
         save();
         try{
-          const r = await gh(`/repos/${S.settings.owner}/${S.settings.repo}`);
+          const r = await gh('/repos/'+S.settings.owner+'/'+S.settings.repo);
           if(!r) throw new Error('repo not found');
           setSync('ok','connected');
-          alert(`Connected to ${r.full_name}\nPrivate: ${r.private}\nWrite access: ${r.permissions?.push ? 'yes' : 'NO — token lacks Contents: write'}`);
+          alert('Connected to '+r.full_name+'\nPrivate: '+r.private+'\nWrite access: '+(r.permissions&&r.permissions.push?'yes':'NO — token lacks Contents: write'));
         }catch(e){ setSync('bad','failed'); alert('Failed: '+e.message); }
       }
       else if(a==='export'){
-        const blob=new Blob([JSON.stringify({history:S.history,queue:S.queue},null,2)],{type:'application/json'});
+        const blob=new Blob([JSON.stringify({history:S.history,bw:S.bw,queue:S.queue,bwQueue:S.bwQueue},null,2)],{type:'application/json'});
         const u=URL.createObjectURL(blob); const a2=document.createElement('a');
-        a2.href=u; a2.download=`ledger-backup-${todayISO()}.json`; a2.click(); URL.revokeObjectURL(u);
+        a2.href=u; a2.download='ledger-backup-'+todayISO()+'.json'; a2.click(); URL.revokeObjectURL(u);
       }
-      else if(a==='hist'){ el.querySelector('details')?.toggleAttribute('open'); }
     };
   });
 }
 
 /* ------------------------------------------------------------------ boot */
 if(S.draft) $('#title').textContent = 'Ledger · in progress';
-setSync(S.queue.length?'pending':'', S.queue.length?`${S.queue.length} pending`:(cfgOk()?'ready':'no token'));
+const pending = S.queue.length + S.bwQueue.length;
+setSync(pending?'pending':'', pending?pending+' pending':(cfgOk()?'ready':'no token'));
 render();
 if(cfgOk()){
   flushQueue({quiet:true}).then(()=>{ if(!S.history.length) pullHistory(); });
