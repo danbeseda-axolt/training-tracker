@@ -100,6 +100,29 @@ was rebuilt around that one tap.
 
 Bodyweight is no longer asked in a session. It lives on the Body tab.
 
+### Floor and stretching
+
+Every block of [daily-floor.md](../training/daily-floor.md) is in the app as a
+routine: the squat block, length A (posterior chain), length B (anterior hip),
+the hip flexor ladder, handstand, L-sit, and the 5-minute version.
+
+- **Daily floor** on the Log tab builds today's routine from the fixed week
+  in that file: squat block every day, then length A or B, the ladder four
+  days a week, and the skill. Its row shows what today holds.
+- **⋯ → Add floor or stretching**, in any session, adds today's floor or any
+  single block to the end of it. After lifting is fine; the sheet says not to
+  do it before. An exercise already in the session is not added twice.
+- **A prescribed hold is one tap**, like a lift at its target: ✓ on the couch
+  stretch records 60 s. Per-side work is one set per side, so "2 × 30 s per
+  side" is 4 sets.
+- **Skill holds have no fixed dose** (the ladder, L-sit, handstand). The
+  first time, ✓ asks for the seconds. After that the target is last time's
+  typical hold, so a steady day is one tap and a better one is a change in the
+  sheet. Put the ladder rung or the L-sit variation in the note.
+
+Floor and custom sessions never count toward the week's four lifts or the
+deload cadence, and floor work added to a lift session makes no decisions.
+
 ### History
 
 Every session, newest first, with pills for `pending` (not yet on GitHub),

@@ -6,9 +6,9 @@
    As of 2026-09-23. Field meanings are in ../training/log/README.md. */
 
 /** @typedef {{kg?:number|null, reps?:number|null, rir?:number|null, seconds?:number|null, metres?:number|null, rounds?:number|null, band?:string|null, warmup?:boolean, done?:boolean, state?:'planned'|'done'|'legacy', target?:Target|null, doneAt?:string|null, via?:'tick'|'sheet'|'bulk'|null}} LSet */
-/** @typedef {{kg?:number|null, reps?:number|null, metres?:number|null, seconds?:number|null, band?:string|null, src?:string}} Target */
+/** @typedef {{kg?:number|null, reps?:number|null, metres?:number|null, seconds?:number|null, band?:string|null, rounds?:number|null, src?:string}} Target */
 /** @typedef {{rule:string, kg?:number|null, reps?:number|null, band?:string|null, why:string}} Rec */
-/** @typedef {{n:string, kind:string, load?:string, hold?:boolean, dist?:number|null, sets?:number, rep?:number[]|null, rir?:number|null, inc?:number|null, rest?:number|null, bar?:number|null, key?:boolean, note?:string, seed?:Target}} Tpl */
+/** @typedef {{n:string, kind:string, load?:string, hold?:boolean, dist?:number|null, sets?:number, rep?:number[]|null, rir?:number|null, inc?:number|null, rest?:number|null, bar?:number|null, key?:boolean, note?:string, seed?:Target, dose?:number|null, routine?:string}} Tpl */
 /** @typedef {Record<string, any>} Obj */
 
 export const SCHEMA_VERSION = 5;
@@ -78,17 +78,70 @@ export const TEMPLATES = {
     { n: 'Ab wheel rollout', kind: 'weight', load: 'bw', sets: 3, rep: [6, 10], rir: 1, rest: 90, seed: { reps: 6 }, note: 'Knees down. Bodyweight: progress by reps, then a harder variation.' },
     { n: 'Farmer’s carry', kind: 'distance', dist: 40, sets: 3, rest: 90, note: '40 m.' }
   ] },
-  'floor': { name: 'Daily floor', day: 'Every day', ex: [
-    { n: 'Deep squat hold', kind: 'time', sets: 1, rest: 0, note: 'Block 1. 90s, broken as needed.' },
-    { n: 'Knee-to-wall L (cm)', kind: 'reps', sets: 1, rest: 0, note: 'Block 1. Log centimetres.' },
-    { n: 'Knee-to-wall R (cm)', kind: 'reps', sets: 1, rest: 0 },
-    { n: 'Length block A or B', kind: 'rounds', sets: 1, rest: 0, note: 'A = posterior, Tue/Thu/Sat. B = anterior hip, Mon/Wed/Fri/Sun. Log 1 when done.' },
-    { n: 'Hip flexor ladder', kind: 'time', sets: 4, rest: 45, note: 'Mon/Tue/Thu/Sat. Log hold seconds; put the rung in the note.' },
-    { n: 'L-sit', kind: 'time', sets: 5, rest: 45, note: 'Tue/Thu/Sat. 10–15s per set.' },
-    { n: 'Wall handstand', kind: 'time', sets: 2, rest: 60, note: 'Mon/Wed/Fri/Sun. Chest to wall, up to 60s.' }
-  ] },
+  /* Built from ROUTINES for the day of the week: see floorFor(). */
+  'floor': { name: 'Daily floor', day: 'Every day', ex: [] },
   'custom': { name: 'Custom', day: 'Any', ex: [] }
 };
+
+/* Floor and stretching routines: ../training/daily-floor.md, as of 2026-08-30.
+   A routine is one block of that file. The Daily floor session is built from
+   the blocks due that weekday, and any session can add a block from
+   ⋯ → Add floor or stretching (after lifting is fine; before it is not).
+   dose : the prescribed hold in seconds. ✓ records exactly that, the same as
+          ticking a lift at its target. Holds with no fixed dose (the ladder,
+          L-sit, handstand) target last time's typical hold instead, and ask
+          for the seconds the first time.
+   Per-side work is one set per side, so "2 × 30 s / side" is 4 sets.         */
+export const ROUTINES = {
+  'squat-block': { name: 'Squat block', when: 'Every day', ex: [
+    { n: 'Knee-to-wall ankle stretch', kind: 'time', dose: 30, sets: 4, rest: 0, note: '2 × 30 s per side, alternating L and R. Heel stays down: find where it just lifts, back off 1 cm.' },
+    { n: 'Deep squat hold', kind: 'time', dose: 90, sets: 1, rest: 0, note: '90 s, broken as needed. Hands inside the knees pressing out, chest tall. Hold, don’t hang.' },
+    { n: '90/90 hip switches', kind: 'reps', rep: [10, 10], sets: 1, rest: 0, note: '10 per side. Slow, torso tall.' },
+    { n: 'T-spine extension over roller', kind: 'reps', rep: [10, 10], sets: 1, rest: 0, note: 'Ribs down: the movement is upper back, not lower back.' }
+  ] },
+  'length-a': { name: 'Length A — posterior chain', when: 'Tue · Thu · Sat', ex: [
+    { n: 'Pancake passive hold', kind: 'time', dose: 90, sets: 1, rest: 0, note: 'Hinge from the hip with a flat back. Sit on a cushion edge if the low back rounds.' },
+    { n: 'Good morning pancake', kind: 'reps', rep: [10, 10], sets: 2, rest: 0, note: 'Same position, hinge forward and back under control. This is what makes the range stick.' },
+    { n: 'Seated single-leg hamstring hinge', kind: 'time', dose: 45, sets: 2, rest: 0, note: '45 s per side. Chest to knee, not nose to knee. Flat back.' }
+  ] },
+  'length-b': { name: 'Length B — anterior hip', when: 'Mon · Wed · Fri · Sun', ex: [
+    { n: 'Couch stretch', kind: 'time', dose: 60, sets: 2, rest: 0, note: '60 s per side. Ribs down, tailbone tucked, squeeze the rear glute. Without the tuck it stretches your low back.' },
+    { n: 'Half-kneeling hip flexor + reach', kind: 'time', dose: 30, sets: 2, rest: 0, note: '30 s per side. Same tuck, reach the same-side arm overhead and slightly across.' },
+    { n: 'Thread the needle', kind: 'reps', rep: [8, 8], sets: 2, rest: 0, note: '8 per side. T-spine rotation.' }
+  ] },
+  'hip-ladder': { name: 'Hip flexor ladder', when: 'Mon · Tue · Thu · Sat', ex: [
+    { n: 'Hip flexor ladder', kind: 'time', sets: 4, rest: 45, note: 'Hold until form breaks, not to burning. Put the rung (1–5) in the note. Up a rung at 4 × 20 s clean. Low back stays flat.' }
+  ] },
+  'handstand': { name: 'Handstand', when: 'Mon · Wed · Fri · Sun', ex: [
+    { n: 'Wrist prep', kind: 'rounds', sets: 1, rest: 0, note: '60 s: lean back palms down, palms up, knuckle weight shifts, wrist circles.' },
+    { n: 'Wall handstand', kind: 'time', sets: 2, rest: 60, note: 'Chest to wall, max hold up to 60 s. Shoulders fully open, ribs tucked, glutes squeezed.' }
+  ] },
+  'lsit': { name: 'L-sit', when: 'Tue · Thu · Sat', ex: [
+    { n: 'L-sit', kind: 'time', sets: 5, rest: 45, note: '10–15 s at your current variation; put it in the note. Push the shoulders down. At 5 × 15 s move up and reset to 5 s.' }
+  ] },
+  'five-min': { name: '5-minute version', when: 'Short on time', ex: [
+    { n: 'Deep squat hold', kind: 'time', dose: 90, sets: 1, rest: 0, note: '90 s.' },
+    { n: 'Couch stretch', kind: 'time', dose: 60, sets: 2, rest: 0, note: '60 s per side.' },
+    { n: 'Hip flexor ladder', kind: 'time', sets: 2, rest: 45, note: 'Two sets. Put the rung in the note.' }
+  ] }
+};
+
+/* The fixed week from daily-floor.md, so there is nothing to decide: the squat
+   block every day, then length A or B, the ladder four days a week, and the
+   skill. Keys are getDay(): 0 = Sunday. */
+const FLOOR_WEEK = /** @type {Record<number, string[]>} */ ({
+  1: ['length-b', 'hip-ladder', 'handstand'],
+  2: ['length-a', 'hip-ladder', 'lsit'],
+  3: ['length-b', 'handstand'],
+  4: ['length-a', 'hip-ladder', 'lsit'],
+  5: ['length-b', 'handstand'],
+  6: ['length-a', 'hip-ladder', 'lsit'],
+  0: ['length-b', 'handstand']
+});
+/** The routine keys due on a date. @param {string} dateIso @returns {string[]} */
+export function floorFor(dateIso) {
+  return ['squat-block', ...FLOOR_WEEK[new Date(dateIso + 'T00:00:00').getDay()]];
+}
 
 /* Floor and custom sessions are not lifts: they never count toward the week,
    the deload cadence or a deload themselves. */
@@ -485,6 +538,16 @@ export function targets(tpl, history, date, deloadOn) {
     const metres = tpl.dist ?? null;
     return { rec: null, target: kg == null && metres == null ? null : { kg, metres } };
   }
+  if (tpl.kind === 'time') {
+    if (tpl.dose != null) return { rec: null, target: { seconds: tpl.dose, src: 'dose' } };
+    /* A skill hold has no fixed dose: last time's typical hold, so a steady
+       day is one tap and a better one is a change in the sheet. */
+    const prev = lastFor(tpl.n, history, date);
+    const secs = prev ? working(prev.ex).map(s => s.seconds).filter(v => v != null) : [];
+    const m = median(/** @type {number[]} */ (secs));
+    return { rec: null, target: m == null ? null : { seconds: Math.round(m), src: 'last' } };
+  }
+  if (tpl.kind === 'rounds') return { rec: null, target: { rounds: 1, src: 'dose' } };
   if (tpl.kind === 'reps' && tpl.rep) return { rec: null, target: { reps: tpl.rep[0] } };
   return { rec: null, target: null };
 }
@@ -495,13 +558,14 @@ export function targets(tpl, history, date, deloadOn) {
 export function tplOf(ex) {
   /** @type {Obj|undefined} */
   let base;
-  if (!ex.substitutedFor) for (const t of Object.values(TEMPLATES)) { base = t.ex.find(e => e.n === ex.n) || base; }
+  if (!ex.substitutedFor) base = tplByName(ex.n);
   return {
     n: ex.n, kind: ex.kind,
     load: ex.kind === 'weight' ? (ex.load ?? (base && base.kind === 'weight' ? base.load : undefined) ?? 'kg') : undefined,
     hold: ex.hold ?? (base ? !!base.hold : false),
     dist: ex.dist ?? (base ? base.dist ?? null : null),
     rep: ex.rep, rir: ex.tplRir, inc: ex.inc,
+    dose: ex.dose ?? (base && base.kind === ex.kind ? base.dose ?? null : null),
     seed: base && base.kind === ex.kind ? base.seed : undefined
   };
 }
@@ -531,6 +595,8 @@ function exerciseFrom(e, history, date, deload) {
   if (e.kind === 'weight') ex.load = e.load || 'kg';
   if (e.hold) ex.hold = true;
   if (e.dist != null) ex.dist = e.dist;
+  if (e.dose != null) ex.dose = e.dose;
+  if (e.routine) ex.routine = e.routine;
   Object.assign(ex, {
     note: '', tplNote: e.note || '', rep: e.rep || null, tplRir: e.rir ?? null, inc: e.inc ?? null,
     rest: e.rest ?? null, bar: e.bar ?? null, key: !!e.key, targetSets: e.sets || 3, substitutedFor: null, rec: rec || null
@@ -546,9 +612,28 @@ export function newSession(key, history, dateIso, nowIso, isDeload) {
     schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION,
     date: dateIso, key, name: t.name, week: weekOf(dateIso), sessionRpe: null, symptoms: null,
     isDeload: deload, notes: '', startedAt: nowIso,
-    exercises: t.ex.map(e => exerciseFrom(e, history, dateIso, deload)),
+    exercises: key === 'floor' ? routineExercises(floorFor(dateIso), history, dateIso)
+      : t.ex.map(e => exerciseFrom(e, history, dateIso, deload)),
     decisions: []
   };
+}
+/* The exercises of one or more routines, each tagged with its routine key.
+   An exercise already in the session (by name) is not added twice. */
+/** @param {string[]} keys @param {Obj[]} history @param {string} date @param {string[]} [have] names already in the session */
+export function routineExercises(keys, history, date, have) {
+  const seen = new Set(have || []);
+  /** @type {Obj[]} */
+  const out = [];
+  for (const k of keys) {
+    const r = ROUTINES[/** @type {keyof typeof ROUTINES} */ (k)];
+    if (!r) continue;
+    for (const e of r.ex) {
+      if (seen.has(e.n)) continue;
+      seen.add(e.n);
+      out.push(exerciseFrom({ ...e, routine: k }, history, date, false));
+    }
+  }
+  return out;
 }
 /** A one-off exercise added inside a session. @param {string} name */
 export function customExercise(name) {
@@ -897,7 +982,7 @@ function mergeSettings(prev) {
 }
 /** The template entry of the same name, if any. @param {string} n @returns {Tpl|undefined} */
 function tplByName(n) {
-  for (const t of Object.values(TEMPLATES)) { const e = t.ex.find(x => x.n === n); if (e) return e; }
+  for (const t of [...Object.values(TEMPLATES), ...Object.values(ROUTINES)]) { const e = t.ex.find(x => x.n === n); if (e) return e; }
   return undefined;
 }
 /* The target a v4 draft's set gets in the v5 shape of its exercise. */

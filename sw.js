@@ -1,10 +1,10 @@
 /* Ledger service worker: app shell only. Never touches the GitHub API.
 
-   The modules are imported with a version query (engine.js?v=5-2), and the
+   The modules are imported with a version query (engine.js?v=5-3), and the
    same URLs are listed here, so a page can never run with a module from a
    different build. Bump VERSION and the ?v= in index.html together. */
-const VERSION = 'ledger-v5-2';
-const SHELL = ['./', './index.html', './engine.js?v=5-2', './sync.js?v=5-2', './manifest.json', './icon.svg'];
+const VERSION = 'ledger-v5-3';
+const SHELL = ['./', './index.html', './engine.js?v=5-3', './sync.js?v=5-3', './manifest.json', './icon.svg'];
 const NET_TIMEOUT = 3000;
 
 self.addEventListener('install', e => {

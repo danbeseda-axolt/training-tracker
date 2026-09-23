@@ -208,8 +208,8 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-2';
-import { makeSync } from './sync.js?v=5-2';
+import * as E from './engine.js?v=5-3';
+import { makeSync } from './sync.js?v=5-3';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -433,7 +433,8 @@ function pickerHTML(aH){
     : 'All four lifts are logged this week.') + '</div>';
   for(const [k, t] of Object.entries(E.TEMPLATES)){
     if(k === next) continue;
-    h += '<button class="rowbtn" data-act="start" data-key="' + k + '"><span class="grow"><b>' + esc(t.name) + '</b></span><span class="pill">' + esc(t.day) + '</span></button>';
+    const sub = k === 'floor' ? '<br><span class="sub">Today: ' + esc(E.floorFor(today()).map(r => E.ROUTINES[r].name.split(' — ')[0]).join(' · ')) + '</span>' : '';
+    h += '<button class="rowbtn" data-act="start" data-key="' + k + '"><span class="grow"><b>' + esc(t.name) + '</b>' + sub + '</span><span class="pill">' + esc(t.day) + '</span></button>';
   }
   return h;
 }
@@ -549,6 +550,7 @@ function renderSheet(){
   else if(s.type === 'menu') body = menuSheet();
   else if(s.type === 'exmenu') body = exMenuSheet(s);
   else if(s.type === 'date') body = dateSheet();
+  else if(s.type === 'routines') body = routinesSheet();
   else if(s.type === 'finish'){ body = finishSheet(s); full = true; }
   el.innerHTML = '<div class="scrim" data-act="closeSheet"></div><div class="panel' + (full ? ' full' : '') + '">' + (full ? '' : '<div class="grab"></div>') + body + '</div>';
   if(s.type === 'set') paintBar();
@@ -597,12 +599,27 @@ function menuSheet(){
   return '<div class="menu">'
     + '<button data-act="mdate">Change date <span class="sub">(' + esc(E.niceDate(d.date)) + ')</span></button>'
     + (lift ? '<button data-act="mdeload">Deload session: ' + (d.isDeload ? '<b>on</b>' : 'off') + '</button>' : '')
+    + '<button data-act="mroutines">Add floor or stretching</button>'
     + '<button data-act="maddex">Add exercise</button>'
     + '<button data-act="mtab" data-tab="history">History</button>'
     + '<button data-act="mtab" data-tab="body">Body</button>'
     + '<button data-act="mtab" data-tab="settings">Settings</button>'
     + (ui.tab !== 'log' ? '<button data-act="mtab" data-tab="log">Back to the session</button>' : '')
     + '<button class="danger" data-act="discard">Discard session</button></div>';
+}
+/* Today's floor first, then every block of daily-floor.md on its own. A block
+   already in the session is marked, and adding it again adds only what is
+   missing. */
+function routinesSheet(){
+  const d = S.draft, have = new Set(d.exercises.map(e => e.n));
+  const names = keys => keys.map(k => E.ROUTINES[k].name.split(' — ')[0]).join(' · ');
+  const full = keys => keys.every(k => E.ROUTINES[k].ex.every(e => have.has(e.n)));
+  const today = E.floorFor(d.date);
+  let h = '<div class="sh-h">Add floor or stretching</div><div class="sub" style="margin-bottom:10px">After lifting is fine. Never before it: long holds make you weaker for the lift.</div><div class="menu">'
+    + '<button data-act="maddroutine" data-k="' + today.join(',') + '"><b>Today’s floor</b><br><span class="sub">' + esc(names(today)) + (full(today) ? ' · already in' : '') + '</span></button>';
+  for(const [k, r] of Object.entries(E.ROUTINES))
+    h += '<button data-act="maddroutine" data-k="' + k + '">' + esc(r.name) + '<br><span class="sub">' + esc(r.when) + (full([k]) ? ' · already in' : '') + '</span></button>';
+  return h + '</div>';
 }
 function exMenuSheet(s){
   const ex = S.draft.exercises[s.i];
@@ -1017,6 +1034,17 @@ const ACT = {
     ui.sheet = null; render();
   },
   mdeload: () => { S.draft.isDeload = !S.draft.isDeload; E.retarget(S.draft, aHist()); ui.sheet = null; save(); render(); },
+  mroutines: () => { ui.sheet = { type:'routines' }; renderSheet(); },
+  maddroutine: el => {
+    const d = S.draft, keys = el.dataset.k.split(',');
+    const add = E.routineExercises(keys, aHist(), d.date, d.exercises.map(e => e.n));
+    ui.sheet = null; ui.tab = 'log';
+    if(!add.length){ render(); toast('Already in this session'); return; }
+    const first = d.exercises.length;
+    d.exercises.push(...add);
+    ui.open.add(first); ui.scrollTo = first; save(); render();
+    toast('Added ' + add.length + ' exercise' + (add.length > 1 ? 's' : ''));
+  },
   maddex: () => {
     const n = prompt('Exercise name', '');
     if(!n || !n.trim()) return;

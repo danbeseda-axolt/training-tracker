@@ -4,16 +4,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as E from '../engine.js';
 
 const LOG = fileURLToPath(new URL('../../training/log/', import.meta.url));
 const has = existsSync(LOG);
-const read = f => JSON.parse(readFileSync(path.join(LOG, f), 'utf8'));
-const files = has ? readdirSync(LOG).filter(f => /^\d{4}-\d{2}-\d{2}-.+\.json$/.test(f)) : [];
+/* The three pre-v5 files are read as they stood at PINNED, the last pre-v5
+   state, not as they are now. Dan edits sessions in the app: on 2026-09-23 he
+   edited the 17 Sep one into real data. These tests pin how the app reads those
+   exact legacy files; the last test in this file runs over the log as it is. */
+const PINNED = '11aecdc';
+const REPO = path.resolve(LOG, '..', '..');
+function pinned(f) {
+  try { return execFileSync('git', ['show', PINNED + ':training/log/' + f], { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); }
+  catch { return null; }
+}
 const F08 = '2026-09-08-upper-push.json', F15 = '2026-09-15-lower-a.json', F17 = '2026-09-17-upper-push.json';
-const need = t => { if (!has || ![F08, F15, F17].every(f => files.includes(f))) { t.skip('training/log not present'); return false; } return true; };
+const files = [F08, F15, F17];
+const PIN = has ? Object.fromEntries(files.map(f => [f, pinned(f)])) : {};
+const read = f => JSON.parse(PIN[f]);
+const need = t => { if (!has || !files.every(f => PIN[f])) { t.skip('training/log or its git history not present'); return false; } return true; };
 
 /* Every key path in a is present in b with a deep-equal value. */
 function deepContains(a, b, at = '$') {
@@ -107,4 +119,18 @@ test('editing the real 8 Sep file and saving it untouched changes no set and kee
   });
   assert.deepEqual(session.decisions, raw.decisions);
   assert.equal(E.planSave(d, session, [raw], [], 'training/log', 'x').session.file, 'training/log/' + F08);
+});
+
+test('every session file in training/log today loads, migrates and feeds the rules', t => {
+  if (!has) { t.skip('training/log not present'); return; }
+  const now = readdirSync(LOG).filter(f => /^\d{4}-\d{2}-\d{2}-.+\.json$/.test(f));
+  assert.ok(now.length >= 3);
+  const raw = now.map(f => JSON.parse(readFileSync(path.join(LOG, f), 'utf8')));
+  for (const [i, r] of raw.entries()) {
+    const m = E.migrateSession(r);
+    for (const ex of m.exercises) for (const st of ex.sets || []) assert.ok(['done', 'legacy'].includes(st.state), now[i] + ' ' + ex.n);
+  }
+  const aH = E.analysisHistory(raw, []);
+  for (const key of ['upper-push', 'lower-b', 'upper-pull', 'lower-a', 'floor'])
+    assert.doesNotThrow(() => E.newSession(key, aH, '2026-09-29', 'x'), key);
 });
