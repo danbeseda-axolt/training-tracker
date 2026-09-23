@@ -1,126 +1,256 @@
 # Ledger — training tracker
 
-**As of:** 2026-09-09
+**As of:** 2026-09-23 (v5)
 
-Phone-first training log. Replaces the old localStorage-only Ledger that lost
-its data. **The GitHub repo is the source of truth**; the phone holds a cache
-and a queue of anything not yet pushed.
+Phone-first training log, built to be used one-handed in the gym. **The GitHub
+repo is the source of truth**; the phone holds a cache and a queue of anything
+not yet pushed.
 
 Why it is built this way rather than on a hosted database:
 [decisions/2026-09-09-training-tracker-architecture.md](../decisions/2026-09-09-training-tracker-architecture.md).
+Why v5 stopped pre-filling weights:
+[decisions/2026-09-23-ledger-v5-confirmed-targets.md](../decisions/2026-09-23-ledger-v5-confirmed-targets.md).
 
-## What it does
+## What changed in v5, and why
 
-- Sessions pre-filled from [programme v2](../training/programme-v2-draft.md) —
-  tap a session and the exercises, rep ranges, RIR targets and rest periods are
-  already there
-- Logs **kg × reps × RIR** for lifts, **seconds** for holds, **kg × metres** for
-  carries, rounds for circuits, and a bare count for the pull-up EMOM
-- **Load and reps pre-fill from last time. Effort never does** — a pre-filled
-  RIR saved untouched is a copy, not an observation, and every rule below reads
-  RIR
-- **Rest timer** auto-starts when a set is ticked, sized from the programme's
-  prescribed rest, and counts up in green once it is over
-- **Plate calculator** under every barbell lift — shows what to load per side,
-  and says nothing when the load cannot be made from the plates on hand
-- **Warm-up sets** — tap the set number to mark one. Warm-ups are excluded from
-  every calculation
-- **Substitutions recorded as substitutions.** Swap an exercise and the original
-  name is kept in `substitutedFor`, so the history does not quietly become
-  fiction
-- Proposes next week's load per exercise with the rule and the one-line reason,
-  and records whether you took it
-- Flags a deload, with the evidence that raised it
-- Separate **Body** tab for bodyweight on non-training days and the four-weekly
-  floor benchmarks from [daily-floor.md](../training/daily-floor.md)
-- **Backdating.** The date field at the top of a session can be set to any past
-  day, for a session you did but never logged. Changing it also moves the window
-  the progression rules read, so a session logged late is progressed against the
-  sessions that actually came before it, not after
-- Works offline; writes to the repo when signal returns
-- Installs to the home screen (PWA)
+The first three weeks of real data showed the app could not tell a lifted set
+from an untouched suggestion. The 2026-09-17 Upper Push was saved 11 seconds
+after it was started, every set equal to the prefill, no RIR anywhere, and all
+five decisions recorded as "accepted". v4 turned any prefilled number into an
+observation when Finish was pressed.
 
-A normal working set is two taps: the RIR chip, then ✓.
+v5 separates the two. A set is **planned** (a target, shown grey) until Dan
+confirms it, and only confirmed sets count for anything. The logging screen
+was rebuilt around that one tap.
+
+## How a session works
+
+- **Start.** The Log tab offers one big button: today's session if it is due,
+  otherwise the earliest one not yet done this week. Other sessions are rows
+  below it.
+- **One exercise at a time.** The exercise in hand is open; finished ones
+  collapse to one line (`Bench 75×5 ×4 @2 ✓`) and the next opens at the top of
+  the screen. Tap any collapsed line to open it.
+- **Every set is a row with a target.** Tap **✓** and the set is recorded
+  exactly as shown, with the time. That is one tap per normal set.
+- **The next set's ✓ is also in the bottom bar**, in thumb reach: a green
+  button reading e.g. `Bench press (heavy) · set 2 of 4 / 75 kg × 5 ✓`. It
+  always means the first unticked set of the exercise in hand. When that set
+  has nothing to copy it reads "Enter the numbers" and opens the sheet.
+- **First time an exercise is done**, most have no target and ✓ opens the
+  sheet. A few have a starting point (`seed` in the templates): bodyweight for
+  dips, chin-ups, back extensions and hanging raises, 6 reps for the ab wheel,
+  and 85 kg for the deadlift, the bottom of the programme's rebuild range.
+- **+ Warm-up** (on a barbell or dumbbell exercise before its first working
+  set) adds a warm-up row above the working sets, with a ramp target (50 / 70
+  / 85% of the working weight, never below the bar; 8 / 5 / 3 reps). Its ✓
+  records a warm-up, never a working set. Unticked warm-ups are simply dropped.
+- **Tap the numbers to change them.** A sheet opens with − / + buttons (the
+  exercise's increment), a number pad that accepts a comma, RIR chips, a
+  warm-up toggle and Delete set. **Save ✓** confirms the set. If the weight or
+  reps differ from the target, the later sets of that exercise take the new
+  values as their target, so the next ✓ records what was actually lifted.
+- **After the last set of an exercise**, a chip row asks "Last set: reps
+  left?" (0 1 2 3 4+). One tap. Only the last set's RIR drives progression, so
+  it is asked once per exercise, not after every set. Earlier sets can be rated
+  in the sheet.
+- **All as shown ✓** confirms every remaining set of an exercise at its target
+  (for logging afterwards), with a 6-second undo. Sets with no target cannot
+  be confirmed this way.
+- **Only the last set's RIR is asked for.** That is a deliberate trade: one
+  tap per exercise instead of one per set. Bench's "whole session RIR 3+" rule
+  therefore usually reads the last set only, unless earlier sets are rated in
+  the sheet.
+- **A ✓ never invents data.** If a set has no target (a first session, a band
+  colour never recorded), ✓ opens the sheet instead.
+- **The bottom bar** holds the next set's ✓, the rest timer (starts on ✓,
+  +30s, tap to stop; shows session time when idle) and **Finish**. It is
+  always on screen. While the set sheet is open, it shows the rest countdown
+  too.
+- **The screen stays on** during a session (Screen Wake Lock), so the timer is
+  visible and vibrates once when the rest is over. Settings can turn this off.
+- **⋯ in the header**: change date, deload session, add exercise, History,
+  Body, Settings, discard. **⋯ on an exercise**: swap, add set, delete (with a
+  5-second undo). **ⓘ** shows the programme note, last time, the rule and
+  why, the plate breakdown, and the exercise note.
+- **An unfinished session older than 12 hours** gets a banner: Finish it, or
+  Discard. An edit of a saved session never does.
+- **Editing a saved session** (History → Edit): sets from the file show a
+  pale ✓; tapping it opens the set to change, it never un-ticks it, so Finish
+  can't drop or re-date a saved set. Changing the date re-targets only sets
+  still to be ticked; the rules shown at the time, and `logMode`, are kept.
+
+### Finishing
+
+**Finish** opens a summary; nothing is saved until **Save session**.
+
+- The date (changeable), sets ticked, one line per exercise with the last-set
+  RIR and last time, and a button per exercise with no RIR. Tapping one opens
+  the reps-left chips for its last set; one chip rates it and returns here.
+- If sets are still unticked, Save waits for an answer: **I did them as shown**
+  or **I didn't do them**.
+- Optional one-tap questions: session RPE (5–10) and "Anything flare up?"
+  (None / Low back / Other; Low back asks tight or one-sided pinch, then side).
+  A pinch shows Dan's own rule: two are on record before the app, so any pinch
+  logged here is at least the third, and the third means a physiotherapist.
+- An optional note.
+
+Bodyweight is no longer asked in a session. It lives on the Body tab.
+
+### History
+
+Every session, newest first, with pills for `pending` (not yet on GitHub),
+`live` / `retro`, `deload` and **`unverified: excluded`**. Tap a row for the
+sets, notes, flare-ups and decisions, and **Edit** / **Delete**. A suspect
+session (the 17 Sep pattern) also offers **It happened as recorded**, which
+writes `verified: true` to the file so the rules read it. Editing a suspect
+session does not confirm it: the saved edit carries `unverified: true`.
+
+## What a v5 session file adds
+
+Every file the app writes has **`schemaVersion: 5`**. Full field meanings are
+in [training/log/README.md](../training/log/README.md); the ones that matter
+for progression and planning:
+
+- **`state`** on each set: `done` (confirmed by Dan) or, when the app reads a
+  pre-v5 file, `legacy`. `planned` sets are never written. Each done set has
+  `doneAt` (when it was confirmed) and `via` (`tick`, `sheet` or `bulk`).
+- **`logMode`**: `live` (ticked set by set during the session) or `retro`
+  (entered afterwards). Retro sessions deserve less weight.
+- **`symptoms`**: `null` = not asked or skipped, `[]` = none, else a list of
+  `{area, type, side}`. The low-back pinch is what the injury rule counts.
+- **`sleepH`**: reserved for hours slept, not collected yet.
+- **`decisions`**: what each rule proposed and whether it was `accepted`,
+  `overridden`, `bulk-accepted`, `no-rec` or `not-done`.
+- **`verified`** / **`unverified`**: see History above.
+
+## What each input shape records
+
+| Shape | Exercises | What a set stores |
+|---|---|---|
+| `weight`, load `kg` | Bench, OHP, squat, DL, RDL, curls, rows, face pull, split squat | kg, reps, RIR |
+| `weight`, load `bw+` | Weighted dip, chin-up, back extension, hanging raise | **added** kg (0 = bodyweight, shown `BW`, `BW+15`), reps, RIR |
+| `weight`, load `bw` | Ab wheel | reps, RIR; no kg at all |
+| `band` | Pallof press | band colours (`red+green`), reps, RIR; never kg |
+| `distance` | Farmer's (40 m), suitcase (30 m) | kg, metres; the target fills both |
+| `reps` | Pull-up EMOM, knee-to-wall cm | a count |
+| `time`, `rounds` | holds, McGill | seconds, rounds |
 
 ## The progression rules
 
-Double progression against the coach's prescribed rep range, gated on logged
-RIR. Rules are evaluated in order and **the first match wins**, which matters
-because more than one can be true of the same session.
+Double progression against the coach's rep range, gated on the RIR of the
+**last rated working set** (the hardest one on straight sets). Only confirmed
+sets (and sets from pre-v5 files) are read; warm-ups never are. Evaluated in
+this order, **first match wins**:
 
 | # | When | What it proposes |
 |---|---|---|
-| R6 | Deload week | 65% of working load at the bottom of the range |
-| R0 | Fewer working sets logged than prescribed | Hold — the session was cut short |
-| R5 | R4 fired on each of the last two evaluations | Down 10%, rebuild from `rep_min` |
-| R1 | Every working set at the top of the range, median RIR **at or above** target | +1 increment, back to `rep_min` |
-| R1b | Same, but one increment is over 10% of the current load | Add a rep instead of the load |
-| R2 | Top of range, median RIR **below** target | Hold — own it first |
-| R4 | Two or more sets below `rep_min` | Hold |
-| R3 | Anything else | Hold, add a rep to the weakest set |
+| R6 | Deload session | 65% at the bottom of the range. Bands: same band. `bw`: reps only. `bw+`: 65% of the added load. Carries: 65% load, same distance |
+| R0 | Fewer working sets than prescribed | Hold, top of the range |
+| R5 | R4 on each of the last two evaluations (kg and bw+ only) | Down 10%, from the bottom of the range |
+| RN | Every set at the top, **no RIR logged** | Hold. Log the last set's RIR to unlock progression |
+| hold | Bench only ("hold, don't chase") | +1 increment only when every rated set is RIR 3+ and the last is 3+; otherwise R2 |
+| R1 | Every set at the top, last-set RIR **at or above** target | +1 increment, back to the bottom |
+| R1b | Same, `kg` load, one increment is over 10% of the load | Add a rep instead, at most two past the top; once every set is two past, R1 |
+| R1v | Same, `bw` load | Make the variation harder |
+| B1 | Same, band | One band heavier |
+| R2 | Top of the range, last-set RIR **below** target | Hold |
+| B2 | Band, anything else | Same band, one more rep on the weakest set |
+| R4 | Two or more sets below the range | Hold at the bottom |
+| R3 | Anything else | Hold, one more rep on the weakest set |
 
-**R1b is the one worth explaining.** A 2 kg jump on a 10 kg dumbbell is a 20%
-increase. Capping increases by a percentage would forbid the only increase the
-equipment physically allows and the exercise would silently never progress, so
-the guard extends the rep range instead.
+Why the changes from v4:
 
-Deload sessions are excluded from progression maths, or the deliberately light
-numbers poison the next recommendation.
+- **No RIR is not RIR 0.** v4 read a missing RIR as 0, so the unrated 17 Sep
+  bench looked like a strength loss and parked lifts at R2 for the wrong
+  reason. Now it gives RN, and e1RM is not estimated from an unrated set.
+- **Bench holds.** Programme v2: add load only when a whole session lands at
+  RIR 3–4. v4 added load at RIR 2.
+- **R1b is capped** at two reps past the top. v4 prescribed dips at 15 × 9,
+  outside 6–8, and would have kept adding reps forever. It no longer applies
+  to `bw+` lifts: the moved load includes bodyweight, so one increment is
+  always under 10%.
+- **Bands and bodyweight lifts** never get a kg recommendation. v4 told Pallof
+  "0 kg" and ab wheel "+2.5 kg".
+- **R5's window** now ignores sessions dated after the one being planned, and
+  exercises that were not done.
+
+Deload sessions are excluded from progression. Floor and custom sessions never
+count toward the week, the deload cadence, or a deload.
 
 ## The deload triggers
 
-The **cadence** rule is the coach's: programme v2 says every 4–6 weeks and
-non-negotiable in a deficit. It ships at 5 and is settable. The rest are
-autoregulated and can only pull a deload *earlier*.
+The **cadence** rule is the coach's: every 4–6 weeks, non-negotiable in a
+deficit. It ships at 5 and is settable. The rest can only pull a deload earlier.
 
 | Code | Trigger | Severity |
 |---|---|---|
 | CADENCE | Weeks since the last deload ≥ the setting | Severe |
-| D1 | Rolling-3 estimated 1RM down >5% from the trailing six-week best, on two or more main lifts | Severe |
+| D1 | Rolling-3 e1RM down >5% from the six-week best, on two or more main lifts | Severe |
 | D2 | Weekly median RIR 1.5 or more below target, on three or more exercises | Severe |
-| D3 | 30%+ of logged working sets fell below the rep range | Moderate |
+| D3 | 30%+ of working sets below the rep range | Moderate |
 | D4 | Session RPE averaging 9+ across the week | Moderate |
 | D5 | Two or fewer of four sessions logged | Informational |
 | D6 | Bodyweight down >2% in a week | Moderate, **off during a cut** |
 
-Any one severe trigger, or any two moderate ones in the same week, raises the
-flag. **D5 never fires alone** — missing sessions *reduces* accumulated fatigue,
-so prescribing a deload for not training is backwards. It is there because
-missed sessions usually signal life stress, which is a recovery input, and it
-is surfaced as context rather than as evidence.
+One severe or two moderate in the same week raises the flag. D5 never fires
+alone: missing sessions reduces fatigue. The dose (65%) is a proposal, not the
+coach's; it lives in `DELOAD` in `engine.js`.
 
-**D6 is off while the block goal is `cut`** (Settings → Programme), or it fires
-every time you deliberately diet.
-
-The prescription — 65% of working load, bottom of the rep range, one week,
-resume at 95% — is a proposal, not the coach's. The programme fixes the cadence
-and says nothing about the dose. Change it in the `DELOAD` object in
-`index.html` if he does.
-
-**Set RPE and session RPE are different measurements** and are stored in
-different fields. Per-set effort is RIR, which is what the programme speaks in.
-`sessionRpe` is the whole session on the Borg CR10 scale, and only D4 reads it.
+**Known gap:** only the session started while the flag shows is set up as a
+deload automatically. Logging it resets the cadence, so the rest of that week
+has to be switched on by hand (⋯ → Deload session); the banner says so.
+`DELOAD.resumePct` (95%) is not applied yet: the session after a deload
+recommends from the last normal session at 100%. Both need fixing before the
+cadence rule first fires, in the week of 2026-10-12.
 
 ## Where the data goes
 
-One JSON file per session, into **`danbeseda-axolt/dan-brain`** at
-`training/log/YYYY-MM-DD-<session>.json`. Bodyweight and floor benchmarks go
-into `training/log/bw-YYYY-MM.json`, one file per month rather than one per
-weigh-in — a year of daily entries is 12 files, not 365.
+One JSON file per session in **`danbeseda-axolt/dan-brain`** at
+`training/log/YYYY-MM-DD-<session>.json`. A second session of the same template
+on the same day gets `-2`, `-3`, rather than overwriting the first. Bodyweight
+and floor benchmarks go into `training/log/bw-YYYY-MM.json`, one file per
+month. Field meanings, including every v5 field, are in
+[training/log/README.md](../training/log/README.md).
 
-That's deliberate: the log lands inside the knowledge base, so the trainer
-context reads actual sessions instead of asking for a CSV export. No export
-step, no triage.
+Editing a session pushes a new commit to the same file; if the edit changes the
+date or session, the old file is marked deleted (queued ahead of the new
+version; if that one push fails it is retried, so both can briefly coexist on
+GitHub). If the original never reached GitHub, the queued copy is simply
+replaced and no deleted marker is written. Git keeps every earlier version.
 
-Logging the same session twice on one day updates that day's file rather than
-creating a second one. Editing or deleting a past session pushes a new commit;
-git keeps every earlier version, so a bad edit is recoverable.
+Each file carries the decision log: what each rule proposed, what was done, and
+whether that counts as accepted, overridden, bulk-accepted (confirmed with "as
+shown", so no real choice) or not-done. Override rate per rule is the signal
+that a threshold is wrong. Nothing retunes itself.
 
-Each session file carries the decision log: what each rule proposed, what you
-actually did, and whether that counts as accepted or overridden. That is the
-only honest signal that a threshold is wrong. Nothing retunes itself — if R1 is
-being overridden a third of the time, the fix is to change the threshold by
-hand with the evidence in front of you.
+## Why this can't lose your data
+
+- Every tap saves to the phone immediately.
+- "Save session" queues the file; the queue is pushed now and retried on the
+  next open or when signal returns.
+- A queued file is removed only after GitHub confirms that exact push (200 or
+  201). One upload runs at a time. A newer version of the same file replaces an
+  older one that has not started uploading.
+- On first run the app asks the browser to keep its storage (Settings shows
+  "persistent" or "best-effort").
+- The app reads `ledger_v5`. Only on the first run after the upgrade, when
+  `ledger_v5` does not exist yet, does it migrate `ledger_v4` or `ledger_v3`,
+  which it never overwrites. After that the old keys are a frozen snapshot of
+  upgrade day: if `ledger_v5` ever becomes unreadable, the app keeps only the
+  GitHub settings from them (never their old queue or draft, which could
+  re-push stale files), reloads the log from GitHub, and shows a banner.
+- Anything unreadable (a whole blob, or just a malformed session in
+  progress) is copied aside as `ledger_corrupt_<key>_<time>` first, and the
+  rest of the state is kept.
+- History → Reload and uploads never overlap: a reload waits for an upload
+  in progress and vice versa, so a session pushed during a reload can't drop
+  out of History.
+- Settings → Export JSON gives an offline copy on demand, including any
+  `ledger_corrupt_*` copies.
+
+The only thing a lost phone can lose is a session logged offline and never
+synced.
 
 ## Setup
 
@@ -131,82 +261,61 @@ GitHub → Settings → Developer settings → Personal access tokens →
 
 - **Repository access:** Only select repositories → `dan-brain`
 - **Permissions:** Repository permissions → **Contents: Read and write**
-- **Expiration:** set one. 90 days is sensible; you'll rotate it.
-
-Nothing else. That token can touch one repo's files and nothing else on your
-account.
+- **Expiration:** set one. 90 days is sensible.
 
 **Paste it into the app's Settings screen on your phone. Never paste it into a
 chat with me, or anywhere else.** If the phone is lost or the token leaks,
-revoke it on that same GitHub page and generate a new one — that's the whole
-recovery procedure.
+revoke it on that same GitHub page and generate a new one.
 
-### 2. Host it
+### 2. Hosting
 
-The app is static — one HTML file plus a manifest and service worker. It has no
-secrets in it, so the code can be public even though the data repo is private.
+The app is static: `index.html`, two modules (`engine.js`, `sync.js`), a
+manifest, an icon and a service worker. No secrets in it, so the code is public
+while the data repo stays private.
 
-**Option A — GitHub Pages (free, needs a public repo for the code).** Create a
-new public repo, e.g. `ledger`, push the contents of this folder to it, then
-Settings → Pages → deploy from `main` / root. You get
-`https://danbeseda-axolt.github.io/ledger/`.
+It is served by GitHub Pages at
+**https://danbeseda-axolt.github.io/training-tracker/**, from the public repo
+`danbeseda-axolt/training-tracker`. To deploy a change:
 
-**Option B — Netlify Drop or Cloudflare Pages.** Drag this folder onto
-[app.netlify.com/drop](https://app.netlify.com/drop). Instant URL, no repo, no
-build.
-
-**Option C — GitHub Pages directly from `dan-brain`.** Only works if the account
-has a paid plan (Pages on private repos is a paid feature). Simplest if you have
-it.
-
-A service worker needs HTTPS, so all three work but opening `index.html` as a
-local file will not give you offline mode.
+```
+git subtree push --prefix tracker https://github.com/danbeseda-axolt/training-tracker.git main
+```
 
 ### 3. Add to home screen
 
-Open the URL on the phone → Share → **Add to Home Screen**. It then launches
+Open the URL on the phone → menu → **Add to Home screen**. It then launches
 full-screen like an app.
 
 ### 4. First run
 
-Settings → fill in owner / repo / branch / path → paste the token → **Test**.
-It reports whether the token actually has write access, so you find out now
-rather than at the end of a session.
+Settings → owner / repo / branch / path → paste the token → **Test**. It
+reports whether the token actually has write access.
 
-Then set the block goal to **cut** and the deload cadence to **5** weeks.
+## Changing the app
 
-## Why this can't lose your data the way the old one did
+- **Templates** live in `TEMPLATES` at the top of `engine.js`. Per exercise:
+  `kind`, `load` (`kg` / `bw+` / `bw`), `rep`, `rir`, `inc`, `rest`, `bar`
+  (turns on the plate breakdown), `key` (main lift for D1), `hold` (bench),
+  `dist` (carries) and `seed` (first-ever target, used only with no history). When the coach writes block 3, the templates are the thing
+  to update.
+- **The rules** are in `engine.js`: pure functions, no page, no network.
+- **The screen** is `index.html`: CSS and one `<script type="module">`.
+- **Sync** is `sync.js`.
+- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the two
+  imports in `index.html` together.** The service worker caches the modules at
+  those exact URLs, so a page can never run with a module from another build.
 
-- Every keystroke saves to the phone immediately, so a crash mid-session costs
-  nothing
-- "Finish" pushes to GitHub; if that fails the session sits in a queue with a
-  visible badge and retries when you next open the app or regain signal
-- The queue is never cleared until the push confirms
-- Once pushed it's in git — versioned, on GitHub's servers, and readable by
-  anything that can read the repo
-- An edit is a new commit, never an overwrite of the only copy
-- Settings → Export JSON gives you an offline copy on demand
+### Tests
 
-The only thing a lost phone can now lose is a session logged offline and never
-synced.
+```
+node --test "tracker/dev/*.test.mjs"
+```
 
-## Adding or changing exercises
+Plain Node (tested on v25), no npm, no install. Do not add a `package.json`
+under `tracker/`. The tests cover every rule, the deload cadence, migration of
+old files and old phone storage, confirming and finishing a session, file
+paths, the sync queue against a fake GitHub, the service worker's file list,
+and the three real session files in `training/log` (read at test time, never
+copied into `tracker/`, which is public).
 
-Templates live in the `TEMPLATES` object at the top of the `<script>` in
-`index.html`. Edit and redeploy. You can also add a one-off exercise from
-inside a session without touching the code.
-
-Per exercise: `kind` controls the input fields — `weight` (kg/reps/RIR), `reps`
-(a bare count), `time` (seconds), `distance` (kg/metres), `rounds`. `rep` is the
-prescribed range, `rir` the target, `inc` the smallest useful load jump, `rest`
-the prescribed rest in seconds, `bar` the bar weight (which turns on the plate
-calculator), and `key: true` marks a main lift for deload trigger D1.
-
-**When the coach writes block 3, the templates are the thing to update**, and
-the rules read the numbers from there rather than having them baked in.
-
-## Updating the app
-
-The service worker is network-first for the app shell, so a redeploy is picked
-up the next time you open it online. If a change ever seems stuck, bump
-`VERSION` in `sw.js`.
+Local preview: `node tracker/dev/serve.js`, then http://localhost:8099.

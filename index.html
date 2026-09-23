@@ -9,1047 +9,1148 @@
 <style>
 :root{
   --bg:#f7f7f8; --panel:#fff; --line:#e2e4e7; --text:#16181b; --dim:#6b7076;
-  --accent:#2f6df6; --ok:#1a7f4b; --warn:#b8860b; --bad:#c0392b; --chip:#eef0f3;
+  --accent:#2f6df6; --ok:#1a7f4b; --on-ok:#fff; --warn:#7d5a00; --bad:#c0392b; --chip:#eef0f3;
+  --scrim:rgba(10,12,14,.45); --hdr:52px; --bar:64px; --nav:56px; --rir:100px; --next:64px;
+  --rirH:0px; --nextH:0px;
+  --safe-b:env(safe-area-inset-bottom); --safe-t:env(safe-area-inset-top);
 }
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#111417; --panel:#191d21; --line:#2a2f35; --text:#e8eaed; --dim:#8b9198;
-    --accent:#5b8dff; --ok:#3fbd7a; --warn:#d8a537; --bad:#e5705f; --chip:#22272c;
+    --accent:#5b8dff; --ok:#3fbd7a; --on-ok:#0d1f15; --warn:#d8a537; --bad:#e5705f; --chip:#22272c;
+    --scrim:rgba(0,0,0,.6);
   }
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  background:var(--bg); color:var(--text);
+  background:var(--bg); color:var(--text); overflow-x:hidden;
   font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  -webkit-text-size-adjust:100%;
+  -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
 }
+button{font:inherit; color:inherit; cursor:pointer; touch-action:manipulation}
+input,select,textarea{font:inherit; font-size:16px}
+[hidden]{display:none !important}
+
+/* ---- header */
 header{
-  position:sticky; top:0; z-index:10; background:var(--panel);
-  border-bottom:1px solid var(--line); padding:10px 14px;
-  padding-top:calc(10px + env(safe-area-inset-top));
-  display:flex; align-items:center; gap:10px;
+  position:sticky; top:0; z-index:30; background:var(--panel);
+  border-bottom:1px solid var(--line); padding:0 6px 0 14px; padding-top:var(--safe-t);
+  display:flex; align-items:center; gap:8px; min-height:calc(var(--hdr) + var(--safe-t));
 }
-header h1{font-size:17px; margin:0; flex:1; letter-spacing:-.2px}
-#sync{font-size:12px; padding:4px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap}
+header h1{font-size:17px; margin:0; flex:1; min-width:0; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+#datechip{font-size:12.5px; padding:3px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap}
+#datechip.amber{color:var(--warn); background:rgba(184,134,11,.15)}
+#sync{font-size:12px; padding:4px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis}
 #sync.ok{color:var(--ok)} #sync.pending{color:var(--warn)} #sync.bad{color:var(--bad)}
-nav{display:flex; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:52px; z-index:9}
-nav button{
-  flex:1; padding:11px 2px; background:none; border:none; border-bottom:2px solid transparent;
-  color:var(--dim); font-size:13.5px; font-family:inherit; cursor:pointer;
-}
-nav button.on{color:var(--text); border-bottom-color:var(--accent); font-weight:600}
-main{padding:14px; max-width:640px; margin:0 auto; padding-bottom:calc(100px + env(safe-area-inset-bottom))}
-.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:11px}
-.card h3{margin:0 0 3px; font-size:15px}
-.sub{color:var(--dim); font-size:12.5px}
-label{display:block; font-size:12.5px; color:var(--dim); margin:10px 0 4px}
-input,select,textarea,button{font-family:inherit; font-size:16px}
-input,select,textarea{
-  width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
-  background:var(--bg); color:var(--text);
-}
-textarea{min-height:70px; resize:vertical}
-.btn{
-  padding:10px 14px; border-radius:9px; border:1px solid var(--line);
-  background:var(--chip); color:var(--text); cursor:pointer; font-size:14.5px;
-}
-.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
-.btn.wide{width:100%}
-.btn.sm{padding:6px 10px; font-size:13px}
-.btn.danger{color:var(--bad)}
+.ib{width:44px; height:44px; min-width:44px; border:none; background:none; border-radius:10px; font-size:20px; line-height:1; color:var(--dim)}
+.ib:active{background:var(--chip)}
+
+main{padding:12px 12px 0; max-width:640px; margin:0 auto; padding-bottom:calc(var(--nav) + var(--safe-b) + 90px)}
+body.chips{--rirH:var(--rir)}
+body.next{--nextH:var(--next)}
+body.ses main{padding-bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe-b) + 40px)}
+/* Shown only if the page script never ran (for example a module that failed
+   to load on a patchy signal mid-update). render() replaces it at once. */
+#bootmsg{opacity:0; animation:appear 0s 4s forwards}
+@keyframes appear{to{opacity:1}}
+
+/* ---- common */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px; scroll-margin-top:calc(var(--hdr) + var(--safe-t) + 8px)}
+.card h3{margin:0; font-size:16px; line-height:1.25; overflow-wrap:anywhere}
+.sub{color:var(--dim); font-size:13px}
+.center{text-align:center}
+.grow{flex:1; min-width:0}
 .row{display:flex; gap:8px; align-items:center}
-.row.wrap{flex-wrap:wrap}
-.grow{flex:1}
-.sets{margin-top:8px}
-.sethead,.setrow{display:grid; gap:4px; align-items:center; margin-bottom:6px}
-.sethead{font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px; text-align:center}
-.setrow input{padding:9px 2px; text-align:center; font-size:15px}
-.setrow.warm input{opacity:.55}
-.setrow .n{
-  color:var(--dim); font-size:12px; text-align:center; cursor:pointer;
-  border:1px solid transparent; border-radius:6px; padding:7px 0; user-select:none;
-}
-.setrow .n.warm{color:var(--warn); border-color:var(--warn); font-weight:700}
-.stp{
-  background:var(--chip); border:1px solid var(--line); border-radius:7px;
-  padding:9px 0; text-align:center; color:var(--dim); cursor:pointer; user-select:none; font-size:16px;
-}
-.stp:active{background:var(--accent); color:#fff}
-.done{background:var(--chip); border:1px solid var(--line); border-radius:7px; padding:9px 0; cursor:pointer; color:var(--dim); font-size:15px; text-align:center}
-.done.on{color:var(--ok); border-color:var(--ok)}
-.hint{font-size:12px; color:var(--dim); margin-top:6px}
-.hint b{color:var(--text)}
-.sug{color:var(--accent); font-weight:600}
-.plates{font-size:11.5px; color:var(--dim); margin-top:5px; font-variant-numeric:tabular-nums}
-.pill{display:inline-block; font-size:11.5px; padding:2px 8px; border-radius:99px; background:var(--chip); color:var(--dim); margin-right:5px}
+label{display:block; font-size:13px; color:var(--dim); margin:12px 0 4px}
+input,select,textarea{width:100%; min-height:48px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text)}
+textarea{min-height:90px; resize:vertical}
+.btn{min-height:48px; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:15px}
+.btn.primary,.big.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.45; cursor:default}
+.w100{width:100%}
+.big{display:block; width:100%; min-height:56px; border-radius:12px; border:1px solid var(--line); font-size:17px; margin:4px 0 8px; padding:10px 14px}
+.rowbtn{display:flex; align-items:center; gap:10px; width:100%; min-height:56px; text-align:left; padding:8px 14px; background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:8px}
+.pill{display:inline-block; font-size:12px; padding:2px 8px; border-radius:99px; background:var(--chip); color:var(--dim); margin-right:4px; white-space:nowrap}
 .pill.warn{color:var(--warn)} .pill.ok{color:var(--ok)} .pill.bad{color:var(--bad)}
+.banner{border-radius:12px; padding:10px 12px; font-size:14px; margin-bottom:10px}
+.banner.warn{background:rgba(184,134,11,.13); border:1px solid rgba(184,134,11,.35)}
+.banner.bad{background:rgba(192,57,43,.11); border:1px solid rgba(192,57,43,.32)}
+.banner.info{background:rgba(47,109,246,.09); border:1px solid rgba(47,109,246,.28)}
+.banner .row{margin-top:8px}
+.banner .btn{flex:1}
+.hint{font-size:13px; color:var(--dim); margin-top:6px}
 .empty{text-align:center; color:var(--dim); padding:30px 10px; font-size:14px}
-.banner{border-radius:10px; padding:10px 12px; font-size:13.5px; margin-bottom:11px}
-.banner.warn{background:rgba(184,134,11,.13); color:var(--warn); border:1px solid rgba(184,134,11,.3)}
-.banner.bad{background:rgba(192,57,43,.12); color:var(--bad); border:1px solid rgba(192,57,43,.3)}
-.banner.info{background:rgba(47,109,246,.10); color:var(--accent); border:1px solid rgba(47,109,246,.28)}
-.hist{border-bottom:1px solid var(--line); padding:10px 0}
+
+/* ---- exercise cards */
+.exhead{display:flex; align-items:center; gap:2px; margin:-6px -6px 0 0}
+.exhead h3{flex:1; min-width:0}
+.tline{font-size:13.5px; color:var(--dim); margin:2px 0 8px; font-variant-numeric:tabular-nums}
+.info{font-size:13.5px; color:var(--dim); border-top:1px solid var(--line); padding-top:6px; margin-bottom:8px}
+.info p{margin:6px 0}
+.info b{color:var(--text)}
+.setrow{display:grid; grid-template-columns:44px 1fr 56px; gap:8px; align-items:center; min-height:56px; margin-bottom:6px}
+.sn{text-align:center; color:var(--dim); font-size:14px; font-variant-numeric:tabular-nums}
+.setrow.warm .sn{color:var(--warn); font-weight:700}
+.val{min-height:56px; border:1px solid var(--line); border-radius:10px; background:var(--bg); text-align:left; padding:0 12px; color:var(--dim); font-size:17px; font-variant-numeric:tabular-nums; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+.setrow.done .val{color:var(--text); font-weight:650}
+.tick{width:56px; height:56px; border-radius:12px; border:1px solid var(--line); background:var(--chip); font-size:22px; color:var(--dim)}
+.setrow.done .tick{background:var(--ok); border-color:var(--ok); color:var(--on-ok)}
+.setrow.legacy .tick{background:var(--chip); border-color:var(--line); color:var(--ok)}
+.exfoot{display:flex; gap:8px; margin-top:4px}
+.exfoot button{flex:1; min-height:44px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:14.5px}
+.exline{display:flex; align-items:center; gap:8px; width:100%; min-height:56px; border:none; background:none; text-align:left; padding:0 4px; font-size:15.5px}
+.card.collapsed{padding:0 8px}
+.exline .cs{margin-left:auto; color:var(--dim); font-size:14px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.exline.ok .cs{color:var(--ok); font-weight:600}
+.exline b{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* ---- bottom nav and session bar */
+#tabs{position:fixed; left:0; right:0; bottom:0; z-index:25; display:flex; background:var(--panel); border-top:1px solid var(--line); padding-bottom:var(--safe-b)}
+#tabs button{flex:1; min-height:var(--nav); border:none; background:none; color:var(--dim); font-size:13.5px}
+#tabs button.on{color:var(--accent); font-weight:650}
+#bar{position:fixed; left:0; right:0; bottom:0; z-index:25; background:var(--panel); border-top:1px solid var(--line); padding-bottom:var(--safe-b)}
+.barin{display:flex; align-items:center; gap:8px; height:var(--bar); padding:0 12px}
+#barT{min-width:96px; min-height:48px; border:none; background:none; text-align:left; font-size:24px; font-weight:650; font-variant-numeric:tabular-nums; padding:0 4px}
+#barT small{display:block; font-size:11px; font-weight:400; color:var(--dim); line-height:1}
+#barT.over{color:var(--ok)}
+#plus30{min-width:56px; min-height:48px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:14px}
+#finBtn{width:120px; min-height:48px; border-radius:12px; border:none; background:var(--accent); color:#fff; font-weight:650; font-size:16px; margin-left:auto}
+/* The next set's ✓, in thumb reach at the bottom of the screen. */
+#nextSet{display:flex; align-items:center; gap:10px; width:calc(100% - 24px); height:56px; margin:8px 12px 0; padding:0 14px; border:none; border-radius:12px; background:var(--ok); color:var(--on-ok); text-align:left; font-size:17px; font-weight:650; font-variant-numeric:tabular-nums; overflow:hidden}
+#nextSet.enter{background:var(--chip); color:var(--text); border:1px solid var(--line)}
+#nextSet .nx{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+#nextSet small{display:block; font-size:12px; font-weight:500; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+#nextSet .ck{font-size:24px}
+.shrest{font-size:14px; font-weight:600; color:var(--dim); font-variant-numeric:tabular-nums}
+.shrest.over{color:var(--ok)}
+#rirRow{border-bottom:1px solid var(--line); padding:6px 12px 10px}
+#rirRow.last{border-top:2px solid var(--accent); background:rgba(47,109,246,.07)}
+.rirlab{display:flex; align-items:center; font-size:14px; font-weight:600; min-height:32px}
+.chips{display:flex; gap:6px; flex-wrap:wrap}
+.chip{min-width:56px; min-height:48px; flex:1; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:17px; font-weight:600; padding:0 8px}
+.chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.chip.s48{min-width:48px}
+.chips.small .chip{flex:0 1 auto; font-size:15px; font-weight:500}
+
+/* ---- sheets */
+.scrim{position:fixed; inset:0; background:var(--scrim); z-index:40}
+.panel{position:fixed; left:0; right:0; bottom:0; z-index:41; background:var(--panel); border-radius:16px 16px 0 0; max-height:88vh; overflow-y:auto; padding:10px 14px calc(14px + var(--safe-b)); max-width:640px; margin:0 auto; overscroll-behavior:contain}
+.panel.full{top:0; max-height:none; border-radius:0; padding-top:calc(10px + var(--safe-t))}
+.grab{width:40px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 8px}
+.sh-h{font-weight:650; font-size:16px; margin:2px 0 6px; display:flex; align-items:center; gap:8px}
+.step{display:grid; grid-template-columns:56px 1fr 56px; gap:8px; align-items:center}
+.step button{height:56px; border-radius:12px; border:1px solid var(--line); background:var(--chip); font-size:24px}
+.step input{height:56px; text-align:center; font-size:22px; font-weight:650; font-variant-numeric:tabular-nums}
+.toggle{min-height:48px; padding:0 14px; border-radius:10px; border:1px solid var(--line); background:var(--chip)}
+.toggle.on{border-color:var(--warn); color:var(--warn); font-weight:650}
+.textbtn{min-height:48px; padding:0 12px; border:none; background:none; color:var(--bad); font-size:15px}
+.textbtn.plain{color:var(--accent)}
+.save56{display:block; width:100%; min-height:56px; margin-top:16px; border:none; border-radius:12px; background:var(--accent); color:#fff; font-size:17px; font-weight:650}
+.save56[disabled]{opacity:.4; cursor:default}
+.menu button{display:block; width:100%; min-height:56px; text-align:left; padding:0 14px; border:none; border-bottom:1px solid var(--line); background:none; font-size:16px}
+.menu button.danger{color:var(--bad); margin-top:16px; border-top:1px solid var(--line)}
+.fsec{border-top:1px solid var(--line); padding:12px 0}
+.fsec h4{margin:0 0 8px; font-size:14.5px}
+.fsec.hl{background:rgba(184,134,11,.08); border-radius:10px; padding:12px 8px}
+.sumline{font-size:14px; padding:3px 0; font-variant-numeric:tabular-nums; overflow-wrap:anywhere}
+.warnbox{background:rgba(184,134,11,.13); border:1px solid rgba(184,134,11,.35); border-radius:12px; padding:10px}
+.warnbox .row{margin-top:8px}
+.warnbox .btn{flex:1; font-size:14px; padding:8px}
+.warnbox .btn.on{background:var(--accent); color:#fff; border-color:var(--accent)}
+.pinch{font-size:13.5px; margin-top:8px; color:var(--bad)}
+
+/* ---- history */
+.hrow{display:flex; align-items:center; gap:8px; width:100%; min-height:56px; border:none; background:none; text-align:left; padding:4px 2px; flex-wrap:wrap}
+.hist{border-bottom:1px solid var(--line)}
 .hist:last-child{border-bottom:none}
-.hist b{font-size:14.5px}
-details summary{cursor:pointer; font-size:13.5px; color:var(--dim); padding:4px 0}
-#rest{
-  position:fixed; left:0; right:0; bottom:0; z-index:20;
-  background:var(--panel); border-top:1px solid var(--line);
-  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-  display:none; align-items:center; gap:10px;
-}
-#rest.on{display:flex}
-#rest .t{font-size:26px; font-variant-numeric:tabular-nums; font-weight:600; min-width:74px}
-#rest.over .t{color:var(--ok)}
-#rest .who{flex:1; font-size:12.5px; color:var(--dim); line-height:1.25}
+.hdet{padding:0 2px 12px; font-size:13.5px; color:var(--dim)}
+.hdet b{color:var(--text)}
+.hdet .row{margin-top:10px}
+.hdet .row .btn{min-height:44px; flex:1}
+.hdet .row .btn + .btn{margin-left:8px}
+
+#toast{position:fixed; left:12px; right:12px; z-index:35; bottom:calc(var(--nav) + var(--safe-b) + 10px); background:var(--text); color:var(--bg); border-radius:12px; padding:6px 6px 6px 14px; display:flex; align-items:center; gap:8px; font-size:14.5px; max-width:616px; margin:0 auto}
+body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe-b) + 10px)}
+#toast button{min-height:44px; min-width:64px; border:none; border-radius:9px; background:transparent; color:var(--accent); font-weight:700}
 </style>
 </head>
 <body>
 
 <header>
   <h1 id="title">Ledger</h1>
+  <span id="datechip" hidden></span>
   <span id="sync">–</span>
+  <button class="ib" id="menuBtn" data-act="menu" aria-label="Menu" hidden>⋯</button>
 </header>
 
-<nav>
-  <button data-tab="log" class="on">Log</button>
-  <button data-tab="history">History</button>
-  <button data-tab="body">Body</button>
-  <button data-tab="settings">Settings</button>
+<main id="view"><div class="empty" id="bootmsg">Ledger did not start. This can happen on a weak signal just after an update. <a href="./">Reload</a></div></main>
+
+<nav id="tabs">
+  <button data-act="tab" data-tab="log" class="on">Log</button>
+  <button data-act="tab" data-tab="history">History</button>
+  <button data-act="tab" data-tab="body">Body</button>
+  <button data-act="tab" data-tab="settings">Settings</button>
 </nav>
 
-<main id="view"></main>
-
-<div id="rest">
-  <span class="t" id="restT">0:00</span>
-  <span class="who" id="restWho"></span>
-  <button class="btn sm" data-act="rest30">+30s</button>
-  <button class="btn sm" data-act="restStop">Done</button>
+<div id="bar" hidden>
+  <div id="rirRow" hidden></div>
+  <button id="nextSet" data-act="tickNext" hidden></button>
+  <div class="barin">
+    <button id="barT" data-act="restStop" aria-label="Rest timer">0:00</button>
+    <button id="plus30" data-act="rest30" hidden>+30s</button>
+    <button id="finBtn" data-act="finish">Finish</button>
+  </div>
 </div>
 
-<script>
-/* ---------------------------------------------------------------- state */
-const LS = 'ledger_v4', LS_OLD = 'ledger_v3';
-const DEFAULTS = {
-  settings:{ token:'', owner:'danbeseda-axolt', repo:'dan-brain', branch:'main',
-             path:'training/log', restOn:true, phase:'cut', deloadWeeks:5 },
-  draft:null, queue:[], bwQueue:[], history:[], bw:[], historyFetched:0
-};
-let S = load();
+<div id="sheet"></div>
+<div id="toast" hidden></div>
 
-function load(){
+<script type="module">
+import * as E from './engine.js?v=5-1';
+import { makeSync } from './sync.js?v=5-1';
+
+/* ---------------------------------------------------------------- utilities */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nowIso = () => new Date().toISOString();
+const today = () => E.localISO(new Date());
+/* Comma or dot: Czech keyboards type 72,4. */
+const num = v => { const s = String(v ?? '').trim().replace(',', '.'); if(s === '') return null; const n = parseFloat(s); return Number.isFinite(n) ? n : null; };
+const newId = () => 's_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const mmss = sec => { const s = Math.abs(Math.round(sec)); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); };
+const daysAgo = iso => E.daysBetween(iso, today());
+
+/* ---------------------------------------------------------------- storage */
+/* E.loadState decides what to trust: ledger_v5, or on the first run after the
+   upgrade ledger_v4 / ledger_v3. Once v5 exists the older keys are never read
+   again except for the token, because they are a frozen snapshot of upgrade
+   day. Older keys are never written or deleted. Anything unreadable is copied
+   aside as ledger_corrupt_<key>_<time> (Settings → Export includes them). */
+const LS = E.LS_KEY;
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function backupCorrupt(k, raw){
   try{
-    const raw = localStorage.getItem(LS) || localStorage.getItem(LS_OLD);
-    if(!raw) return structuredClone(DEFAULTS);
-    const prev = JSON.parse(raw);
-    const s = Object.assign(structuredClone(DEFAULTS), prev);
-    s.settings = Object.assign(structuredClone(DEFAULTS.settings), prev.settings||{});
-    return s;
-  }catch(e){ return structuredClone(DEFAULTS); }
+    for(let i = 0; i < localStorage.length; i++){
+      const kk = localStorage.key(i);
+      if(kk && kk.startsWith('ledger_corrupt_' + k + '_') && localStorage.getItem(kk) === raw) return;
+    }
+    localStorage.setItem('ledger_corrupt_' + k + '_' + Date.now(), raw);
+  }catch(e){}
+}
+let bootNotice = null;
+function load(){
+  const r = E.loadState(lsGet);
+  for(const b of r.backups) backupCorrupt(b.key, b.raw);
+  bootNotice = r.notice;
+  return r.state;
+}
+function corruptBackups(){
+  const out = {};
+  try{
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('ledger_corrupt_')) out[k] = localStorage.getItem(k);
+    }
+  }catch(e){}
+  return out;
 }
 function save(){
   try{ localStorage.setItem(LS, JSON.stringify(S)); }
-  catch(e){ setSync('bad','storage full'); }
+  catch(e){ setSync('bad', 'storage full'); }
 }
 
-/* ------------------------------------------------------------ templates */
-/* Programme v2 — ../training/programme-v2-draft.md, as of 2026-08-30.
-   kind : weight (kg/reps/rir) | reps (a bare count) | time (s) | distance (kg/m) | rounds
-   rep  : [min,max] prescribed range     rir : target reps in reserve
-   inc  : smallest useful load jump      rest: prescribed rest, seconds
-   bar  : bar weight — enables the plate breakdown
-   key  : counts as a main lift for deload trigger D1                        */
-const TEMPLATES = {
-  'upper-push':{ name:'Upper Push', day:'Mon', ex:[
-    {n:'Bench press (heavy)', kind:'weight', sets:4, rep:[5,5], rir:2, inc:2.5, rest:180, bar:20, key:true,
-     note:'First set paused 1s. Hold, don’t chase — only add load if a whole session lands at RIR 3–4.'},
-    {n:'Overhead press', kind:'weight', sets:3, rep:[6,8], rir:2, inc:2.5, rest:150, bar:20, key:true, note:'Strict, standing.'},
-    {n:'Weighted dip', kind:'weight', sets:3, rep:[6,8], rir:2, inc:2.5, rest:150, note:'Added kg (0 = bodyweight). Shoulders just below elbows.'},
-    {n:'Incline DB curl', kind:'weight', sets:3, rep:[10,12], rir:1, inc:2, rest:75, note:'Per hand. Biceps fresh.'},
-    {n:'Pallof press', kind:'weight', sets:3, rep:[10,10], rir:2, inc:2.5, rest:60, note:'Per side.'}
-  ]},
-  'lower-b':{ name:'Lower B — hinge', day:'Tue', ex:[
-    {n:'Trap-bar / conventional DL', kind:'weight', sets:3, rep:[5,5], rir:3, inc:2.5, rest:210, bar:20, key:true,
-     note:'Rebuild from 85–95 kg. Film from the side. Stop on any one-sided pinch.'},
-    {n:'Romanian deadlift', kind:'weight', sets:3, rep:[8,8], rir:2, inc:2.5, rest:150, bar:20, note:'Full ROM.'},
-    {n:'45° back extension', kind:'weight', sets:3, rep:[10,15], rir:1, inc:2.5, rest:90, note:'The missing erector work. Added kg, 0 = bodyweight.'},
-    {n:'Suitcase carry', kind:'distance', sets:3, rest:90, note:'Per side, 30 m.'},
-    {n:'McGill Big 3', kind:'rounds', sets:2, rest:60},
-    {n:'Dead hang', kind:'time', sets:2, rest:90, note:'Build to 60s.'}
-  ]},
-  'upper-pull':{ name:'Upper Pull', day:'Wed', ex:[
-    {n:'Pull-up (EMOM 10×3)', kind:'reps', sets:1, rep:[30,30], rest:0,
-     note:'Log total reps for the whole 10 min. Progress by reps per minute, not by adding minutes.'},
-    {n:'Chin-up', kind:'weight', sets:3, rep:[5,10], rir:2, inc:2.5, rest:150, note:'Added kg, 0 = bodyweight.'},
-    {n:'Single-arm DB row', kind:'weight', sets:3, rep:[8,12], rir:1, inc:2, rest:120, note:'Per side. Hand AND knee on the bench — never bent-over.'},
-    {n:'Face pull', kind:'weight', sets:3, rep:[12,15], rir:1, inc:2.5, rest:75},
-    {n:'Hammer curl', kind:'weight', sets:3, rep:[10,12], rir:1, inc:2, rest:75, note:'Per hand.'}
-  ]},
-  'lower-a':{ name:'Lower A — squat', day:'Fri', ex:[
-    {n:'High-bar back squat', kind:'weight', sets:4, rep:[5,5], rir:2, inc:2.5, rest:210, bar:20, key:true, note:'The lift being built.'},
-    {n:'Bulgarian split squat', kind:'weight', sets:3, rep:[8,8], rir:2, inc:2, rest:120, note:'Per leg.'},
-    {n:'Hanging knee/leg raise', kind:'weight', sets:3, rep:[8,12], rir:1, inc:2, rest:90, note:'Strict. Added kg, 0 = bodyweight.'},
-    {n:'Ab wheel rollout', kind:'weight', sets:3, rep:[6,10], rir:1, inc:2.5, rest:90, note:'Knees down. Added kg, 0 = bodyweight.'},
-    {n:'Farmer’s carry', kind:'distance', sets:3, rest:90, note:'40 m.'}
-  ]},
-  'floor':{ name:'Daily floor', day:'Every day', ex:[
-    {n:'Deep squat hold', kind:'time', sets:1, rest:0, note:'Block 1. 90s, broken as needed.'},
-    {n:'Knee-to-wall L (cm)', kind:'reps', sets:1, rest:0, note:'Block 1. Log centimetres.'},
-    {n:'Knee-to-wall R (cm)', kind:'reps', sets:1, rest:0},
-    {n:'Length block A or B', kind:'rounds', sets:1, rest:0, note:'A = posterior, Tue/Thu/Sat. B = anterior hip, Mon/Wed/Fri/Sun. Log 1 when done.'},
-    {n:'Hip flexor ladder', kind:'time', sets:4, rest:45, note:'Mon/Tue/Thu/Sat. Log hold seconds; put the rung in the note.'},
-    {n:'L-sit', kind:'time', sets:5, rest:45, note:'Tue/Thu/Sat. 10–15s per set.'},
-    {n:'Wall handstand', kind:'time', sets:2, rest:60, note:'Mon/Wed/Fri/Sun. Chest to wall, up to 60s.'}
-  ]},
-  'custom':{ name:'Custom', day:'Any', ex:[] }
-};
+let S = load();
 
-/* The programme fixes the deload cadence ("every 4–6 weeks, non-negotiable in a
-   deficit") but not the dose. These three numbers are a proposal, not the
-   coach’s — change them here if he says otherwise. */
-const DELOAD = { loadPct:0.65, resumePct:0.95 };
-
-/* ------------------------------------------------------------- utilities */
-const $ = s => document.querySelector(s);
-const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const todayISO = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
-const num = v => (v===''||v==null) ? null : (Number.isNaN(parseFloat(v)) ? null : parseFloat(v));
-
-/* ISO Monday of the week containing an ISO date. Weeks are the unit every
-   deload trigger is evaluated over, so they have to agree everywhere.
-   Formatted from local parts, never toISOString — east of UTC that rounds
-   local midnight back into the previous day and labels every week a day
-   early. */
-const localISO = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-function weekOf(iso){
-  const d = new Date(iso+'T00:00:00');
-  const dow = (d.getDay()+6)%7;            // Mon = 0
-  d.setDate(d.getDate()-dow);
-  return localISO(d);
-}
-function weeksBetween(aIso,bIso){
-  return Math.round((new Date(bIso+'T00:00:00') - new Date(aIso+'T00:00:00')) / 6048e5);
-}
-function daysAgo(iso){
-  return Math.round((new Date(todayISO()+'T00:00:00') - new Date(iso+'T00:00:00')) / 864e5);
-}
-function median(a){
-  if(!a.length) return null;
-  const s=[...a].sort((x,y)=>x-y), m=s.length>>1;
-  return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
-}
-function b64enc(str){
-  const bytes = new TextEncoder().encode(str);
-  let bin=''; bytes.forEach(b => bin += String.fromCharCode(b));
-  return btoa(bin);
-}
-function b64dec(b64){
-  const bin = atob(String(b64).replace(/\s/g,''));
-  return new TextDecoder().decode(Uint8Array.from(bin, c=>c.charCodeAt(0)));
-}
-function setSync(cls, msg){ const el=$('#sync'); el.className=cls||''; el.textContent=msg; }
-
-/* Plate breakdown per side. Returns null when the load cannot be made from
-   the plates on hand, which is itself worth knowing before you get under it. */
-const PLATES = [25,20,15,10,5,2.5,1.25];
-function plateBreak(total, bar){
-  if(!bar || total==null || total < bar) return null;
-  if(total === bar) return 'bar only';
-  let side=(total-bar)/2, out=[];
-  for(const p of PLATES){
-    const n = Math.floor(side/p + 1e-9);
-    if(n){ out.push(n>1 ? n+'×'+p : String(p)); side -= n*p; }
-  }
-  return side > 0.01 ? null : out.join(' + ')+' / side';
-}
-
-/* ---------------------------------------------------------- github layer */
-function cfgOk(){
-  const c=S.settings;
-  return !!(c.token && c.owner && c.repo && c.path);
-}
-async function gh(path, opts={}){
-  const c = S.settings;
-  const res = await fetch('https://api.github.com'+path, {
-    ...opts,
-    headers:{
-      'Authorization':'Bearer '+c.token,
-      'Accept':'application/vnd.github+json',
-      'X-GitHub-Api-Version':'2022-11-28',
-      ...(opts.body ? {'Content-Type':'application/json'} : {}),
-      ...(opts.headers||{})
-    }
-  });
-  if(res.status === 404) return null;
-  if(!res.ok){
-    let detail='';
-    try{ detail = (await res.json()).message || ''; }catch(e){}
-    throw new Error((res.status+' '+detail).trim());
-  }
-  return res.status === 204 ? true : res.json();
-}
-const dir = () => S.settings.path.replace(/^\/|\/$/g,'');
-function filePath(s){ return dir()+'/'+s.date+'-'+s.key+'.json'; }
-
-async function putFile(p, obj, msg){
-  const c=S.settings;
-  let sha;
-  const existing = await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+p+'?ref='+encodeURIComponent(c.branch));
-  if(existing && existing.sha) sha = existing.sha;
-  await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+p, {
-    method:'PUT',
-    body: JSON.stringify({
-      message: msg,
-      content: b64enc(JSON.stringify(obj, null, 2)),
-      branch: c.branch,
-      ...(sha?{sha}:{})
-    })
-  });
-  return true;
-}
-async function getFile(p){
-  const c=S.settings;
-  const blob = await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+p+'?ref='+encodeURIComponent(c.branch));
-  if(!blob || !blob.content) return null;
-  try{ return JSON.parse(b64dec(blob.content)); }catch(e){ return null; }
-}
-const pushSession = s => putFile(filePath(s), s, 'Training: '+s.name+' — '+s.date + (s.deleted?' (deleted)':''));
-
-/* Bodyweight and the floor benchmarks go one file per month rather than one
-   per entry — a year of daily weigh-ins is 12 files, not 365. */
-function bwPath(iso){ return dir()+'/bw-'+iso.slice(0,7)+'.json'; }
-async function pushBw(entry){
-  const p = bwPath(entry.date);
-  const cur = (await getFile(p)) || {month:entry.date.slice(0,7), entries:[]};
-  cur.entries = (cur.entries||[]).filter(e => !(e.date===entry.date && e.type===entry.type));
-  cur.entries.push(entry);
-  cur.entries.sort((a,b)=> a.date<b.date?1:-1);
-  await putFile(p, cur, 'Training: '+(entry.type==='bw'?'bodyweight':'floor benchmark')+' — '+entry.date);
-  return true;
-}
-
-async function flushQueue({quiet=false}={}){
-  const total = S.queue.length + S.bwQueue.length;
-  if(!cfgOk()){ if(total) setSync('bad','no token'); return; }
-  if(!total){ if(!quiet) setSync('ok','synced'); return; }
-  setSync('pending','syncing '+total+'…');
-  const restS=[], restB=[];
-  for(const s of S.queue){
-    try{ await pushSession(s); mergeHistory(s); }
-    catch(e){ restS.push(s); setSync('bad', String(e.message).slice(0,28)); }
-  }
-  for(const b of S.bwQueue){
-    try{ await pushBw(b); mergeBw(b); }
-    catch(e){ restB.push(b); setSync('bad', String(e.message).slice(0,28)); }
-  }
-  S.queue = restS; S.bwQueue = restB; save();
-  const left = restS.length + restB.length;
-  setSync(left?'pending':'ok', left ? left+' pending' : 'synced');
-  render();
-}
-
-function mergeHistory(s){
-  S.history = S.history.filter(h => !(h.date===s.date && h.key===s.key));
-  if(!s.deleted) S.history.push(s);
-  S.history.sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0);
-  save();
-}
-function mergeBw(b){
-  S.bw = S.bw.filter(x => !(x.date===b.date && x.type===b.type));
-  S.bw.push(b);
-  S.bw.sort((a,b2)=> a.date<b2.date?1:-1);
-  save();
-}
-
-async function pullHistory(){
-  if(!cfgOk()) return;
-  const c=S.settings;
-  setSync('pending','loading…');
-  try{
-    const list = await gh('/repos/'+c.owner+'/'+c.repo+'/contents/'+dir()+'?ref='+encodeURIComponent(c.branch));
-    if(!list){ setSync('ok','no log yet'); render(); return; }
-    const files = list.filter(f => f.type==='file' && f.name.endsWith('.json'))
-                      .sort((a,b)=> a.name<b.name?1:-1);
-    const sessions = files.filter(f => !f.name.startsWith('bw-')).slice(0,80);
-    const months   = files.filter(f =>  f.name.startsWith('bw-')).slice(0,18);
-    const out=[];
-    for(const f of sessions){
-      const j = await getFile(f.path).catch(()=>null);
-      if(j && !j.deleted) out.push(j);
-    }
-    const bw=[];
-    for(const f of months){
-      const j = await getFile(f.path).catch(()=>null);
-      if(j && Array.isArray(j.entries)) bw.push(...j.entries);
-    }
-    S.history = out;
-    S.bw = bw.sort((a,b)=> a.date<b.date?1:-1);
-    S.historyFetched = Date.now(); save();
-    setSync('ok','synced');
-  }catch(e){ setSync('bad', String(e.message).slice(0,28)); }
-  render();
-}
-
-/* ------------------------------------------------------------- analysis */
-const hasData = st => st.kg!=null || st.reps!=null || st.seconds!=null || st.metres!=null || st.rounds!=null;
-/* Warm-ups are excluded from every calculation below. Counting them drags
-   every recommendation down, which is a correctness problem, not a nicety. */
-const working = ex => (ex.sets||[]).filter(st => hasData(st) && !st.warmup);
-
-function summarise(ex){
-  return working(ex).map(st=>{
-    if(ex.kind==='time')     return (st.seconds??'?')+'s';
-    if(ex.kind==='distance') return (st.kg??'?')+'kg×'+(st.metres??'?')+'m';
-    if(ex.kind==='rounds')   return (st.rounds??'?')+'r';
-    if(ex.kind==='reps')     return String(st.reps??'?');
-    return (st.kg??0)+'×'+(st.reps??'?')+(st.rir!=null?' @'+st.rir:'');
-  }).join('  ');
-}
-
-/* Epley, extended by RIR so a set stopped short still estimates honestly.
-   Degrades badly past ~12 reps, so D1 only reads the main lifts. */
-function e1rm(kg, reps, rir){
-  if(!kg || !reps) return null;
-  const eff = reps + (rir??0);
-  if(eff > 12) return null;
-  return kg * (1 + eff/30);
-}
-function sessionE1rm(ex){
-  const v = working(ex).map(st => e1rm(st.kg, st.reps, st.rir)).filter(x=>x);
-  return v.length ? Math.max(...v) : null;
-}
-
-function lastFor(exName, beforeDate){
-  for(const h of S.history){
-    if(beforeDate && h.date >= beforeDate) continue;
-    if(h.isDeload) continue;              // deload numbers would poison the next call
-    const ex = (h.exercises||[]).find(e => e.n === exName);
-    if(ex && working(ex).length) return {date:h.date, ex, session:h};
-  }
-  return null;
-}
-function lastRules(exName, n){
-  const out=[];
-  for(const h of S.history){
-    const d = (h.decisions||[]).find(x => x.ex === exName);
-    if(d){ out.push(d.rule); if(out.length===n) break; }
-  }
-  return out;
-}
-
-/* Rules are evaluated in order and the first match wins. R3 is the catch-all
-   so no session falls through unhandled. */
-function recommend(tpl, beforeDate, deloadOn){
-  if(tpl.kind!=='weight' || !tpl.rep || tpl.rir==null) return null;
-  if(deloadOn){
-    const prev = lastFor(tpl.n, beforeDate);
-    if(!prev) return null;
-    const base = Math.max(...working(prev.ex).map(s=>s.kg??0));
-    return {rule:'R6', kg: Math.round(base*DELOAD.loadPct/2.5)*2.5, reps:tpl.rep[0],
-            why:'Deload week — '+Math.round(DELOAD.loadPct*100)+'% for '+tpl.rep[0]+'. Should feel easy.'};
-  }
-  const prev = lastFor(tpl.n, beforeDate);
-  if(!prev) return null;
-  const sets = working(prev.ex);
-  if(!sets.length) return null;
-
-  const base = Math.max(...sets.map(s=>s.kg??0));
-  const inc  = tpl.inc || 2.5;
-  const top  = tpl.rep[1], bot = tpl.rep[0];
-  const target = prev.ex.targetSets || sets.length;
-  const mRir = median(sets.map(s=>s.rir).filter(r=>r!=null));
-
-  if(sets.length < target)
-    return {rule:'R0', kg:base, reps:top, why:'Last session was cut short — same again.'};
-
-  const r5 = lastRules(tpl.n, 2);
-  if(r5.length===2 && r5[0]==='R4' && r5[1]==='R4')
-    return {rule:'R5', kg: Math.round(base*0.9/inc)*inc, reps:bot, why:'Stalled twice. Down 10% to rebuild.'};
-
-  const allTop = sets.every(s => (s.reps??0) >= top);
-  /* RIR at or above the prescribed target means there was room left. Hitting
-     the reps at a lower RIR means the load was already too heavy — repeat it. */
-  const hadRoom = mRir==null ? false : mRir >= tpl.rir;
-
-  if(allTop && hadRoom){
-    /* One increment on a light dumbbell can be a 20% jump, so cap by rep
-       extension rather than by load — a percentage cap would deadlock. */
-    if(base>0 && inc/base > 0.10)
-      return {rule:'R1b', kg:base, reps:top+1,
-              why:'Topped the range, but +'+inc+'kg is over 10% here. Add a rep first.'};
-    return {rule:'R1', kg:base+inc, reps:bot, why:'Topped the range at RIR '+tpl.rir+'+. Up '+inc+' kg.'};
-  }
-  if(allTop)
-    return {rule:'R2', kg:base, reps:top, why:'Topped the range but nothing left. Same weight — own it first.'};
-
-  const below = sets.filter(s => (s.reps??0) < bot).length;
-  if(below >= 2)
-    return {rule:'R4', kg:base, reps:bot, why:'Two or more sets below range. Same weight again.'};
-
-  return {rule:'R3', kg:base, reps:Math.min(top, (Math.min(...sets.map(s=>s.reps??0)))+1),
-          why:'Same weight. Add a rep to the weakest set.'};
-}
-
-/* ---------------------------------------------------------- deload check */
-function weeksSinceDeload(){
-  const d = S.history.find(h => h.isDeload);
-  const first = S.history[S.history.length-1];
-  const from = d ? d.date : (first ? first.date : null);
-  return from ? weeksBetween(weekOf(from), weekOf(todayISO())) : 0;
-}
-function sessionsInWeek(w){ return S.history.filter(h => weekOf(h.date)===w && !h.isDeload); }
-
-function deloadCheck(){
-  const codes=[];
-  const thisWeek = weekOf(todayISO());
-  const prevWeek = S.history.length ? weekOf(S.history[0].date) : thisWeek;
-  const wk = sessionsInWeek(thisWeek).length ? thisWeek : prevWeek;
-  const week = sessionsInWeek(wk);
-
-  /* Cadence. This one is the coach’s, not a proposal: programme v2 says
-     every 4–6 weeks and non-negotiable in a deficit. */
-  const wsd = weeksSinceDeload();
-  if(S.history.length && wsd >= S.settings.deloadWeeks)
-    codes.push({c:'CADENCE', sev:'severe', t:wsd+' weeks since the last deload. Programme says every 4–6.'});
-
-  /* D1 — estimated 1RM regression on the main lifts. */
-  const keys=[]; for(const t of Object.values(TEMPLATES)) for(const e of t.ex) if(e.key) keys.push(e.n);
-  let regressed=[];
-  for(const k of [...new Set(keys)]){
-    const series = S.history.filter(h=>!h.isDeload)
-      .map(h => { const ex=(h.exercises||[]).find(e=>e.n===k); return ex?{d:h.date, v:sessionE1rm(ex)}:null; })
-      .filter(x=>x && x.v);
-    if(series.length < 5) continue;
-    const recent = median(series.slice(0,3).map(x=>x.v));
-    const older  = series.filter(x => daysAgo(x.d) <= 42).slice(3).map(x=>x.v);
-    if(!older.length) continue;
-    if(recent < Math.max(...older) * 0.95) regressed.push(k);
-  }
-  if(regressed.length >= 2)
-    codes.push({c:'D1', sev:'severe', t:'Estimated 1RM down over 5% on '+regressed.join(' and ')+'.'});
-
-  /* D2 — RIR compression against the programme’s own targets. */
-  let compressed=0;
-  for(const h of week) for(const ex of (h.exercises||[])){
-    if(ex.tplRir==null) continue;
-    const m = median(working(ex).map(s=>s.rir).filter(r=>r!=null));
-    if(m!=null && m <= ex.tplRir - 1.5) compressed++;
-  }
-  if(compressed >= 3)
-    codes.push({c:'D2', sev:'severe', t:'Sets landing 1.5 RIR harder than prescribed on '+compressed+' exercises.'});
-
-  /* D3 — rep failure rate, counted over sets actually logged. */
-  let tot=0, miss=0;
-  for(const h of week) for(const ex of (h.exercises||[])){
-    if(!ex.rep || ex.kind!=='weight') continue;
-    for(const s of working(ex)){ tot++; if((s.reps??0) < ex.rep[0]) miss++; }
-  }
-  if(tot >= 6 && miss/tot >= 0.30)
-    codes.push({c:'D3', sev:'mod', t:Math.round(miss/tot*100)+'% of working sets fell below the rep range.'});
-
-  /* D4 — whole-session effort, Borg CR10. A different scale from set RIR,
-     which is why it lives in its own field. */
-  const rpes = week.map(h=>h.sessionRpe).filter(v=>v!=null);
-  if(rpes.length >= 2 && rpes.reduce((a,b)=>a+b,0)/rpes.length >= 9)
-    codes.push({c:'D4', sev:'mod', t:'Session RPE averaging 9+ this week.'});
-
-  /* D5 — attendance. Informational only: missing sessions reduces fatigue,
-     so it is context for the others, never evidence on its own. */
-  if(S.history.length >= 4 && week.length && week.length <= 2)
-    codes.push({c:'D5', sev:'info', t:'Only '+week.length+' of 4 sessions logged this week.'});
-
-  /* D6 — bodyweight drop. Off while the block is a deliberate cut. */
-  if(S.settings.phase !== 'cut'){
-    const w = S.bw.filter(b=>b.type==='bw' && b.kg);
-    const recent = w.filter(b=>daysAgo(b.date)<=7).map(b=>b.kg);
-    const before = w.filter(b=>daysAgo(b.date)>7 && daysAgo(b.date)<=14).map(b=>b.kg);
-    if(recent.length>=3 && before.length>=3){
-      const a=median(before), b=median(recent);
-      if(b < a*0.98) codes.push({c:'D6', sev:'mod', t:'Bodyweight down over 2% in a week outside a cut.'});
-    }
-  }
-
-  const severe = codes.filter(x=>x.sev==='severe');
-  const mods   = codes.filter(x=>x.sev==='mod');
-  return { codes, fire: severe.length>=1 || mods.length>=2 };
-}
-
-/* --------------------------------------------------------------- session */
-const blankSet = k => k==='time' ? {seconds:null,done:false,warmup:false}
-                    : k==='distance' ? {kg:null,metres:null,done:false,warmup:false}
-                    : k==='rounds' ? {rounds:null,done:false,warmup:false}
-                    : k==='reps' ? {reps:null,done:false,warmup:false}
-                    : {kg:null,reps:null,rir:null,done:false,warmup:false};
-
-function newSession(key, isDeload){
-  const t = TEMPLATES[key];
-  const date = todayISO();
-  return {
-    date, key, name:t.name, week:weekOf(date), bodyweight:null, sessionRpe:null,
-    isDeload: !!isDeload, notes:'', startedAt:new Date().toISOString(),
-    exercises: t.ex.map(e => {
-      const tpl = {...e};
-      const rec = recommend(tpl, date, isDeload);
-      const sets = Array.from({length:e.sets||3}, ()=>blankSet(e.kind));
-      /* Load and reps pre-fill from the recommendation; effort never does.
-         A pre-filled RIR saved untouched is a copy, not an observation, and
-         every rule above reads RIR. */
-      if(rec && e.kind==='weight') sets.forEach(s => { s.kg = rec.kg; s.reps = rec.reps; });
-      return {
-        n:e.n, kind:e.kind, note:'', tplNote:e.note||'', rep:e.rep||null,
-        tplRir:e.rir??null, inc:e.inc??null, rest:e.rest??null, bar:e.bar??null,
-        key:!!e.key, targetSets:e.sets||3, substitutedFor:null, rec:rec||null, sets
-      };
-    }),
-    decisions:[]
-  };
-}
-
-/* --------------------------------------------------------- the rest timer */
-let restIv=null, restEnd=0, restWho='';
-function fmt(sec){ const s=Math.abs(sec); return (sec<0?'+':'')+Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
-function startRest(sec, who){
-  if(!S.settings.restOn || !sec) return;
-  restEnd = Date.now()+sec*1000; restWho = who;
-  $('#rest').classList.add('on');
-  tickRest();
-  clearInterval(restIv); restIv = setInterval(tickRest, 250);
-}
-function tickRest(){
-  const left = Math.round((restEnd-Date.now())/1000);
-  $('#restT').textContent = fmt(left);
-  $('#restWho').textContent = restWho;
-  const over = left<=0;
-  $('#rest').classList.toggle('over', over);
-  if(over && left>-1 && navigator.vibrate) navigator.vibrate([120,80,120]);
-  if(left < -180) stopRest();
-}
-function stopRest(){ clearInterval(restIv); restIv=null; $('#rest').classList.remove('on','over'); }
-
-/* ------------------------------------------------------------------ views */
-let tab='log';
-document.querySelectorAll('nav button').forEach(b=>{
-  b.onclick=()=>{ tab=b.dataset.tab;
-    document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
-    render(); };
+function setSync(cls, msg){ const el = $('#sync'); el.className = cls || ''; el.textContent = msg; }
+const sync = makeSync({
+  fetch: (u, i) => fetch(u, i), getState: () => S, save,
+  onStatus: (c, m) => { setSync(c, m); if(c !== 'pending') softRender(); }
 });
+const dir = () => sync.dir();
+const aHist = () => E.analysisHistory(S.history, S.queue);
+const merged = () => E.mergedHistory(S.history, S.queue);
 
-function render(){
-  const v=$('#view');
-  if(tab==='log') v.innerHTML = viewLog();
-  else if(tab==='history') v.innerHTML = viewHistory();
-  else if(tab==='body') v.innerHTML = viewBody();
-  else v.innerHTML = viewSettings();
-  wire();
+/* An edit opened by the v4 page carries no origin; its current path is the
+   best evidence of where it came from. */
+if(S.draft){
+  if(!S.draft.id) S.draft.id = newId();
+  if(S.draft.editing && !S.draft.originPath){
+    S.draft.originPath = E.pathOf(S.draft, dir()); S.draft.origDate = S.draft.date; S.draft.origKey = S.draft.key;
+  }
 }
 
+/* ---------------------------------------------------------------- ui state */
+const ui = { tab:'log', open:new Set(), info:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null };
+
+function toast(msg, undo){
+  const el = $('#toast');
+  clearTimeout(ui.toastT);
+  ui.undo = undo || null;
+  el.innerHTML = '<span class="grow">' + esc(msg) + '</span>' + (undo ? '<button data-act="undo">Undo</button>' : '');
+  el.hidden = false;
+  ui.toastT = setTimeout(() => { el.hidden = true; ui.undo = null; }, undo ? 6000 : 2600);
+}
+
+/* ---------------------------------------------------------------- rest timer */
+/* Vibrates once per rest, not on every tick. A hidden page cannot vibrate at
+   all, which is why the screen is kept on during a session. */
+const rest = { on:false, end:0, buzzed:false };
+function startRest(sec){
+  if(!S.settings.restOn || !sec) return;
+  Object.assign(rest, { on:true, end:Date.now() + sec*1000, buzzed:false });
+  paintBar();
+}
+function stopRest(){ rest.on = false; paintBar(); }
+function paintBar(){
+  const t = $('#barT'), p = $('#plus30'), sr = document.getElementById('shRest');
+  if(!S.draft || $('#bar').hidden){ if(sr) sr.textContent = ''; return; }
+  if(rest.on){
+    const left = Math.round((rest.end - Date.now()) / 1000);
+    if(left <= 0 && !rest.buzzed){ rest.buzzed = true; try{ navigator.vibrate && navigator.vibrate([120, 80, 120]); }catch(e){} }
+    if(left < -180){ rest.on = false; return paintBar(); }
+    t.innerHTML = (left < 0 ? '+' : '') + mmss(left) + '<small>' + (left <= 0 ? 'rest over' : 'rest') + '</small>';
+    t.classList.toggle('over', left <= 0);
+    p.hidden = false;
+    /* The set sheet covers the bar, so it carries its own copy of the timer. */
+    if(sr){ sr.textContent = (left <= 0 ? 'rest over +' : 'rest ') + mmss(left); sr.classList.toggle('over', left <= 0); }
+  } else {
+    if(sr) sr.textContent = '';
+    const since = (Date.now() - Date.parse(S.draft.startedAt)) / 1000;
+    t.innerHTML = S.draft.editing ? 'Edit<small>saved session</small>'
+      : (since >= 0 && since < 12*3600 ? mmss(since) : '–') + '<small>session</small>';
+    t.classList.remove('over');
+    p.hidden = true;
+  }
+}
+setInterval(paintBar, 500);
+
+/* ---------------------------------------------------------------- wake lock */
+/* The screen stays on while a session is open, so the rest timer is visible
+   and can vibrate. Re-requested whenever the page comes back. */
+let wake = null, wakeBusy = false;
+async function syncWake(){
+  const want = !!S.draft && S.settings.wakeLock !== false && document.visibilityState === 'visible' && ('wakeLock' in navigator);
+  if(want && !wake && !wakeBusy){
+    wakeBusy = true;
+    try{
+      wake = await navigator.wakeLock.request('screen');
+      if(wake && wake.addEventListener) wake.addEventListener('release', () => { wake = null; });
+    }catch(e){ wake = null; }
+    wakeBusy = false;
+  } else if(!want && wake && document.visibilityState === 'visible') releaseWake();
+}
+function releaseWake(){ const w = wake; wake = null; try{ w && w.release && w.release(); }catch(e){} }
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ syncWake(); paintBar(); } });
+
+/* ---------------------------------------------------------------- render */
+function render(){
+  const d = S.draft, ses = ui.tab === 'log' && !!d;
+  document.title = d ? 'Ledger · ' + d.name : 'Ledger';
+  $('#title').textContent = ses ? d.name : 'Ledger';
+  const chip = $('#datechip');
+  chip.hidden = !ses;
+  if(ses){ const isToday = d.date === today(); chip.textContent = isToday ? 'Today' : E.niceDate(d.date); chip.classList.toggle('amber', !isToday); }
+  $('#menuBtn').hidden = !d;
+  document.body.classList.toggle('ses', ses);
+  document.body.classList.toggle('chips', ses && !!ui.rir);
+  $('#tabs').hidden = ses;
+  $('#bar').hidden = !ses;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  $('#view').innerHTML = ui.tab === 'log' ? viewLog() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : viewSettings();
+  renderRir(); renderNext(); renderSheet(); paintBar();
+  if(ui.scrollTo != null){
+    const el = document.getElementById('ex-' + ui.scrollTo); ui.scrollTo = null;
+    if(el) el.scrollIntoView({ block:'start' });
+  }
+  syncWake();
+}
+/* A background sync must not wipe what Dan is typing. */
+function softRender(){
+  const a = document.activeElement;
+  if(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return;
+  render();
+}
+
+function noticeBanner(){
+  if(!ui.notice) return '';
+  const t = ui.notice === 'v5-unreadable'
+    ? '<b>This phone’s saved data could not be read.</b> The GitHub settings were kept and the log reloads from GitHub. Anything that had not synced yet is only in a raw copy on this phone: Settings → Export JSON includes it.'
+    : '<b>The session in progress could not be read</b> and was set aside. A raw copy is kept on this phone: Settings → Export JSON includes it.';
+  return '<div class="banner bad">' + t + '<div class="row"><button class="btn" data-act="noticeOk">OK</button></div></div>';
+}
+function tokenBanner(){
+  return sync.cfgOk() ? '' : '<div class="banner warn">No GitHub token. Log normally: sessions are held on this phone and pushed once a token is set in <b>Settings</b>.</div>';
+}
 function queueBanner(){
   const n = S.queue.length + S.bwQueue.length;
-  return n ? '<div class="banner warn"><b>'+n+' item'+(n>1?'s':'')+' not yet on GitHub.</b> Held on this phone. <button class="btn sm" data-act="retry">Retry now</button></div>' : '';
+  return n ? '<div class="banner warn"><b>' + n + ' item' + (n > 1 ? 's' : '') + ' not yet on GitHub.</b> Held on this phone.<div class="row"><button class="btn" data-act="retry">Retry now</button></div></div>' : '';
 }
-function deloadBanner(){
-  const r = deloadCheck();
+function deloadBanner(aH){
+  const r = E.deloadCheck(aH, S.bw, S.settings, today());
   if(!r.codes.length) return '';
-  const list = r.codes.map(c=>'<div class="hint">· '+esc(c.t)+' <span class="pill'+(c.sev==='severe'?' bad':c.sev==='mod'?' warn':'')+'">'+c.c+'</span></div>').join('');
+  const list = r.codes.map(c => '<div class="hint">· ' + esc(c.t) + ' <span class="pill' + (c.sev === 'severe' ? ' bad' : c.sev === 'mod' ? ' warn' : '') + '">' + c.c + '</span></div>').join('');
+  /* Only the next session started is set up as a deload automatically; the
+     rest of the week has to be switched on by hand, so the banner says so. */
   const head = r.fire
-    ? '<b>Deload due.</b> '+Math.round(DELOAD.loadPct*100)+'% of working load at the bottom of each rep range, one week, then resume at '+Math.round(DELOAD.resumePct*100)+'%.'
+    ? '<b>Deload due.</b> The next session starts at ' + Math.round(E.DELOAD.loadPct*100) + '% of working load at the bottom of each rep range. The deload is a week: for the other sessions this week, use ⋯ → Deload session.'
     : '<b>Watch.</b> Not enough to call a deload yet.';
-  return '<div class="banner '+(r.fire?'bad':'warn')+'">'+head+list+'</div>';
+  return '<div class="banner ' + (r.fire ? 'bad' : 'warn') + '">' + head + list + '</div>';
 }
+
+/* ---------------------------------------------------------------- log view */
+const isStale = d => E.isStaleDraft(d, Date.now());
+const currentIdx = d => { const i = d.exercises.findIndex(ex => ex.sets.some(s => !s.warmup && s.state === 'planned')); return i < 0 ? null : i; };
 
 function viewLog(){
-  /* Logging must always work, token or not. A missing token is a sync
-     problem, never a reason to block the session in front of you. */
-  const warn = cfgOk() ? '' : '<div class="banner warn">No GitHub token. You can log normally — sessions are held on this phone and pushed once a token is set in <b>Settings</b>.</div>';
-  if(!S.draft) return warn+queueBanner()+deloadBanner()+pickerHTML();
-
-  const d=S.draft;
-  let h = warn+queueBanner()+deloadBanner();
-  h += '<div class="card">'
-    + '<div class="row"><h3 class="grow">'+esc(d.name)+'</h3>'
-    + '<button class="btn sm danger" data-act="discard">Discard</button></div>'
-    + '<div class="sub">'+(d.editing?'Editing a saved session':'Change the date to log a session you did earlier')+'</div>'
-    + '<label>Date</label>'
-    + '<input type="date" data-date value="'+esc(d.date)+'" max="'+todayISO()+'">'
-    + '<label>Bodyweight (kg)</label>'
-    + '<input type="number" inputmode="decimal" step="0.1" data-bw value="'+(d.bodyweight??'')+'" placeholder="72.0">'
-    + '<label><input type="checkbox" data-deload style="width:auto;margin-right:7px"'+(d.isDeload?' checked':'')+'>This is a deload session</label>'
-    + '</div>';
-
-  d.exercises.forEach((ex,i)=>{
-    const prev = lastFor(ex.n, d.date);
-    const rec  = ex.rec;
-    /* Plate breakdown follows the working load, not a heavy warm-up. */
-    const topKg = Math.max(0, ...(ex.sets||[]).filter(s=>!s.warmup).map(s=>s.kg??0));
-    const pb = ex.bar ? plateBreak(topKg, ex.bar) : null;
-    h += '<div class="card">'
-      + '<div class="row"><h3 class="grow">'+esc(ex.n)+'</h3>'
-      + '<button class="btn sm" data-act="swap" data-i="'+i+'">swap</button>'
-      + '<button class="btn sm" data-act="delex" data-i="'+i+'">×</button></div>'
-      + '<div class="sub">'
-        + (ex.rep? (ex.rep[0]===ex.rep[1] ? ex.rep[0]+' reps' : ex.rep[0]+'–'+ex.rep[1]+' reps') : '')
-        + (ex.tplRir!=null?' · RIR '+ex.tplRir:'')
-        + (ex.rest?' · rest '+ex.rest+'s':'')
-        + (ex.substitutedFor?' · <b>swapped in for '+esc(ex.substitutedFor)+'</b>':'')
-        + (ex.tplNote?' · '+esc(ex.tplNote):'')
-      + '</div>'
-      + setsHTML(ex,i)
-      + '<div class="row" style="margin-top:8px">'
-      + '<button class="btn sm" data-act="addset" data-i="'+i+'">+ set</button>'
-      + (ex.rest?'<button class="btn sm" data-act="restnow" data-i="'+i+'">rest '+ex.rest+'s</button>':'')
-      + '<span class="grow"></span></div>'
-      + (pb?'<div class="plates">'+topKg+' kg = '+esc(pb)+'</div>':'')
-      + (prev
-          ? '<div class="hint">Last ('+esc(prev.date)+'): <b>'+esc(summarise(prev.ex))+'</b></div>'
-          : '<div class="hint">No previous data — nothing to progress from yet.</div>')
-      + (rec
-          ? '<div class="hint"><span class="sug">'+(rec.kg!=null?rec.kg+' kg':'')+(rec.reps?' × '+rec.reps:'')+'</span> <span class="pill">'+rec.rule+'</span> '+esc(rec.why)+'</div>'
-          : '')
-      + '<label>Notes</label>'
-      + '<input type="text" data-exnote="'+i+'" value="'+esc(ex.note)+'" placeholder="cues, pain, how it felt">'
-      + '</div>';
-  });
-
-  h += '<div class="card">'
-    + '<label>Session RPE — the whole session, 0–10 (Borg CR10)</label>'
-    + '<input type="number" inputmode="decimal" step="0.5" min="0" max="10" data-srpe value="'+(d.sessionRpe??'')+'" placeholder="7">'
-    + '<label>Session notes</label>'
-    + '<textarea data-notes placeholder="Energy, sleep, anything the trainer should know">'+esc(d.notes)+'</textarea>'
-    + '</div>'
-    + '<div class="card"><div class="row wrap">'
-    + '<input type="text" data-newex placeholder="Add an exercise" class="grow">'
-    + '<button class="btn" data-act="addex">Add</button></div></div>'
-    + '<button class="btn primary wide" data-act="finish">Finish session</button>'
-    + '<div class="hint" style="text-align:center;margin:8px 0 20px">Saved to this phone as you type. Pushed to <b>'
-    + esc(S.settings.owner)+'/'+esc(S.settings.repo)+'</b> on finish'+(cfgOk()?'':' — once a token is set')+'.</div>';
+  const aH = aHist();
+  /* During a session the header pill carries sync state; the space goes to
+     the exercise in hand. */
+  if(!S.draft) return noticeBanner() + tokenBanner() + queueBanner() + deloadBanner(aH) + pickerHTML(aH);
+  const d = S.draft;
+  let h = noticeBanner();
+  if(isStale(d)) h += '<div class="banner warn"><b>Unfinished ' + esc(d.name) + ' from ' + esc(E.niceDate(d.date)) + '.</b> Finish it with what was done, or discard it.'
+    + '<div class="row"><button class="btn primary" data-act="finish">Finish it</button><button class="btn danger" data-act="discard">Discard</button></div></div>';
+  if(d.editing) h += '<div class="banner info">Editing a saved session. Saving pushes a new version; git keeps the old one.'
+    + (d.unverified ? ' <b>This session is unverified</b> and stays out of the rules after saving. To include it, use <b>It happened</b> in History.' : '') + '</div>';
+  if(d.isDeload) h += '<div class="banner info"><b>Deload session.</b> ' + Math.round(E.DELOAD.loadPct*100) + '% at the bottom of each range. Should feel easy.</div>';
+  const cur = currentIdx(d);
+  d.exercises.forEach((ex, i) => { h += exCard(ex, i, cur, aH); });
+  if(!d.exercises.length) h += '<div class="empty">No exercises yet. ⋯ → Add exercise.</div>';
   return h;
 }
 
-function setsHTML(ex,i){
-  const w = ex.kind==='weight';
-  const cols = ex.kind==='time' ? '30px 1fr 44px'
-             : ex.kind==='distance' ? '30px 1fr 1fr 44px'
-             : ex.kind==='rounds' || ex.kind==='reps' ? '30px 1fr 44px'
-             : '30px 30px 1fr 30px 1fr 42px 42px';
-  const head = ex.kind==='time' ? '<span>set</span><span>sec</span><span></span>'
-             : ex.kind==='distance' ? '<span>set</span><span>kg</span><span>m</span><span></span>'
-             : ex.kind==='rounds' ? '<span>set</span><span>rounds</span><span></span>'
-             : ex.kind==='reps' ? '<span>set</span><span>reps</span><span></span>'
-             : '<span>set</span><span></span><span>kg</span><span></span><span>reps</span><span>rir</span><span></span>';
-  let h='<div class="sets"><div class="sethead" style="grid-template-columns:'+cols+'">'+head+'</div>';
-  ex.sets.forEach((st,j)=>{
-    const f = (k,ph,step) => '<input type="number" inputmode="decimal" step="'+step+'" data-set="'+i+'.'+j+'.'+k+'" value="'+(st[k]??'')+'" placeholder="'+ph+'">';
-    let mid;
-    if(ex.kind==='time') mid = f('seconds','0','1');
-    else if(ex.kind==='distance') mid = f('kg','0','0.5')+f('metres','0','1');
-    else if(ex.kind==='rounds') mid = f('rounds','0','1');
-    else if(ex.kind==='reps') mid = f('reps','0','1');
-    else mid = '<div class="stp" data-act="step" data-i="'+i+'" data-j="'+j+'" data-k="kg" data-d="-'+(ex.inc||2.5)+'">−</div>'
-             + f('kg','0','0.5')
-             + '<div class="stp" data-act="step" data-i="'+i+'" data-j="'+j+'" data-k="kg" data-d="'+(ex.inc||2.5)+'">+</div>'
-             + f('reps','0','1') + f('rir','','0.5');
-    h+='<div class="setrow'+(st.warmup?' warm':'')+'" style="grid-template-columns:'+cols+'">'
-      + '<div class="n'+(st.warmup?' warm':'')+'" data-act="warm" data-i="'+i+'" data-j="'+j+'">'+(st.warmup?'W':(j+1))+'</div>'
-      + mid
-      + '<div class="done'+(st.done?' on':'')+'" data-act="done" data-i="'+i+'" data-j="'+j+'">✓</div>'
-      + '</div>';
-  });
-  h += '</div>';
-  if(w) h += '<div class="hint">Tap a set number to mark it a warm-up — warm-ups are excluded from every calculation.</div>';
-  return h;
-}
-
-function pickerHTML(){
-  const r = deloadCheck();
-  let h='<div class="card"><h3>Start a session</h3><div class="sub">Pre-filled from programme v2'
-       + (r.fire?' · <b>deload week</b>':'')+'</div></div>';
-  for(const [k,t] of Object.entries(TEMPLATES)){
-    h+='<div class="card" data-act="start" data-key="'+k+'" style="cursor:pointer">'
-      +'<div class="row"><b class="grow">'+esc(t.name)+'</b><span class="pill">'+esc(t.day)+'</span></div>'
-      +'<div class="sub">'+(t.ex.length?esc(t.ex.map(e=>e.n).join(' · ')):'Empty — add your own')+'</div>'
-      +'</div>';
+function pickerHTML(aH){
+  const plan = E.weekPlan(merged(), today());
+  const next = E.nextTemplate(plan);
+  const deload = E.deloadCheck(aH, S.bw, S.settings, today()).fire;
+  let h = '';
+  if(next) h += '<button class="big primary" data-act="start" data-key="' + next + '">Start ' + esc(E.TEMPLATES[next].name) + (deload ? ' · deload' : '') + '</button>';
+  const open = plan.filter(p => p.state !== 'done');
+  h += '<div class="sub center" style="margin-bottom:12px">' + (open.length
+    ? 'Not yet this week: ' + open.map(p => esc(p.name.split(' — ')[0]) + ' (' + p.day + (p.state === 'unverified' ? ', unverified' : '') + ')').join(', ')
+    : 'All four lifts are logged this week.') + '</div>';
+  for(const [k, t] of Object.entries(E.TEMPLATES)){
+    if(k === next) continue;
+    h += '<button class="rowbtn" data-act="start" data-key="' + k + '"><span class="grow"><b>' + esc(t.name) + '</b></span><span class="pill">' + esc(t.day) + '</span></button>';
   }
   return h;
 }
 
-function viewHistory(){
-  let h='<div class="row" style="margin-bottom:11px"><button class="btn grow" data-act="pull">Reload from GitHub</button></div>';
-  if(!S.history.length) return h+'<div class="empty">No sessions yet.'+(cfgOk()?' Pull to load, or log one.':' Add a token in Settings first.')+'</div>';
-  h+='<div class="card">';
-  S.history.forEach((s,i)=>{
-    const logged = (s.exercises||[]).filter(e=>working(e).length);
-    h+='<div class="hist">'
-      +'<div class="row"><b class="grow">'+esc(s.name)+'</b><span class="sub">'+esc(s.date)+'</span></div>'
-      +'<div class="sub">'+(s.bodyweight?s.bodyweight+'kg · ':'')+logged.length+' exercises'
-        +(s.sessionRpe!=null?' · sRPE '+s.sessionRpe:'')+(s.isDeload?' · <b>deload</b>':'')+'</div>'
-      +'<details>'
-      +'<summary>detail</summary>'
-      + logged.map(e=>'<div class="hint"><b>'+esc(e.n)+'</b> '+esc(summarise(e))
-          +(e.substitutedFor?' <span class="pill">for '+esc(e.substitutedFor)+'</span>':'')
-          +(e.note?' — '+esc(e.note):'')+'</div>').join('')
-      +(s.notes?'<div class="hint" style="margin-top:6px">'+esc(s.notes)+'</div>':'')
-      +((s.decisions||[]).length?'<div class="hint" style="margin-top:6px">'+s.decisions.map(d=>
-          esc(d.ex)+': '+d.rule+' said '+(d.recKg!=null?d.recKg+'kg':'—')+' → <b>'+d.outcome+'</b>').join('<br>')+'</div>':'')
-      +'<div class="row" style="margin-top:9px">'
-        +'<button class="btn sm" data-act="edit" data-i="'+i+'">Edit</button>'
-        +'<button class="btn sm danger" data-act="del" data-i="'+i+'">Delete</button>'
-      +'</div>'
-      +'</details></div>';
-  });
-  return h+'</div>';
+function targetLine(ex){
+  const w = ex.sets.filter(s => !s.warmup);
+  const pl = w.find(s => s.state === 'planned' && s.target) || w.find(s => s.target);
+  const parts = [];
+  if(pl) parts.push('Target ' + E.setText(ex, { state:'planned', target:pl.target }) + (pl.target.src === 'seed' ? ' (first time)' : ''));
+  else if(ex.rep) parts.push((w.length || ex.targetSets) + ' × ' + (ex.rep[0] === ex.rep[1] ? ex.rep[0] : ex.rep[0] + '–' + ex.rep[1]));
+  if(ex.tplRir != null) parts.push('RIR ' + ex.tplRir);
+  if(ex.rest) parts.push('rest ' + mmss(ex.rest));
+  if(ex.rec) parts.push(ex.rec.rule);
+  return parts.join(' · ');
 }
 
+function exCard(ex, i, cur, aH){
+  const w = ex.sets.filter(s => !s.warmup);
+  const planned = w.filter(s => s.state === 'planned').length;
+  const complete = w.length > 0 && planned === 0;
+  const expanded = ui.open.has(i) || (i === cur && !complete);
+  if(!expanded){
+    const doneN = w.length - planned;
+    const right = complete ? esc(E.compact(ex)) + ' ✓' : doneN + '/' + w.length;
+    return '<div class="card collapsed" id="ex-' + i + '"><button class="exline' + (complete ? ' ok' : '') + '" data-act="expand" data-i="' + i + '"><b>' + esc(ex.n) + '</b><span class="cs">' + right + '</span></button></div>';
+  }
+  let h = '<div class="card" id="ex-' + i + '"><div class="exhead"><h3>' + esc(ex.n) + '</h3>'
+    + '<button class="ib" data-act="info" data-i="' + i + '" aria-label="Details">ⓘ</button>'
+    + '<button class="ib" data-act="exmenu" data-i="' + i + '" aria-label="Exercise menu">⋯</button></div>'
+    + '<div class="tline">' + esc(targetLine(ex)) + '</div>';
+  if(ui.info.has(i)){
+    const prev = E.lastFor(ex.n, aH, S.draft.date);
+    const top = ex.sets.filter(s => !s.warmup).map(s => s.state === 'planned' ? (s.target && s.target.kg) : s.kg).filter(v => v != null);
+    const topKg = top.length ? Math.max(...top) : null;
+    const pb = ex.bar ? E.plateBreak(topKg, ex.bar) : null;
+    h += '<div class="info">'
+      + (ex.tplNote ? '<p>' + esc(ex.tplNote) + '</p>' : '')
+      + (ex.substitutedFor ? '<p>Swapped in for <b>' + esc(ex.substitutedFor) + '</b></p>' : '')
+      + (prev ? '<p>Last (' + esc(E.niceDate(prev.date)) + '): <b>' + esc(E.summarise(prev.ex)) + '</b></p>'
+        : ex.sets.some(s => s.target && s.target.src === 'seed') ? '<p>No previous data. The target is a starting point (bodyweight, or the programme’s number): change it if it is wrong.</p>'
+        : '<p>No previous data: nothing to progress from yet.</p>')
+      + (ex.rec ? '<p><span class="pill">' + esc(ex.rec.rule) + '</span>' + esc(ex.rec.why) + '</p>' : '')
+      + (pb ? '<p>' + topKg + ' kg = <b>' + esc(pb) + '</b></p>' : '')
+      + '<label>Note</label><input data-f="exnote" data-i="' + i + '" value="' + esc(ex.note || '') + '" placeholder="cues, pain, variation, how it felt">'
+      + '</div>';
+  }
+  let wn = 0;
+  ex.sets.forEach((st, j) => {
+    const done = st.state !== 'planned', legacy = st.state === 'legacy';
+    const n = st.warmup ? 'W' : String(++wn);
+    h += '<div class="setrow' + (done ? ' done' : '') + (legacy ? ' legacy' : '') + (st.warmup ? ' warm' : '') + '"><span class="sn">' + n + '</span>'
+      + '<button class="val" data-act="sheet" data-i="' + i + '" data-j="' + j + '">' + esc(E.setText(ex, st)) + '</button>'
+      + '<button class="tick" data-act="tick" data-i="' + i + '" data-j="' + j + '" aria-label="' + (legacy ? 'Saved set: tap to edit' : done ? 'Untick' : 'Done as shown') + '">✓</button></div>';
+  });
+  const foot = [];
+  const started = w.some(s => s.state !== 'planned');
+  if(!started && ex.kind === 'weight' && E.loadOf(ex) === 'kg' && ex.sets.filter(s => s.warmup).length < 3)
+    foot.push('<button data-act="warm" data-i="' + i + '">+ Warm-up</button>');
+  if(planned) foot.push('<button data-act="bulk" data-i="' + i + '">All as shown ✓</button>');
+  if(ui.open.has(i) && i !== cur) foot.push('<button data-act="collapse" data-i="' + i + '">Hide</button>');
+  if(foot.length) h += '<div class="exfoot">' + foot.join('') + '</div>';
+  return h + '</div>';
+}
+
+/* The effort question comes once per exercise, after its last set: only the
+   last set's RIR drives progression, so asking after every set was noise. */
+function renderRir(){
+  const el = $('#rirRow');
+  const d = S.draft;
+  if(!ui.rir || !d || ui.tab !== 'log'){ el.hidden = true; el.innerHTML = ''; return; }
+  const ex = d.exercises[ui.rir.i], st = ex && ex.sets[ui.rir.j];
+  if(!st){ ui.rir = null; el.hidden = true; return; }
+  el.hidden = false;
+  el.className = 'last';
+  el.innerHTML = '<div class="rirlab"><span class="grow">Last set: reps left? <span class="sub">' + esc(ex.n) + '</span></span>'
+    + '<button class="ib" data-act="rirClose" aria-label="Skip">×</button></div><div class="chips">'
+    + [0, 1, 2, 3, 4].map(v => '<button class="chip" data-act="rir" data-v="' + v + '">' + (v === 4 ? '4+' : v) + '</button>').join('') + '</div>';
+}
+
+/* The most frequent tap in a session, the next set's ✓, lives in the bottom
+   bar where the thumb already is. It always targets the first planned set of
+   the exercise in hand (warm-ups first), and opens the sheet when that set
+   has nothing to copy. */
+function nextSet(){
+  const d = S.draft;
+  if(!d || ui.tab !== 'log') return null;
+  const i = currentIdx(d);
+  if(i == null) return null;
+  const ex = d.exercises[i], j = ex.sets.findIndex(s => s.state === 'planned');
+  return j < 0 ? null : { i, j, ex, st: ex.sets[j] };
+}
+function renderNext(){
+  const el = $('#nextSet'), n = nextSet();
+  document.body.classList.toggle('next', !!n);
+  if(!n){ el.hidden = true; el.innerHTML = ''; return; }
+  const { ex, st, j } = n;
+  const label = st.warmup ? 'warm-up' : 'set ' + ex.sets.filter((x, k) => !x.warmup && k <= j).length + ' of ' + ex.sets.filter(x => !x.warmup).length;
+  const ok = E.canConfirm(ex, st);
+  el.hidden = false;
+  el.className = ok ? '' : 'enter';
+  el.setAttribute('aria-label', (ok ? 'Done as shown: ' : 'Enter ') + ex.n + ' ' + label);
+  el.innerHTML = '<span class="nx"><small>' + esc(ex.n) + ' · ' + esc(label) + '</small>'
+    + (ok ? esc(E.setText(ex, st)) : 'Enter the numbers') + '</span><span class="ck">' + (ok ? '✓' : '✎') + '</span>';
+}
+
+/* ---------------------------------------------------------------- sheets */
+function renderSheet(){
+  const el = $('#sheet');
+  const s = ui.sheet;
+  if(!s){ el.innerHTML = ''; return; }
+  let body = '', full = false;
+  if(s.type === 'set') body = setSheet(s);
+  else if(s.type === 'menu') body = menuSheet();
+  else if(s.type === 'exmenu') body = exMenuSheet(s);
+  else if(s.type === 'date') body = dateSheet();
+  else if(s.type === 'finish'){ body = finishSheet(s); full = true; }
+  el.innerHTML = '<div class="scrim" data-act="closeSheet"></div><div class="panel' + (full ? ' full' : '') + '">' + (full ? '' : '<div class="grab"></div>') + body + '</div>';
+  if(s.type === 'set') paintBar();
+}
+
+function stepRow(label, key, val, step){
+  return '<label>' + esc(label) + '</label><div class="step">'
+    + '<button data-act="shstep" data-k="' + key + '" data-d="' + (-step) + '" aria-label="Less">−</button>'
+    + '<input type="text" inputmode="decimal" autocomplete="off" data-f="shval" data-k="' + key + '" value="' + esc(val ?? '') + '">'
+    + '<button data-act="shstep" data-k="' + key + '" data-d="' + step + '" aria-label="More">+</button></div>';
+}
+function bandList(cur){
+  const bands = (S.settings.bands && S.settings.bands.length ? S.settings.bands : E.DEFAULT_BANDS).slice();
+  for(const b of String(cur || '').split('+').filter(Boolean)) if(!bands.includes(b)) bands.push(b);
+  return bands;
+}
+function setSheet(s){
+  const ex = S.draft.exercises[s.i], st = ex.sets[s.j], v = s.v, load = E.loadOf(ex);
+  const n = st.warmup ? 'warm-up' : 'set ' + (ex.sets.filter((x, k) => !x.warmup && k <= s.j).length);
+  let h = '<div class="sh-h"><span class="grow">' + esc(ex.n) + ' · ' + n + '</span><span class="shrest" id="shRest"></span></div>';
+  if(ex.kind === 'weight' && load !== 'bw') h += stepRow(load === 'bw+' ? 'Added kg (0 = bodyweight)' : 'kg', 'kg', v.kg, ex.inc || 2.5);
+  if(ex.kind === 'band'){
+    const on = String(v.band || '').split('+');
+    h += '<label>Band (tap every band used)</label><div class="chips small">' + bandList(v.band).map(b =>
+      '<button class="chip' + (on.includes(b) ? ' on' : '') + '" data-act="shband" data-b="' + esc(b) + '">' + esc(b) + '</button>').join('') + '</div>';
+  }
+  if(ex.kind === 'distance'){ h += stepRow('kg', 'kg', v.kg, 2) + stepRow('metres', 'metres', v.metres, 5); }
+  if(ex.kind === 'time') h += stepRow('seconds', 'seconds', v.seconds, 5);
+  if(ex.kind === 'rounds') h += stepRow('rounds', 'rounds', v.rounds, 1);
+  if(ex.kind === 'weight' || ex.kind === 'band' || ex.kind === 'reps') h += stepRow(ex.kind === 'reps' && /cm/.test(ex.n) ? 'cm' : 'reps', 'reps', v.reps, 1);
+  if(ex.kind === 'weight' || ex.kind === 'band'){
+    const vals = [0, 1, 2, 3, 4];
+    if(v.rir != null && !vals.includes(v.rir)) vals.push(v.rir);
+    h += '<label>RIR: reps left in the tank</label><div class="chips">' + vals.map(r =>
+      '<button class="chip' + (v.rir === r ? ' on' : '') + '" data-act="shrir" data-v="' + r + '">' + (r === 4 ? '4+' : r) + '</button>').join('') + '</div>';
+  }
+  h += '<div class="row" style="margin-top:14px;justify-content:space-between">'
+    + '<button class="toggle' + (v.warmup ? ' on' : '') + '" data-act="shwarm">' + (v.warmup ? 'Warm-up ✓' : 'Warm-up') + '</button>'
+    + '<button class="textbtn" data-act="shdel">' + (s.delArm && Date.now() - s.delArm < 3000 ? 'Tap again to delete' : 'Delete set') + '</button></div>'
+    + '<button class="save56" data-act="shsave">Save ✓</button>';
+  return h;
+}
+function menuSheet(){
+  const d = S.draft;
+  const lift = E.isLiftKey(d.key);
+  return '<div class="menu">'
+    + '<button data-act="mdate">Change date <span class="sub">(' + esc(E.niceDate(d.date)) + ')</span></button>'
+    + (lift ? '<button data-act="mdeload">Deload session: ' + (d.isDeload ? '<b>on</b>' : 'off') + '</button>' : '')
+    + '<button data-act="maddex">Add exercise</button>'
+    + '<button data-act="mtab" data-tab="history">History</button>'
+    + '<button data-act="mtab" data-tab="body">Body</button>'
+    + '<button data-act="mtab" data-tab="settings">Settings</button>'
+    + (ui.tab !== 'log' ? '<button data-act="mtab" data-tab="log">Back to the session</button>' : '')
+    + '<button class="danger" data-act="discard">Discard session</button></div>';
+}
+function exMenuSheet(s){
+  const ex = S.draft.exercises[s.i];
+  return '<div class="sh-h">' + esc(ex.n) + '</div><div class="menu">'
+    + '<button data-act="swap" data-i="' + s.i + '">Swap for another exercise</button>'
+    + '<button data-act="addset" data-i="' + s.i + '">Add set</button>'
+    + '<button class="danger" data-act="delex" data-i="' + s.i + '">Delete exercise</button></div>';
+}
+function dateSheet(){
+  return '<div class="sh-h">Session date</div>'
+    + '<input type="date" data-f="dsdate" value="' + esc(S.draft.date) + '" max="' + today() + '">'
+    + '<div class="hint">For a session done on an earlier day. Targets still to be ticked are recomputed from the sessions before that date.</div>'
+    + '<button class="save56" data-act="dsSave">Save date</button>';
+}
+
+/* The finish sheet: nothing is written until Save. */
+function finishSheet(s){
+  const d = S.draft, aH = aHist();
+  const res = E.finishSession(d, nowIso(), s.choice || undefined);
+  const work = d.exercises.flatMap(ex => ex.sets.filter(st => !st.warmup && (st.state === 'planned' || E.hasData(st))));
+  const ticked = work.filter(st => st.state !== 'planned').length;
+  const plannedN = work.length - ticked;
+  let h = '<div class="sh-h"><button class="ib" data-act="closeSheet" aria-label="Back">←</button><span class="grow">Finish ' + esc(d.name) + '</span></div>';
+  h += '<div class="fsec" style="border-top:none">' + esc(E.niceDate(d.date, true))
+    + ' · <button class="textbtn plain" data-act="fDate">change</button>'
+    + (s.dateOpen ? '<input type="date" data-f="findate" value="' + esc(d.date) + '" max="' + today() + '">' : '') + '</div>';
+
+  h += '<div class="fsec"><h4>' + ticked + ' of ' + work.length + ' working sets ticked</h4>';
+  const noRir = [];
+  for(const ex of d.exercises){
+    const c = E.compact(ex);
+    const r = E.rirRef(ex);
+    const prev = E.lastFor(ex.n, aH, d.date);
+    if(c && (ex.kind === 'weight' || ex.kind === 'band') && r == null) noRir.push(d.exercises.indexOf(ex));
+    h += '<div class="sumline"><b>' + esc(ex.n) + '</b> ' + (c ? esc(c.replace(/ @[\d.]+$/, '')) : '<span class="sub">not done</span>')
+      + (c && r != null ? ' · last-set RIR ' + r : '')
+      + (prev ? ' <span class="sub">· last time ' + esc(E.compact(prev.ex)) + '</span>' : '') + '</div>';
+  }
+  /* Each opens the reps-left chips for that exercise's last set; one tap on a
+     chip rates it and comes straight back here. */
+  if(noRir.length) h += '<div class="hint">No RIR on the last set, so these cannot progress. Tap to rate:</div><div class="chips small" style="margin-top:6px">'
+    + noRir.map(i => '<button class="chip" data-act="rateLast" data-i="' + i + '">' + esc(d.exercises[i].n) + '</button>').join('') + '</div>';
+  h += '</div>';
+
+  if(plannedN){
+    const stuck = res.blocked === 'unticked' && s.choice === 'asShown' ? res.noTarget : 0;
+    h += '<div class="fsec"><div class="warnbox"><b>' + plannedN + ' set' + (plannedN > 1 ? 's' : '') + ' not ticked.</b>'
+      + '<div class="row"><button class="btn' + (s.choice === 'asShown' ? ' on' : '') + '" data-act="fChoice" data-v="asShown">I did them as shown</button>'
+      + '<button class="btn' + (s.choice === 'drop' ? ' on' : '') + '" data-act="fChoice" data-v="drop">I didn’t do them</button></div>'
+      + (stuck ? '<div class="hint">' + stuck + ' of them have no target to copy. Go back and enter them, or choose “I didn’t do them”.</div>' : '')
+      + '</div></div>';
+  }
+
+  h += '<div class="fsec"><h4>Session RPE <span class="sub">(whole session, optional)</span></h4><div class="chips">'
+    + [5, 6, 7, 8, 9, 10].map(v => '<button class="chip s48' + (d.sessionRpe === v ? ' on' : '') + '" data-act="fRpe" data-v="' + v + '">' + v + '</button>').join('') + '</div></div>';
+
+  const sy = Array.isArray(d.symptoms) ? d.symptoms : null;
+  const lb = sy && sy.find(x => x.area === 'low-back');
+  const other = sy && sy.find(x => x.area === 'other');
+  const lower = d.key === 'lower-a' || d.key === 'lower-b';
+  h += '<div class="fsec' + (lower ? ' hl' : '') + '"><h4>Anything flare up?</h4><div class="chips">'
+    + '<button class="chip' + (sy && !sy.length ? ' on' : '') + '" data-act="fSym" data-v="none">None</button>'
+    + '<button class="chip' + (lb ? ' on' : '') + '" data-act="fSym" data-v="low-back">Low back</button>'
+    + '<button class="chip' + (other ? ' on' : '') + '" data-act="fSym" data-v="other">Other</button></div>';
+  if(lb){
+    h += '<div class="chips" style="margin-top:8px">'
+      + '<button class="chip' + (lb.type === 'tight' ? ' on' : '') + '" data-act="fLbType" data-v="tight">Tight</button>'
+      + '<button class="chip' + (lb.type === 'pinch' ? ' on' : '') + '" data-act="fLbType" data-v="pinch">One-sided pinch</button></div>';
+    if(lb.type === 'pinch'){
+      h += '<div class="chips" style="margin-top:8px">'
+        + ['L', 'R'].map(v => '<button class="chip' + (lb.side === v ? ' on' : '') + '" data-act="fLbSide" data-v="' + v + '">' + v + '</button>').join('') + '</div>'
+        + '<div class="pinch"><b>' + (E.PRIOR_PINCHES === 2 ? 'Two' : E.PRIOR_PINCHES) + ' pinches are on record before the app (and 30 Aug is unresolved), so this is at least #3. Your rule: see a physiotherapist before the next hinge session.</b>'
+        + '<div class="sub">Pinches logged in the app: ' + (E.countPinches(aH) + 1) + ' (including this one).</div></div>';
+    }
+  }
+  h += '</div>';
+
+  h += '<div class="fsec">' + (s.noteOpen || d.notes
+    ? '<h4>Note</h4><textarea data-f="notes" placeholder="Energy, sleep, anything the trainer should know">' + esc(d.notes) + '</textarea>'
+    : '<button class="textbtn plain" data-act="fNote">Add note</button>') + '</div>';
+
+  const blocked = !!res.blocked;
+  const why = res.blocked === 'empty' ? 'Nothing performed and no note: nothing to save.' : res.blocked === 'unticked' && !s.choice ? 'Choose what happened to the unticked sets.' : '';
+  h += '<button class="save56" data-act="saveSession"' + (blocked ? ' disabled' : '') + '>Save session</button>'
+    + (why ? '<div class="hint center">' + esc(why) + '</div>' : '')
+    + '<div class="center"><button class="textbtn plain" data-act="closeSheet">Back</button></div>';
+  return h;
+}
+
+/* ---------------------------------------------------------------- history */
+function viewHistory(){
+  const list = merged();
+  const pending = new Set(S.queue.filter(q => !q.deleted).map(q => E.fileKey(q)));
+  let h = '<button class="rowbtn" data-act="pull"><span class="grow">Reload from GitHub</span></button>';
+  if(!list.length) return h + '<div class="empty">No sessions yet.' + (sync.cfgOk() ? ' Reload to fetch them, or log one.' : ' Add a token in Settings first.') + '</div>';
+  h += '<div class="card" style="padding:4px 12px">';
+  for(const s of list){
+    const k = E.fileKey(s);
+    const suspect = E.isSuspectPrefill(s) && s.verified !== true;
+    const pills = (pending.has(k) ? '<span class="pill warn">pending</span>' : '')
+      + (s.logMode ? '<span class="pill' + (s.logMode === 'live' ? ' ok' : '') + '">' + esc(s.logMode) + '</span>' : '')
+      + (s.isDeload ? '<span class="pill">deload</span>' : '')
+      + (suspect ? '<span class="pill bad">unverified: excluded</span>' : '');
+    h += '<div class="hist"><button class="hrow" data-act="hrow" data-k="' + esc(k) + '"><b class="grow">' + esc(s.name) + '</b><span class="sub">' + esc(E.niceDate(s.date)) + '</span>'
+      + (pills ? '<span style="flex-basis:100%">' + pills + '</span>' : '') + '</button>';
+    if(ui.hist.has(k)){
+      const logged = (s.exercises || []).filter(e => E.working(e).length);
+      const skipped = (s.exercises || []).filter(e => e.skipped);
+      h += '<div class="hdet">'
+        + (suspect ? '<p>Saved in under two minutes with every set equal to the suggestion and no RIR, so it may be a prefill that was never lifted. The rules ignore it until you confirm it or delete it. Editing it does not confirm it.</p>'
+          + '<div class="row"><button class="btn primary" data-act="verify" data-k="' + esc(k) + '">It happened as recorded</button></div>' : '')
+        + logged.map(e => '<div><b>' + esc(e.n) + '</b> ' + esc(E.summarise(e))
+          + (e.substitutedFor ? ' <span class="pill">for ' + esc(e.substitutedFor) + '</span>' : '')
+          + (e.note ? ' — ' + esc(e.note) : '') + '</div>').join('')
+        + (skipped.length ? '<div>Not done: ' + esc(skipped.map(e => e.n).join(', ')) + '</div>' : '')
+        + (s.sessionRpe != null ? '<div>Session RPE ' + esc(s.sessionRpe) + '</div>' : '')
+        + (Array.isArray(s.symptoms) ? '<div>Flare-ups: ' + (s.symptoms.length ? esc(s.symptoms.map(x => x.area + (x.type ? ' ' + x.type : '') + (x.side ? ' ' + x.side : '')).join(', ')) : 'none') + '</div>' : '')
+        + (s.notes ? '<div style="margin-top:6px">' + esc(s.notes) + '</div>' : '')
+        + ((s.decisions || []).length ? '<div style="margin-top:6px">' + s.decisions.map(x =>
+            esc(x.ex) + ': ' + esc(x.rule) + ' said ' + (x.recKg != null ? esc(x.recKg) + ' kg' : x.recBand ? esc(x.recBand) : '—') + ' → <b>' + esc(x.outcome) + '</b>').join('<br>') + '</div>' : '')
+        + '<div class="row"><button class="btn" data-act="edit" data-k="' + esc(k) + '">Edit</button>'
+        + '<button class="btn danger" data-act="del" data-k="' + esc(k) + '">Delete</button></div></div>';
+    }
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+
+/* ---------------------------------------------------------------- body */
 const FLOOR_MARKS = [
   ['kneeL','Knee-to-wall L (cm)'], ['kneeR','Knee-to-wall R (cm)'],
   ['squat','Deep squat, longest unbroken (s)'], ['pancake','Pancake — fingertips to floor (cm)'],
   ['hipRung','Hip flexor rung (1–5)'], ['hipHold','Hip flexor best hold (s)'],
   ['lsit','L-sit best (s)'], ['handstand','Wall handstand best (s)'], ['hang','Dead hang best (s)']
 ];
-
+function allBw(){ return [...S.bwQueue.map(({qid, ...b}) => b), ...S.bw]; }
 function viewBody(){
-  const w = S.bw.filter(b=>b.type==='bw' && b.kg);
-  const last7 = w.filter(b=>daysAgo(b.date)<=7).map(b=>b.kg);
-  const prev7 = w.filter(b=>daysAgo(b.date)>7 && daysAgo(b.date)<=14).map(b=>b.kg);
-  const a = median(prev7), b = median(last7);
-  const trend = (a&&b) ? ((b-a)/a*100) : null;
-  const marks = S.bw.filter(x=>x.type==='floor');
-
+  const w = allBw().filter(b => b.type === 'bw' && b.kg);
+  const last7 = w.filter(b => daysAgo(b.date) <= 7).map(b => b.kg);
+  const prev7 = w.filter(b => daysAgo(b.date) > 7 && daysAgo(b.date) <= 14).map(b => b.kg);
+  const a = E.median(prev7), b = E.median(last7);
+  const trend = (a && b) ? ((b - a) / a * 100) : null;
+  const marks = allBw().filter(x => x.type === 'floor');
   let h = '<div class="card"><h3>Bodyweight</h3>'
-    + '<div class="sub">Logged on rest days too — gaps in the trend line are what make it useless.</div>'
+    + '<div class="sub">Log it on rest days too: gaps are what make the trend useless. Same time of day each time, ideally before 10:00.</div>'
     + '<label>Weight today (kg)</label>'
-    + '<input type="number" inputmode="decimal" step="0.1" data-bwkg placeholder="72.0">'
-    + '<div class="row" style="margin-top:10px"><button class="btn primary grow" data-act="logbw">Log '+todayISO()+'</button></div>'
+    + '<input type="text" inputmode="decimal" data-f="bwkg" placeholder="kg">'
+    + '<button class="btn primary w100" style="margin-top:10px" data-act="logbw">Log ' + esc(E.niceDate(today())) + '</button>'
     + (last7.length
-        ? '<div class="hint">7-day median <b>'+b.toFixed(1)+' kg</b> from '+last7.length+' weigh-in'+(last7.length>1?'s':'')
-          + (trend!=null?' · '+(trend>0?'+':'')+trend.toFixed(1)+'% on the week':'')
-          + (S.settings.phase==='cut'?' · target −0.3 to −0.5%/week':'')+'</div>'
+        ? '<div class="hint">7-day median <b>' + b.toFixed(1) + ' kg</b> from ' + last7.length + ' weigh-in' + (last7.length > 1 ? 's' : '')
+          + (trend != null ? ' · ' + (trend > 0 ? '+' : '') + trend.toFixed(1) + '% on the week' : '')
+          + (S.settings.phase === 'cut' ? ' · target −0.3 to −0.5%/week' : '') + '</div>'
         : '<div class="hint">No weigh-ins in the last 7 days.</div>')
     + '</div>';
-
-  h += '<div class="card"><h3>Floor benchmark</h3>'
-    + '<div class="sub">Every 4 weeks. These move too slowly to notice by feel.</div>'
-    + FLOOR_MARKS.map(([k,lab]) => '<label>'+esc(lab)+'</label><input type="number" inputmode="decimal" step="0.5" data-mark="'+k+'">').join('')
-    + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="logmark">Save benchmark</button></div>'
-    + '</div>';
-
+  h += '<div class="card"><h3>Floor benchmark</h3><div class="sub">Every 4 weeks. These move too slowly to notice by feel.</div>'
+    + FLOOR_MARKS.map(([k, lab]) => '<label>' + esc(lab) + '</label><input type="text" inputmode="decimal" data-mark="' + k + '">').join('')
+    + '<button class="btn primary w100" style="margin-top:12px" data-act="logmark">Save benchmark</button></div>';
   if(marks.length){
-    h += '<div class="card"><h3>Benchmark history</h3>'
-      + marks.slice(0,8).map(m=>'<div class="hist"><b>'+esc(m.date)+'</b><div class="sub">'
-        + FLOOR_MARKS.filter(([k])=>m[k]!=null).map(([k,lab])=>esc(lab.replace(/ \(.*\)/,''))+' '+m[k]).join(' · ')
-        + '</div></div>').join('')
-      + '</div>';
+    h += '<div class="card"><h3>Benchmark history</h3>' + marks.slice(0, 8).map(m => '<div class="hint"><b>' + esc(m.date) + '</b> '
+      + FLOOR_MARKS.filter(([k]) => m[k] != null).map(([k, lab]) => esc(lab.replace(/ \(.*\)/, '')) + ' ' + esc(m[k])).join(' · ') + '</div>').join('') + '</div>';
   }
   if(w.length){
-    h += '<div class="card"><h3>Weigh-ins</h3>'
-      + w.slice(0,20).map(x=>'<div class="hist"><div class="row"><b class="grow">'+x.kg+' kg</b><span class="sub">'+esc(x.date)+'</span></div></div>').join('')
-      + '</div>';
+    h += '<div class="card"><h3>Weigh-ins</h3>' + w.slice(0, 20).map(x => '<div class="row" style="min-height:32px"><b class="grow">' + esc(x.kg) + ' kg</b><span class="sub">' + esc(x.date) + '</span></div>').join('') + '</div>';
   }
   return h;
 }
 
+/* ---------------------------------------------------------------- settings */
 function viewSettings(){
-  const c=S.settings;
-  return '<div class="card">'
-    + '<h3>GitHub</h3>'
-    + '<div class="sub">Sessions are written as one JSON file each into the repo below.</div>'
-    + '<label>Owner</label><input data-cfg="owner" value="'+esc(c.owner)+'">'
-    + '<label>Repo</label><input data-cfg="repo" value="'+esc(c.repo)+'">'
-    + '<label>Branch</label><input data-cfg="branch" value="'+esc(c.branch)+'">'
-    + '<label>Path</label><input data-cfg="path" value="'+esc(c.path)+'">'
+  const c = S.settings;
+  return '<div class="card"><h3>GitHub</h3>'
+    + '<div class="sub">Each session is written as one JSON file into the repo below.</div>'
+    + '<label>Owner</label><input data-f="cfg" data-k="owner" value="' + esc(c.owner) + '">'
+    + '<label>Repo</label><input data-f="cfg" data-k="repo" value="' + esc(c.repo) + '">'
+    + '<label>Branch</label><input data-f="cfg" data-k="branch" value="' + esc(c.branch) + '">'
+    + '<label>Path</label><input data-f="cfg" data-k="path" value="' + esc(c.path) + '">'
     + '<label>Fine-grained token</label>'
-    + '<input data-cfg="token" type="password" value="'+esc(c.token)+'" placeholder="github_pat_…" autocomplete="off">'
-    + '<div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only — never send it to anyone, including me.</div>'
-    + '<div class="row" style="margin-top:12px">'
-    + '<button class="btn primary grow" data-act="savecfg">Save</button>'
-    + '<button class="btn" data-act="test">Test</button></div>'
-    + '</div>'
+    + '<input data-f="cfg" data-k="token" type="password" value="' + esc(c.token) + '" placeholder="github_pat_…" autocomplete="off">'
+    + '<div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only. Never send it to anyone, including me.</div>'
+    + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button><button class="btn" data-act="test">Test</button></div></div>'
     + '<div class="card"><h3>Programme</h3>'
-    + '<label>Block goal</label>'
-    + '<select data-cfg="phase">'
-      + ['cut','maintain','gain'].map(p=>'<option value="'+p+'"'+(c.phase===p?' selected':'')+'>'+p+'</option>').join('')
-    + '</select>'
-    + '<div class="hint">On <b>cut</b>, the bodyweight deload trigger is off — otherwise it fires every time you deliberately diet.</div>'
-    + '<label>Deload every N weeks</label>'
-    + '<input type="number" min="3" max="8" data-cfg="deloadWeeks" value="'+c.deloadWeeks+'">'
+    + '<label>Block goal</label><select data-f="cfg" data-k="phase">'
+    + ['cut', 'maintain', 'gain'].map(p => '<option value="' + p + '"' + (c.phase === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>'
+    + '<div class="hint">On <b>cut</b> the bodyweight deload trigger is off, or it fires every time you deliberately diet.</div>'
+    + '<label>Deload every N weeks</label><input type="text" inputmode="numeric" data-f="cfg" data-k="deloadWeeks" value="' + esc(c.deloadWeeks) + '">'
     + '<div class="hint">Programme v2 says every 4–6 weeks and non-negotiable in a deficit.</div>'
-    + '<label><input type="checkbox" data-cfg-bool="restOn" style="width:auto;margin-right:7px"'+(c.restOn?' checked':'')+'>Auto-start the rest timer</label>'
-    + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button></div>'
+    + '<label>Band colours, lightest first</label><input data-f="cfg" data-k="bands" value="' + esc((c.bands || []).join(', ')) + '">'
+    + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="restOn" style="width:24px;min-height:24px"' + (c.restOn ? ' checked' : '') + '> Start the rest timer when a set is ticked</label>'
+    + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="wakeLock" style="width:24px;min-height:24px"' + (c.wakeLock !== false ? ' checked' : '') + '> Keep the screen on during a session</label>'
     + '</div>'
     + '<div class="card"><h3>Data</h3>'
-    + '<div class="sub">'+S.history.length+' sessions · '+S.bw.length+' body entries · '+(S.queue.length+S.bwQueue.length)+' pending upload</div>'
-    + '<div class="row" style="margin-top:10px"><button class="btn grow" data-act="export">Export JSON backup</button></div>'
-    + '<div class="hint">The repo is the source of truth, and every push is a git commit — an edit never destroys what it replaced. This phone holds a cache and anything unsynced, which is the only thing a lost phone can lose.</div>'
-    + '</div>';
+    + '<div class="sub">' + merged().length + ' sessions · ' + allBw().length + ' body entries · ' + (S.queue.length + S.bwQueue.length) + ' pending upload · storage: ' + esc(ui.persist || 'checking') + '</div>'
+    + '<button class="btn w100" style="margin-top:10px" data-act="export">Export JSON backup</button>'
+    + '<div class="hint">The repo is the source of truth and every push is a git commit, so an edit never destroys what it replaced. This phone holds a cache and anything unsynced, which is the only thing a lost phone can lose.</div></div>';
 }
 
-/* ------------------------------------------------------------------ wire */
-function wire(){
-  document.querySelectorAll('[data-set]').forEach(el=>{
-    el.oninput = () => {
-      const [i,j,k]=el.dataset.set.split('.');
-      S.draft.exercises[i].sets[j][k] = num(el.value);
-      save();
-    };
-  });
-  document.querySelectorAll('[data-exnote]').forEach(el=>{
-    el.oninput = () => { S.draft.exercises[el.dataset.exnote].note = el.value; save(); };
-  });
-  /* Backdating a session has to move the window the rules read, or a session
-     logged late is progressed against sessions that came after it. */
-  const rerec = () => S.draft.exercises.forEach(e=>{
-    e.rec = recommend({n:e.n, kind:e.kind, rep:e.rep, rir:e.tplRir, inc:e.inc}, S.draft.date, S.draft.isDeload);
-  });
-  const dt=$('[data-date]');
-  if(dt) dt.onchange = () => {
-    if(!dt.value) { dt.value = S.draft.date; return; }
-    S.draft.date = dt.value;
-    S.draft.week = weekOf(dt.value);
-    rerec(); save(); render();
-  };
-  const bw=$('[data-bw]');    if(bw) bw.oninput = () => { S.draft.bodyweight = num(bw.value); save(); };
-  const sr=$('[data-srpe]');  if(sr) sr.oninput = () => { S.draft.sessionRpe = num(sr.value); save(); };
-  const nt=$('[data-notes]'); if(nt) nt.oninput = () => { S.draft.notes = nt.value; save(); };
-  const dl=$('[data-deload]');if(dl) dl.onchange = () => { S.draft.isDeload = dl.checked; rerec(); save(); render(); };
-  document.querySelectorAll('[data-cfg]').forEach(el=>{
-    el.onchange = () => {
-      const k=el.dataset.cfg;
-      S.settings[k] = (k==='deloadWeeks') ? (parseInt(el.value,10)||5) : el.value.trim();
-    };
-  });
-  document.querySelectorAll('[data-cfg-bool]').forEach(el=>{
-    el.onchange = () => { S.settings[el.dataset.cfgBool] = el.checked; save(); };
-  });
+/* ---------------------------------------------------------------- actions */
+const ex_ = el => S.draft.exercises[+el.dataset.i];
+const set_ = el => ex_(el).sets[+el.dataset.j];
 
-  document.querySelectorAll('[data-act]').forEach(el=>{
-    el.onclick = async () => {
-      const a=el.dataset.act, i=el.dataset.i, j=el.dataset.j;
-
-      if(a==='start'){ S.draft = newSession(el.dataset.key, deloadCheck().fire); save(); render(); }
-
-      else if(a==='discard'){
-        if(confirm('Discard this session? It has not been pushed to GitHub.')){ S.draft=null; save(); render(); }
-      }
-      else if(a==='addset'){ const ex=S.draft.exercises[i]; ex.sets.push(blankSet(ex.kind)); save(); render(); }
-      else if(a==='delex'){ S.draft.exercises.splice(i,1); save(); render(); }
-      else if(a==='warm'){
-        const st=S.draft.exercises[i].sets[j]; st.warmup=!st.warmup; save(); render();
-      }
-      else if(a==='step'){
-        const st=S.draft.exercises[i].sets[j], k=el.dataset.k, d=parseFloat(el.dataset.d);
-        st[k] = Math.max(0, Math.round(((st[k]??0)+d)*100)/100); save(); render();
-      }
-      else if(a==='done'){
-        const ex=S.draft.exercises[i], st=ex.sets[j];
-        st.done=!st.done; save(); render();
-        if(st.done && !st.warmup) startRest(ex.rest, ex.n+' · set '+(Number(j)+1)+' done');
-      }
-      else if(a==='restnow'){ const ex=S.draft.exercises[i]; startRest(ex.rest, ex.n); }
-      else if(a==='rest30'){ restEnd += 30000; tickRest(); }
-      else if(a==='restStop'){ stopRest(); }
-
-      else if(a==='swap'){
-        const ex=S.draft.exercises[i];
-        const n = prompt('Swapped in what instead of "'+ex.n+'"?', '');
-        if(!n) return;
-        /* Recorded as a substitution rather than logged under the prescribed
-           name — otherwise the history quietly becomes fiction. */
-        ex.substitutedFor = ex.substitutedFor || ex.n;
-        ex.n = n.trim(); ex.rec = recommend({...ex, n:ex.n}, S.draft.date, S.draft.isDeload);
-        save(); render();
-      }
-      else if(a==='addex'){
-        const inp=$('[data-newex]'); const n=inp.value.trim(); if(!n) return;
-        S.draft.exercises.push({n, kind:'weight', note:'', tplNote:'', rep:null, tplRir:null,
-          inc:2.5, rest:120, bar:null, key:false, targetSets:3, substitutedFor:null, rec:null,
-          sets:[blankSet('weight'),blankSet('weight'),blankSet('weight')]});
-        save(); render();
-      }
-
-      else if(a==='finish'){
-        const d=S.draft;
-        /* The decision log: what each rule proposed, and whether it survived
-           contact with the session. Override rate per rule is the only honest
-           signal that a threshold is wrong. */
-        d.decisions = d.exercises.filter(e=>e.rec && working(e).length).map(e=>{
-          const top = Math.max(...working(e).map(s=>s.kg??0));
-          return {ex:e.n, rule:e.rec.rule, recKg:e.rec.kg, actualKg:top,
-                  why:e.rec.why, outcome: (e.rec.kg!=null && Math.abs(top-e.rec.kg)<0.01) ? 'accepted' : 'overridden'};
-        });
-        d.exercises = d.exercises
-          .map(e=>({...e, sets:e.sets.filter(hasData)}))
-          .filter(e=>e.sets.length);
-        if(!d.exercises.length && !d.notes){ alert('Nothing logged yet.'); return; }
-        d.endedAt = new Date().toISOString();
-        d.savedAt = new Date().toISOString();
-        d.week = weekOf(d.date);
-        delete d.editing;
-        if(d.bodyweight!=null) S.bwQueue.push({type:'bw', date:d.date, kg:d.bodyweight, note:'from session'});
-        S.queue.push(d); S.draft=null; stopRest(); save(); render();
-        await flushQueue();
-      }
-
-      else if(a==='edit'){
-        if(S.draft && !confirm('Replace the session in progress?')) return;
-        S.draft = {...structuredClone(S.history[i]), editing:true};
-        S.draft.exercises.forEach(e=>{ if(!e.sets.length) e.sets=[blankSet(e.kind)]; });
-        tab='log'; document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='log'));
-        save(); render();
-      }
-      else if(a==='del'){
-        const s=S.history[i];
-        if(!confirm('Delete '+s.name+' on '+s.date+'? The file is marked deleted, and git keeps every earlier version.')) return;
-        S.queue.push({...s, deleted:true, savedAt:new Date().toISOString()});
-        S.history.splice(i,1); save(); render();
-        await flushQueue();
-      }
-
-      else if(a==='logbw'){
-        const v = num($('[data-bwkg]').value);
-        if(v==null){ alert('Enter a weight first.'); return; }
-        S.bwQueue.push({type:'bw', date:todayISO(), kg:v}); save(); render();
-        await flushQueue();
-      }
-      else if(a==='logmark'){
-        const e = {type:'floor', date:todayISO()};
-        let any=false;
-        FLOOR_MARKS.forEach(([k])=>{ const v=num($('[data-mark="'+k+'"]').value); if(v!=null){ e[k]=v; any=true; } });
-        if(!any){ alert('Nothing filled in.'); return; }
-        S.bwQueue.push(e); save(); render();
-        await flushQueue();
-      }
-
-      else if(a==='retry'){ await flushQueue(); }
-      else if(a==='pull'){ await pullHistory(); }
-      else if(a==='savecfg'){ save(); setSync('','saved'); await flushQueue({quiet:true}); render(); }
-      else if(a==='test'){
-        save();
-        try{
-          const r = await gh('/repos/'+S.settings.owner+'/'+S.settings.repo);
-          if(!r) throw new Error('repo not found');
-          setSync('ok','connected');
-          alert('Connected to '+r.full_name+'\nPrivate: '+r.private+'\nWrite access: '+(r.permissions&&r.permissions.push?'yes':'NO — token lacks Contents: write'));
-        }catch(e){ setSync('bad','failed'); alert('Failed: '+e.message); }
-      }
-      else if(a==='export'){
-        const blob=new Blob([JSON.stringify({history:S.history,bw:S.bw,queue:S.queue,bwQueue:S.bwQueue},null,2)],{type:'application/json'});
-        const u=URL.createObjectURL(blob); const a2=document.createElement('a');
-        a2.href=u; a2.download='ledger-backup-'+todayISO()+'.json'; a2.click(); URL.revokeObjectURL(u);
-      }
-    };
-  });
+function openSetSheet(i, j){
+  const ex = S.draft.exercises[i], st = ex.sets[j];
+  const v = { warmup: !!st.warmup, rir: st.rir ?? null };
+  const src = st.state === 'planned' ? { ...(st.target || {}) } : {};
+  for(const k of E.fieldsOf(ex)){ v[k] = st[k] ?? src[k] ?? null; }
+  ui.sheet = { type:'set', i, j, v, delArm:0 };
+  renderSheet();
 }
 
-/* ------------------------------------------------------------------ boot */
-if(S.draft) $('#title').textContent = 'Ledger · in progress';
+/* After a working set is confirmed: rest, then (on the exercise's last set)
+   the RIR question, then the next exercise moves to the top. */
+function afterConfirm(i, j){
+  const ex = S.draft.exercises[i], st = ex.sets[j];
+  if(st.warmup){ save(); render(); return; }
+  startRest(ex.rest);
+  const remaining = ex.sets.some(s => !s.warmup && s.state === 'planned');
+  if(!remaining){
+    ui.rir = st.rir == null && (ex.kind === 'weight' || ex.kind === 'band') ? { i, j } : null;
+    ui.open.delete(i);
+    const nx = currentIdx(S.draft);
+    if(nx != null) ui.scrollTo = nx;
+  } else ui.rir = null;
+  save(); render();
+}
+
+function goTab(t){ ui.tab = t; ui.sheet = null; window.scrollTo(0, 0); render(); }
+
+function backToFinish(){
+  const f = ui.finishBack; ui.finishBack = null;
+  ui.sheet = f && f.type === 'finish' ? f : { type:'finish', choice:null, noteOpen:false, dateOpen:false };
+  render();
+}
+
+function endSession(){
+  S.draft = null; ui.sheet = null; ui.rir = null; ui.finishBack = null; ui.open.clear(); ui.info.clear();
+  stopRest(); releaseWake();
+}
+
+const ACT = {
+  tab: el => goTab(el.dataset.tab),
+  mtab: el => goTab(el.dataset.tab),
+  menu: () => { ui.sheet = { type:'menu' }; renderSheet(); },
+  closeSheet: () => { ui.sheet = null; render(); },
+  retry: () => sync.flushQueue(),
+  pull: () => sync.pullHistory().then(render),
+  undo: () => { const f = ui.undo; ui.undo = null; $('#toast').hidden = true; if(f) f(); },
+  noticeOk: () => { ui.notice = null; render(); },
+
+  start: el => {
+    if(S.draft) return;
+    const key = el.dataset.key, aH = aHist();
+    const deload = E.isLiftKey(key) && E.deloadCheck(aH, S.bw, S.settings, today()).fire;
+    const d = E.newSession(key, aH, today(), nowIso(), deload);
+    d.id = newId();
+    S.draft = d; ui.open.clear(); ui.info.clear(); ui.rir = null;
+    save(); window.scrollTo(0, 0); render();
+  },
+  discard: () => {
+    if(!confirm('Discard this session? Nothing from it has been pushed.')) return;
+    endSession(); save(); render();
+  },
+  expand: el => { ui.open.add(+el.dataset.i); render(); },
+  collapse: el => { ui.open.delete(+el.dataset.i); render(); },
+  info: el => { const i = +el.dataset.i; ui.info.has(i) ? ui.info.delete(i) : ui.info.add(i); render(); },
+  exmenu: el => { ui.sheet = { type:'exmenu', i:+el.dataset.i }; renderSheet(); },
+
+  tickNext: () => {
+    const n = nextSet();
+    if(!n) return;
+    if(!E.confirmSet(n.ex, n.st, 'tick', nowIso())){ openSetSheet(n.i, n.j); return; }
+    afterConfirm(n.i, n.j);
+  },
+  tick: el => {
+    const i = +el.dataset.i, j = +el.dataset.j, ex = ex_(el), st = set_(el);
+    /* A set from a saved file is history: its ✓ opens it for editing rather
+       than un-ticking it into a planned set that Finish could drop. */
+    if(st.state === 'legacy'){ openSetSheet(i, j); return; }
+    if(st.state === 'planned'){
+      if(!E.confirmSet(ex, st, 'tick', nowIso())){ openSetSheet(i, j); return; }
+      afterConfirm(i, j);
+    } else {
+      const before = E.clone(st);
+      E.unconfirmSet(st);
+      if(ui.rir && ui.rir.i === i && ui.rir.j === j) ui.rir = null;
+      save(); render();
+      toast('Set unticked', () => { if(S.draft && S.draft.exercises[i] === ex){ ex.sets[j] = before; save(); render(); } });
+    }
+  },
+  warm: el => {
+    const i = +el.dataset.i, ex = ex_(el);
+    ex.sets.splice(E.warmupIndex(ex), 0, E.warmupSet(ex));
+    ui.open.add(i); save(); render();
+  },
+  bulk: el => {
+    const i = +el.dataset.i, ex = ex_(el), now = nowIso(), d = S.draft;
+    const before = E.clone(ex.sets), rirBefore = ui.rir;
+    let n = 0, last = null;
+    ex.sets.forEach((st, j) => { if(!st.warmup && st.state === 'planned' && E.confirmSet(ex, st, 'bulk', now)) n++; });
+    if(!n){ const j = ex.sets.findIndex(s => !s.warmup && s.state === 'planned'); toast('No target to copy yet: enter the first set.'); if(j >= 0) openSetSheet(i, j); return; }
+    ex.sets.forEach((st, j) => { if(!st.warmup && st.state !== 'planned') last = j; });
+    const left = ex.sets.filter(s => !s.warmup && s.state === 'planned').length;
+    if(!left){
+      ui.rir = last != null && ex.sets[last].rir == null && (ex.kind === 'weight' || ex.kind === 'band') ? { i, j:last } : null;
+      ui.open.delete(i);
+      const nx = currentIdx(S.draft); if(nx != null) ui.scrollTo = nx;
+    }
+    save(); render();
+    /* One mis-tap here confirms a whole exercise, so it can be undone. */
+    toast(n + ' set' + (n > 1 ? 's' : '') + ' confirmed as shown' + (left ? ' · ' + left + ' need numbers' : ''), () => {
+      if(S.draft === d && d.exercises[i] === ex){ ex.sets = before; ui.rir = rirBefore; ui.open.add(i); save(); render(); }
+    });
+  },
+  rir: el => {
+    const r = ui.rir; if(!r) return;
+    const st = S.draft.exercises[r.i] && S.draft.exercises[r.i].sets[r.j];
+    if(st) st.rir = +el.dataset.v;
+    ui.rir = null; save();
+    if(r.back) backToFinish(); else render();
+  },
+  rirClose: () => { const r = ui.rir; ui.rir = null; if(r && r.back) backToFinish(); else render(); },
+  rateLast: el => {
+    const i = +el.dataset.i, ex = S.draft.exercises[i];
+    let j = -1;
+    ex.sets.forEach((st, k) => { if(!st.warmup && st.state !== 'planned' && E.hasData(st)) j = k; });
+    if(j < 0) return;
+    ui.finishBack = ui.sheet; ui.sheet = null;
+    ui.rir = { i, j, back:true }; ui.scrollTo = i;
+    render();
+  },
+  rest30: () => { if(rest.on){ rest.end += 30000; rest.buzzed = false; paintBar(); } },
+  restStop: () => { if(rest.on) stopRest(); },
+
+  sheet: el => openSetSheet(+el.dataset.i, +el.dataset.j),
+  shstep: el => {
+    const s = ui.sheet, ex = S.draft.exercises[s.i], k = el.dataset.k, d = +el.dataset.d;
+    if(s.v[k] == null) s.v[k] = k === 'reps' && ex.rep ? ex.rep[0] : k === 'metres' && ex.dist ? ex.dist : Math.max(0, d);
+    else s.v[k] = Math.max(0, Math.round((s.v[k] + d) * 100) / 100);
+    renderSheet();
+  },
+  shband: el => {
+    const s = ui.sheet, b = el.dataset.b;
+    const on = new Set(String(s.v.band || '').split('+').filter(Boolean));
+    on.has(b) ? on.delete(b) : on.add(b);
+    s.v.band = on.size ? bandList(s.v.band).filter(x => on.has(x)).join('+') : null;
+    renderSheet();
+  },
+  shrir: el => { const s = ui.sheet, r = +el.dataset.v; s.v.rir = s.v.rir === r ? null : r; renderSheet(); },
+  shwarm: () => { ui.sheet.v.warmup = !ui.sheet.v.warmup; renderSheet(); },
+  shdel: () => {
+    const s = ui.sheet;
+    if(!(s.delArm && Date.now() - s.delArm < 3000)){ s.delArm = Date.now(); renderSheet(); return; }
+    const ex = S.draft.exercises[s.i];
+    ex.sets.splice(s.j, 1);
+    ui.sheet = null; if(ui.rir && ui.rir.i === s.i) ui.rir = null;
+    save(); render();
+  },
+  shsave: () => {
+    const s = ui.sheet, ex = S.draft.exercises[s.i], st = ex.sets[s.j], v = s.v;
+    const miss = E.fieldsOf(ex).filter(k => v[k] == null);
+    if(miss.length){ toast('Enter ' + miss.join(' and ') + ' first.'); return; }
+    for(const k of E.fieldsOf(ex)) st[k] = v[k];
+    if(ex.kind === 'weight' || ex.kind === 'band') st.rir = v.rir;
+    st.warmup = !!v.warmup;
+    if(st.state !== 'done' || !st.doneAt) st.doneAt = nowIso();
+    st.state = 'done'; st.via = 'sheet';
+    if(!st.warmup) E.carryForward(ex, s.j);
+    ui.sheet = null;
+    afterConfirm(s.i, s.j);
+  },
+
+  swap: el => {
+    const i = +el.dataset.i, ex = S.draft.exercises[i];
+    const n = prompt('Swapped in what instead of "' + ex.n + '"?', '');
+    if(!n || !n.trim()) return;
+    /* Kept as a substitution, not logged under the prescribed name, or the
+       history quietly becomes fiction. */
+    ex.substitutedFor = ex.substitutedFor || ex.n;
+    ex.n = n.trim();
+    const { rec, target } = E.targets(E.tplOf(ex), aHist(), S.draft.date, S.draft.isDeload);
+    ex.rec = rec;
+    for(const st of ex.sets) if(st.state === 'planned') st.target = target ? { ...target } : null;
+    ui.sheet = null; save(); render();
+  },
+  addset: el => {
+    const ex = S.draft.exercises[+el.dataset.i];
+    const lastT = [...ex.sets].reverse().find(s => s.target);
+    ex.sets.push(E.blankSet(ex, lastT ? lastT.target : null));
+    ui.open.add(+el.dataset.i); ui.sheet = null; save(); render();
+  },
+  delex: el => {
+    const i = +el.dataset.i, ex = S.draft.exercises[i], d = S.draft;
+    d.exercises.splice(i, 1);
+    ui.sheet = null; ui.open.clear(); ui.info.clear(); if(ui.rir) ui.rir = null;
+    save(); render();
+    toast('Deleted ' + ex.n, () => { if(S.draft === d){ d.exercises.splice(Math.min(i, d.exercises.length), 0, ex); save(); render(); } });
+  },
+
+  mdate: () => { ui.sheet = { type:'date' }; renderSheet(); },
+  dsSave: () => {
+    const v = ($('[data-f="dsdate"]') || {}).value;
+    if(v && v <= today()){ S.draft.date = v; E.retarget(S.draft, aHist()); save(); }
+    ui.sheet = null; render();
+  },
+  mdeload: () => { S.draft.isDeload = !S.draft.isDeload; E.retarget(S.draft, aHist()); ui.sheet = null; save(); render(); },
+  maddex: () => {
+    const n = prompt('Exercise name', '');
+    if(!n || !n.trim()) return;
+    S.draft.exercises.push(E.customExercise(n.trim()));
+    const i = S.draft.exercises.length - 1;
+    ui.open.add(i); ui.sheet = null; ui.scrollTo = i; ui.tab = 'log'; save(); render();
+  },
+
+  finish: () => { ui.sheet = { type:'finish', choice:null, noteOpen:false, dateOpen:false }; renderSheet(); },
+  fDate: () => { ui.sheet.dateOpen = !ui.sheet.dateOpen; renderSheet(); },
+  fChoice: el => { ui.sheet.choice = el.dataset.v; renderSheet(); },
+  fRpe: el => { const v = +el.dataset.v; S.draft.sessionRpe = S.draft.sessionRpe === v ? null : v; save(); renderSheet(); },
+  fSym: el => {
+    const d = S.draft, v = el.dataset.v;
+    let sy = Array.isArray(d.symptoms) ? d.symptoms.slice() : null;
+    if(v === 'none') sy = sy && !sy.length ? null : [];
+    else {
+      sy = sy || [];
+      const has = sy.find(x => x.area === v);
+      sy = has ? sy.filter(x => x.area !== v) : [...sy, { area:v, type:null, side:null }];
+      if(!sy.length) sy = null;
+    }
+    d.symptoms = sy; save(); renderSheet();
+  },
+  fLbType: el => { const lb = S.draft.symptoms.find(x => x.area === 'low-back'); lb.type = lb.type === el.dataset.v ? null : el.dataset.v; if(lb.type !== 'pinch') lb.side = null; save(); renderSheet(); },
+  fLbSide: el => { const lb = S.draft.symptoms.find(x => x.area === 'low-back'); lb.side = lb.side === el.dataset.v ? null : el.dataset.v; save(); renderSheet(); },
+  fNote: () => { ui.sheet.noteOpen = true; renderSheet(); const t = $('[data-f="notes"]'); if(t) t.focus(); },
+  saveSession: () => {
+    const d = S.draft, now = nowIso();
+    const res = E.finishSession(d, now, ui.sheet && ui.sheet.choice || undefined);
+    if(res.blocked){ toast(res.blocked === 'empty' ? 'Nothing to save yet.' : 'Choose what happened to the unticked sets.'); return; }
+    const plan = E.planSave(d, res.session, S.history, S.queue, dir(), now);
+    for(const item of plan.items) sync.enqueue(item);
+    endSession(); save(); render();
+    toast('Saved' + (sync.cfgOk() ? '' : ' on this phone'));
+    sync.flushQueue();
+  },
+
+  hrow: el => { const k = el.dataset.k; ui.hist.has(k) ? ui.hist.delete(k) : ui.hist.add(k); render(); },
+  edit: el => {
+    const item = merged().find(s => E.fileKey(s) === el.dataset.k);
+    if(!item) return;
+    if(S.draft && !confirm('Replace the session in progress?')) return;
+    const d = E.editDraft(item, dir());
+    if(!d.id) d.id = newId();
+    endSession(); S.draft = d; ui.tab = 'log'; save(); window.scrollTo(0, 0); render();
+  },
+  del: el => {
+    const k = el.dataset.k;
+    const raw = [...S.queue].reverse().find(q => !q.deleted && E.fileKey(q) === k) || S.history.find(h => E.fileKey(h) === k);
+    if(!raw) return;
+    if(!confirm('Delete ' + raw.name + ' on ' + raw.date + '? The file is marked deleted, and git keeps every earlier version.')) return;
+    const { qid, ...body } = raw;
+    /* Queued before history is touched: a tombstone is only pushed for a file
+       GitHub already holds, and history is how sync knows that. */
+    sync.enqueue({ ...body, deleted:true, savedAt:nowIso() });
+    S.history = S.history.filter(h => E.fileKey(h) !== k);
+    save(); render(); sync.flushQueue();
+  },
+  /* Confirms a suspect session: the file gets verified:true and nothing
+     else changes, so the rules read it from now on. */
+  verify: el => {
+    const k = el.dataset.k;
+    const raw = [...S.queue].reverse().find(q => !q.deleted && E.fileKey(q) === k) || S.history.find(h => E.fileKey(h) === k);
+    if(!raw) return;
+    if(!confirm('Confirm ' + raw.name + ' on ' + raw.date + ' was lifted as recorded? It will count toward the next targets.')) return;
+    const { qid, unverified, ...body } = raw;
+    sync.enqueue({ ...body, verified:true });
+    ui.hist.delete(k); render(); sync.flushQueue();
+  },
+
+  logbw: () => {
+    const v = num(($('[data-f="bwkg"]') || {}).value);
+    if(v == null || v < 30 || v > 250){ toast('Enter a weight in kg first.'); return; }
+    sync.enqueueBw({ type:'bw', date:today(), kg:v, loggedAt:nowIso() });
+    render(); toast('Logged ' + v + ' kg'); sync.flushQueue();
+  },
+  logmark: () => {
+    const e = { type:'floor', date:today(), loggedAt:nowIso() };
+    let any = false;
+    FLOOR_MARKS.forEach(([k]) => { const v = num(($('[data-mark="' + k + '"]') || {}).value); if(v != null){ e[k] = v; any = true; } });
+    if(!any){ toast('Nothing filled in.'); return; }
+    sync.enqueueBw(e); render(); sync.flushQueue();
+  },
+  savecfg: () => { save(); setSync('', 'saved'); sync.flushQueue({ quiet:true }).then(render); },
+  test: async () => {
+    save();
+    try{
+      const r = await sync.testRepo();
+      if(!r) throw new Error('repo not found');
+      setSync('ok', 'connected');
+      alert('Connected to ' + r.full_name + '\nPrivate: ' + r.private + '\nWrite access: ' + (r.permissions && r.permissions.push ? 'yes' : 'NO: token lacks Contents: write'));
+    }catch(e){ setSync('bad', 'failed'); alert('Failed: ' + e.message); }
+  },
+  export: () => {
+    const blob = new Blob([JSON.stringify({ history:S.history, bw:S.bw, queue:S.queue, bwQueue:S.bwQueue, draft:S.draft, corrupt:corruptBackups() }, null, 2)], { type:'application/json' });
+    const u = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = u; a.download = 'ledger-backup-' + today() + '.json'; a.click(); URL.revokeObjectURL(u);
+  }
+};
+
+const INPUT = {
+  exnote: el => { S.draft.exercises[+el.dataset.i].note = el.value; save(); },
+  shval: el => { if(ui.sheet) ui.sheet.v[el.dataset.k] = num(el.value); },
+  notes: el => { S.draft.notes = el.value; save(); }
+};
+const CHANGE = {
+  findate: el => {
+    if(!el.value || el.value > today()) return;
+    S.draft.date = el.value; E.retarget(S.draft, aHist()); save(); renderSheet(); render();
+  },
+  cfg: el => {
+    const k = el.dataset.k;
+    if(k === 'deloadWeeks') S.settings[k] = parseInt(el.value, 10) || 5;
+    else if(k === 'bands') S.settings.bands = el.value.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    else S.settings[k] = el.value.trim();
+    save();
+  },
+  cfgbool: el => { S.settings[el.dataset.k] = el.checked; save(); if(el.dataset.k === 'wakeLock') syncWake(); }
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  const fn = ACT[el.dataset.act];
+  if(fn) fn(el, e);
+});
+document.addEventListener('input', e => { const f = e.target.dataset && e.target.dataset.f; if(f && INPUT[f]) INPUT[f](e.target); });
+document.addEventListener('change', e => { const f = e.target.dataset && e.target.dataset.f; if(f && CHANGE[f]) CHANGE[f](e.target); });
+
+/* ---------------------------------------------------------------- boot */
+save();
 const pending = S.queue.length + S.bwQueue.length;
-setSync(pending?'pending':'', pending?pending+' pending':(cfgOk()?'ready':'no token'));
+setSync(pending ? 'pending' : '', pending ? pending + ' pending' : (sync.cfgOk() ? 'ready' : 'no token'));
 render();
-if(cfgOk()){
-  flushQueue({quiet:true}).then(()=>{ if(!S.history.length) pullHistory(); });
-}
-window.addEventListener('online', ()=> flushQueue({quiet:true}));
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+try{
+  if(navigator.storage && navigator.storage.persist){
+    navigator.storage.persisted().then(p => p || navigator.storage.persist())
+      .then(p => { ui.persist = p ? 'persistent' : 'best-effort'; if(ui.tab === 'settings') softRender(); }).catch(() => { ui.persist = 'best-effort'; });
+  } else ui.persist = 'best-effort';
+}catch(e){ ui.persist = 'best-effort'; }
+if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length) return sync.pullHistory(); }).then(softRender);
+window.addEventListener('online', () => sync.flushQueue({ quiet:true }));
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
