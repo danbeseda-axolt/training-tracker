@@ -51,7 +51,7 @@ export const TEMPLATES = {
       note: 'First set paused 1s. Hold, don’t chase — only add load if a whole session lands at RIR 3–4.' },
     { n: 'Overhead press', kind: 'weight', sets: 3, rep: [6, 8], rir: 2, inc: 2.5, rest: 150, bar: 20, key: true, note: 'Strict, standing.' },
     { n: 'Weighted dip', kind: 'weight', load: 'bw+', sets: 3, rep: [6, 8], rir: 2, inc: 2.5, rest: 150, seed: { kg: 0, reps: 6 }, note: 'Added kg (0 = bodyweight). Shoulders just below elbows.' },
-    { n: 'Incline DB curl', kind: 'weight', sets: 3, rep: [10, 12], rir: 1, inc: 2, rest: 75, note: 'Per hand. Biceps fresh.' },
+    { n: 'Preacher curl (one DB, two hands)', kind: 'weight', sets: 3, rep: [10, 12], rir: 1, inc: 2, rest: 75, note: 'One dumbbell held in both hands, elbows on the bench pad. kg is that one dumbbell. Biceps fresh.' },
     { n: 'Pallof press', kind: 'band', sets: 3, rep: [10, 10], rir: 2, rest: 60, note: 'Per side. Pick the band colours.' }
   ] },
   'lower-b': { name: 'Lower B — hinge', day: 'Tue', ex: [
@@ -82,6 +82,15 @@ export const TEMPLATES = {
   'floor': { name: 'Daily floor', day: 'Every day', ex: [] },
   'custom': { name: 'Custom', day: 'Any', ex: [] }
 };
+
+/* Earlier names of the same exercise, so a rename keeps its history. The
+   2026-09 sessions logged "Incline DB curl", but Dan confirmed on 2026-09-23
+   that it was a preacher curl with one 20 kg dumbbell held in both hands. */
+export const ALIASES = /** @type {Record<string, string[]>} */ ({
+  'Preacher curl (one DB, two hands)': ['Incline DB curl']
+});
+/** @param {string} logged the name in a session file @param {string} wanted */
+export const sameEx = (logged, wanted) => logged === wanted || (ALIASES[wanted] || []).includes(logged);
 
 /* Floor and stretching routines: ../training/daily-floor.md, as of 2026-08-30.
    A routine is one block of that file. The Daily floor session is built from
@@ -386,7 +395,7 @@ export function lastFor(exName, history, beforeDate) {
     if (h.deleted) continue;
     if (beforeDate && h.date >= beforeDate) continue;
     if (h.isDeload) continue;              // deload numbers would poison the next call
-    const ex = (h.exercises || []).find((/** @type {Obj} */ e) => e.n === exName && !e.skipped);
+    const ex = (h.exercises || []).find((/** @type {Obj} */ e) => sameEx(e.n, exName) && !e.skipped);
     if (ex && working(ex).length) return { date: h.date, ex, session: h };
   }
   return null;
@@ -396,7 +405,7 @@ export function lastRules(exName, n, history, beforeDate) {
   const out = [];
   for (const h of history) {
     if (beforeDate && h.date >= beforeDate) continue;
-    const d = (h.decisions || []).find((/** @type {Obj} */ x) => x.ex === exName && x.outcome !== 'not-done');
+    const d = (h.decisions || []).find((/** @type {Obj} */ x) => sameEx(x.ex, exName) && x.outcome !== 'not-done');
     if (d) { out.push(d.rule); if (out.length === n) break; }
   }
   return out;

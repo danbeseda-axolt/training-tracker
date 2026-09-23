@@ -117,7 +117,7 @@ test('bw+: a legacy null kg reads as bodyweight (0)', () => {
   assert.equal(target.kg, 0);
   assert.equal(E.setText({ kind: 'weight', load: 'bw+' }, { state: 'planned', target }), 'BW × 11');
 });
-const curl = T('upper-push', 'Incline DB curl');
+const curl = T('upper-push', 'Preacher curl (one DB, two hands)');
 test('R1b: a 2 kg jump on 10 kg adds a rep instead', () => {
   const h = [S5('2026-09-01', 'upper-push', [X(curl.n, [W(10, 12, 1), W(10, 12, 1), W(10, 12, 1)])])];
   const r = E.recommend(curl, h, '2026-09-08');
@@ -470,7 +470,7 @@ test('compact and setText read the way Dan logs', () => {
 /* ------------------------------------------------------ templates, purity */
 test('templates match programme v2', () => {
   const want = {
-    'upper-push': [['Bench press (heavy)', 4, [5, 5], 2], ['Overhead press', 3, [6, 8], 2], ['Weighted dip', 3, [6, 8], 2], ['Incline DB curl', 3, [10, 12], 1], ['Pallof press', 3, [10, 10], 2]],
+    'upper-push': [['Bench press (heavy)', 4, [5, 5], 2], ['Overhead press', 3, [6, 8], 2], ['Weighted dip', 3, [6, 8], 2], ['Preacher curl (one DB, two hands)', 3, [10, 12], 1], ['Pallof press', 3, [10, 10], 2]],
     'lower-b': [['Trap-bar / conventional DL', 3, [5, 5], 3], ['Romanian deadlift', 3, [8, 8], 2], ['45° back extension', 3, [10, 15], 1], ['Suitcase carry', 3], ['McGill Big 3', 2], ['Dead hang', 2]],
     'upper-pull': [['Pull-up (EMOM 10×3)', 1, [30, 30]], ['Chin-up', 3, [5, 10], 2], ['Single-arm DB row', 3, [8, 12], 1], ['Face pull', 3, [12, 15], 1], ['Hammer curl', 3, [10, 12], 1]],
     'lower-a': [['High-bar back squat', 4, [5, 5], 2], ['Bulgarian split squat', 3, [8, 8], 2], ['Hanging knee/leg raise', 3, [8, 12], 1], ['Ab wheel rollout', 3, [6, 10], 1], ['Farmer’s carry', 3]]
@@ -493,4 +493,13 @@ test('engine.js is pure: no global state, DOM, network or clock', () => {
   for (const bad of ['document.', 'window.', 'fetch(', 'localStorage', 'Date.now(', 'new Date()', 'navigator.', 'Math.random('])
     assert.ok(!src.includes(bad), 'engine.js uses ' + bad);
   assert.ok(Object.keys(E).length > 30);
+});
+
+test('the preacher curl reads the sessions logged as "Incline DB curl"', () => {
+  const old = S5('2026-09-17', 'upper-push', [X('Incline DB curl', [W(20, 11, 1), W(20, 11, 1), W(20, 11, 1)], { rep: [10, 12], tplRir: 1 })]);
+  const t = T('upper-push', 'Preacher curl (one DB, two hands)');
+  assert.equal(E.lastFor(t.n, [old], '2026-09-29').date, '2026-09-17');
+  const r = E.targets(t, [old], '2026-09-29');
+  assert.equal(r.target.kg, 20, 'same dumbbell, carried over');
+  assert.equal(E.lastFor('Hammer curl', [old], '2026-09-29'), null, 'the alias is one-way and specific');
 });
