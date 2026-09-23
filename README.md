@@ -91,8 +91,11 @@ was rebuilt around that one tap.
   or **I didn't do them**.
 - Optional one-tap questions: session RPE (5–10) and "Anything flare up?"
   (None / Low back / Other; Low back asks tight or one-sided pinch, then side).
-  A pinch shows Dan's own rule: two are on record before the app, so any pinch
-  logged here is at least the third, and the third means a physiotherapist.
+  A pinch shows where it falls: the ones logged in the app plus the number
+  before the app from Settings ("One-sided low-back pinches before the app",
+  kept on the phone only so no health history ships in this public code). The
+  third on record means a physiotherapist before the next hinge session. While
+  that setting is empty, the sheet says so and still shows the rule.
 - An optional note.
 
 Bodyweight is no longer asked in a session. It lives on the Body tab.
@@ -291,6 +294,10 @@ full-screen like an app.
 Settings → owner / repo / branch / path → paste the token → **Test**. It
 reports whether the token actually has write access.
 
+Then, under Programme, fill in **One-sided low-back pinches before the app**
+(the count from the injury record). It stays on the phone and is what the
+finish sheet adds a newly logged pinch to.
+
 ## Changing the app
 
 - **Templates** live in `TEMPLATES` at the top of `engine.js`. Per exercise:
@@ -315,7 +322,12 @@ Plain Node (tested on v25), no npm, no install. Do not add a `package.json`
 under `tracker/`. The tests cover every rule, the deload cadence, migration of
 old files and old phone storage, confirming and finishing a session, file
 paths, the sync queue against a fake GitHub, the service worker's file list,
+one regression test per bug found in the 2026-09-23 review
+(`dev/regressions.test.mjs`),
 and the three real session files in `training/log` (read at test time, never
 copied into `tracker/`, which is public).
 
-Local preview: `node tracker/dev/serve.js`, then http://localhost:8099.
+Local preview: `node tracker/dev/serve.js`, then http://localhost:8099. A second
+checker running at the same time should use its own origin (`PORT=8100 node
+tracker/dev/serve.js`): each origin has its own localStorage, so two checkers
+on one port overwrite each other's test data.

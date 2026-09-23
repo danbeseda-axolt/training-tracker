@@ -30,6 +30,16 @@ test('only the 17 Sep Upper Push matches the prefill pattern', t => {
   assert.equal(E.isSuspectPrefill(E.migrateSession(read(F15))), false);
 });
 
+test('Edit then Save on the real 17 Sep file keeps it unverified and out of the rules', t => {
+  if (!need(t)) return;
+  const raw = read(F17);
+  const { session } = E.finishSession(E.editDraft(raw, 'training/log'), '2026-09-23T10:00:00Z');
+  assert.equal(session.unverified, true);
+  const aH = E.analysisHistory([read(F08), session], []);
+  assert.ok(!aH.some(s => s.date === '2026-09-17'));
+  assert.equal(E.lastFor(E.TEMPLATES['upper-push'].ex[0].n, aH, '2026-09-29').date, '2026-09-08');
+});
+
 test('migration keeps every original key and value, marks sets legacy, and is idempotent', t => {
   if (!need(t)) return;
   for (const f of files) {

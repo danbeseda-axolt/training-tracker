@@ -8,8 +8,8 @@
 <link rel="manifest" href="manifest.json">
 <style>
 :root{
-  --bg:#f7f7f8; --panel:#fff; --line:#e2e4e7; --text:#16181b; --dim:#6b7076;
-  --accent:#2f6df6; --ok:#1a7f4b; --on-ok:#fff; --warn:#7d5a00; --bad:#c0392b; --chip:#eef0f3;
+  --bg:#f7f7f8; --panel:#fff; --line:#e2e4e7; --text:#16181b; --dim:#63686e;
+  --accent:#2f6df6; --ok:#177a47; --on-ok:#fff; --warn:#7d5a00; --bad:#c0392b; --chip:#eef0f3;
   --scrim:rgba(10,12,14,.45); --hdr:52px; --bar:64px; --nav:56px; --rir:100px; --next:64px;
   --rirH:0px; --nextH:0px;
   --safe-b:env(safe-area-inset-bottom); --safe-t:env(safe-area-inset-top);
@@ -208,8 +208,8 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-1';
-import { makeSync } from './sync.js?v=5-1';
+import * as E from './engine.js?v=5-2';
+import { makeSync } from './sync.js?v=5-2';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -674,8 +674,7 @@ function finishSheet(s){
     if(lb.type === 'pinch'){
       h += '<div class="chips" style="margin-top:8px">'
         + ['L', 'R'].map(v => '<button class="chip' + (lb.side === v ? ' on' : '') + '" data-act="fLbSide" data-v="' + v + '">' + v + '</button>').join('') + '</div>'
-        + '<div class="pinch"><b>' + (E.PRIOR_PINCHES === 2 ? 'Two' : E.PRIOR_PINCHES) + ' pinches are on record before the app (and 30 Aug is unresolved), so this is at least #3. Your rule: see a physiotherapist before the next hinge session.</b>'
-        + '<div class="sub">Pinches logged in the app: ' + (E.countPinches(aH) + 1) + ' (including this one).</div></div>';
+        + '<div class="pinch">' + pinchText(E.pinchCount(S.settings.priorPinches, aH)) + '</div>';
     }
   }
   h += '</div>';
@@ -690,6 +689,15 @@ function finishSheet(s){
     + (why ? '<div class="hint center">' + esc(why) + '</div>' : '')
     + '<div class="center"><button class="textbtn plain" data-act="closeSheet">Back</button></div>';
   return h;
+}
+
+/* The count before the app lives in Settings on this phone, not in the
+   page, which is public. Unset, it asks rather than under-counting. */
+function pinchText(p){
+  const rule = 'From the third on record: see a physiotherapist before the next hinge session.';
+  if(p.total == null) return '<b>' + rule + '</b><div class="sub">Pinches logged in the app: ' + p.inApp + ' (including this one). Set how many came before the app in Settings to count this one.</div>';
+  return '<b>Pinch #' + p.total + ' on record. ' + (p.physio ? 'See a physiotherapist before the next hinge session.' : rule) + '</b>'
+    + '<div class="sub">' + p.inApp + ' logged in the app (including this one), ' + (p.total - p.inApp) + ' before it.</div>';
 }
 
 /* ---------------------------------------------------------------- history */
@@ -789,6 +797,8 @@ function viewSettings(){
     + '<div class="hint">On <b>cut</b> the bodyweight deload trigger is off, or it fires every time you deliberately diet.</div>'
     + '<label>Deload every N weeks</label><input type="text" inputmode="numeric" data-f="cfg" data-k="deloadWeeks" value="' + esc(c.deloadWeeks) + '">'
     + '<div class="hint">Programme v2 says every 4–6 weeks and non-negotiable in a deficit.</div>'
+    + '<label>One-sided low-back pinches before the app</label><input type="text" inputmode="numeric" data-f="cfg" data-k="priorPinches" value="' + esc(c.priorPinches ?? '') + '" placeholder="not set">'
+    + '<div class="hint">Stays on this phone. A pinch logged at Finish is counted on top of it.</div>'
     + '<label>Band colours, lightest first</label><input data-f="cfg" data-k="bands" value="' + esc((c.bands || []).join(', ')) + '">'
     + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="restOn" style="width:24px;min-height:24px"' + (c.restOn ? ' checked' : '') + '> Start the rest timer when a set is ticked</label>'
     + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="wakeLock" style="width:24px;min-height:24px"' + (c.wakeLock !== false ? ' checked' : '') + '> Keep the screen on during a session</label>'
@@ -1121,6 +1131,7 @@ const CHANGE = {
   cfg: el => {
     const k = el.dataset.k;
     if(k === 'deloadWeeks') S.settings[k] = parseInt(el.value, 10) || 5;
+    else if(k === 'priorPinches'){ const n = parseInt(el.value, 10); S.settings[k] = Number.isFinite(n) && n >= 0 ? n : null; }
     else if(k === 'bands') S.settings.bands = el.value.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
     else S.settings[k] = el.value.trim();
     save();

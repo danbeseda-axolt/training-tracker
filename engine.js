@@ -14,18 +14,18 @@
 export const SCHEMA_VERSION = 5;
 export const APP_VERSION = 'v5';
 
-/* As of 2026-09-23, health/injuries-and-illness.md records two one-sided
-   pinches from before the app existed, and 2026-08-30 is unresolved. So any
-   pinch logged in the app is at least the third, which is Dan's own physio
-   threshold. Change this only when that file changes. */
-export const PRIOR_PINCHES = 2;
+/* A one-sided low-back pinch from the third on means a physiotherapist
+   before the next hinge session. How many happened before the app is a
+   Settings value on the phone (settings.priorPinches, null = not set), so no
+   health history ships in this public code. */
+export const PHYSIO_AT = 3;
 
 export const DEFAULT_BANDS = ['yellow', 'red', 'green', 'blue', 'black'];
 
 export const DEFAULTS = {
   settings: { token: '', owner: 'danbeseda-axolt', repo: 'dan-brain', branch: 'main',
               path: 'training/log', restOn: true, phase: 'cut', deloadWeeks: 5,
-              bands: DEFAULT_BANDS.slice(), wakeLock: true },
+              bands: DEFAULT_BANDS.slice(), wakeLock: true, priorPinches: null },
   draft: null, queue: [], bwQueue: [], history: [], bw: [], historyFetched: 0
 };
 
@@ -708,6 +708,14 @@ export const isStaleDraft = (d, nowMs) => !!d && !d.editing && !!d.startedAt && 
 /** Pinches recorded in the app's own files. @param {Obj[]} history */
 export const countPinches = history => history.filter(s => Array.isArray(s.symptoms)
   && s.symptoms.some((/** @type {Obj} */ x) => x && x.area === 'low-back' && x.type === 'pinch')).length;
+/* Where a pinch logged now falls. total is null while the number before the
+   app is not set, so the page asks for it rather than under-counting. */
+/** @param {number|null|undefined} prior @param {Obj[]} history */
+export function pinchCount(prior, history) {
+  const inApp = countPinches(history) + 1;
+  const total = typeof prior === 'number' && prior >= 0 ? prior + inApp : null;
+  return { inApp, total, physio: total != null && total >= PHYSIO_AT };
+}
 
 /* ------------------------------------------------------------- the week */
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

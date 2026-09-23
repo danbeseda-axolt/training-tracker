@@ -12,8 +12,10 @@ const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const SHELL = JSON.parse(sw.match(/const SHELL\s*=\s*(\[[^\]]*\])/)[1].replace(/'/g, '"'));
 const bare = u => u.split('?')[0];
 
-test('VERSION is ledger-v5-1', () => {
-  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-1');
+test('VERSION is ledger-v5-2 and matches the ?v= on both module imports', () => {
+  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-2');
+  const vs = [...html.matchAll(/from '\.\/[^'?]+\?v=([^']+)'/g)].map(m => m[1]);
+  assert.deepEqual(vs, ['5-2', '5-2']);
 });
 
 test('SHELL holds the page, both modules, the manifest and the icon', () => {
