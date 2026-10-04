@@ -208,8 +208,8 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-4';
-import { makeSync } from './sync.js?v=5-4';
+import * as E from './engine.js?v=5-5';
+import { makeSync } from './sync.js?v=5-5';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -393,7 +393,10 @@ function deloadBanner(aH){
   const list = r.codes.map(c => '<div class="hint">· ' + esc(c.t) + ' <span class="pill' + (c.sev === 'severe' ? ' bad' : c.sev === 'mod' ? ' warn' : '') + '">' + c.c + '</span></div>').join('');
   /* Only the next session started is set up as a deload automatically; the
      rest of the week has to be switched on by hand, so the banner says so. */
-  const head = r.fire
+  const sched = r.codes.find(c => c.c === 'BLOCK');
+  const head = sched
+    ? '<b>Deload week.</b> All four sessions start as deloads: ' + Math.round(E.DELOAD.loadPct*100) + '% of working load, half the accessory sets, RIR 3–4. The pre-session block is unchanged.'
+    : r.fire
     ? '<b>Deload due.</b> The next session starts at ' + Math.round(E.DELOAD.loadPct*100) + '% of working load at the bottom of each rep range. The deload is a week: for the other sessions this week, use ⋯ → Deload session.'
     : '<b>Watch.</b> Not enough to call a deload yet.';
   return '<div class="banner ' + (r.fire ? 'bad' : 'warn') + '">' + head + list + '</div>';
@@ -421,19 +424,27 @@ function viewLog(){
   return h;
 }
 
+function blockLine(){
+  const b = E.blockInfo(today());
+  if(!b) return 'The winter block starts ' + E.niceDate(E.BLOCK.start) + '.';
+  if(b.over) return 'The 20-week block is over.';
+  return 'Block week ' + b.week + ' of ' + E.BLOCK.weeks + ' · phase ' + b.phase + ' ' + b.phaseName
+    + (b.calibration ? ' · calibration: ramp each main lift to ONE top set at RIR 2' : '') + (b.deload ? ' · deload week' : '');
+}
 function pickerHTML(aH){
   const plan = E.weekPlan(merged(), today());
   const next = E.nextTemplate(plan);
   const deload = E.deloadCheck(aH, S.bw, S.settings, today()).fire;
-  let h = '';
-  if(next) h += '<button class="big primary" data-act="start" data-key="' + next + '">Start ' + esc(E.TEMPLATES[next].name) + (deload ? ' · deload' : '') + '</button>';
+  let h = '<div class="sub center" style="margin-bottom:8px">' + esc(blockLine()) + '</div>';
+  if(next) h += '<button class="big primary" data-act="start" data-key="' + next + '">Start ' + esc(E.TEMPLATES[next].name.split(' — ')[0]) + ' · ' + esc(E.TEMPLATES[next].name.split(' — ')[1] || '') + (deload ? ' · deload' : '') + '</button>';
   const open = plan.filter(p => p.state !== 'done');
   h += '<div class="sub center" style="margin-bottom:12px">' + (open.length
     ? 'Not yet this week: ' + open.map(p => esc(p.name.split(' — ')[0]) + ' (' + p.day + (p.state === 'unverified' ? ', unverified' : '') + ')').join(', ')
     : 'All four lifts are logged this week.') + '</div>';
+  /* Legacy (Programme v2) templates are never offered: they exist for History. */
   for(const [k, t] of Object.entries(E.TEMPLATES)){
-    if(k === next) continue;
-    const sub = k === 'floor' ? '<br><span class="sub">Today: ' + esc(E.floorFor(today()).map(r => E.ROUTINES[r].name.split(' — ')[0]).join(' · ')) + '</span>' : '';
+    if(k === next || t.legacy) continue;
+    const sub = k === 'skill' ? '<br><span class="sub">Compression · L-sit · handstand · flexibility. 30–40 min, no lifting.</span>' : '';
     h += '<button class="rowbtn" data-act="start" data-key="' + k + '"><span class="grow"><b>' + esc(t.name) + '</b>' + sub + '</span><span class="pill">' + esc(t.day) + '</span></button>';
   }
   return h;
@@ -443,7 +454,8 @@ function targetLine(ex){
   const w = ex.sets.filter(s => !s.warmup);
   const pl = w.find(s => s.state === 'planned' && s.target) || w.find(s => s.target);
   const parts = [];
-  if(pl) parts.push('Target ' + E.setText(ex, { state:'planned', target:pl.target }) + (pl.target.src === 'seed' ? ' (first time)' : ''));
+  if(ex.cal && pl && pl.target.kg == null) parts.push(ex.cal === 'ramp' ? 'Ramp to one top set of ' + pl.target.reps + ' · no kg target' : 'Test: ' + pl.target.reps + ' rep' + (pl.target.reps === 1 ? '' : 's') + ' · no kg target');
+  else if(pl) parts.push('Target ' + E.setText(ex, { state:'planned', target:pl.target }) + (pl.target.src === 'seed' ? ' (first time)' : ''));
   else if(ex.rep) parts.push((w.length || ex.targetSets) + ' × ' + (ex.rep[0] === ex.rep[1] ? ex.rep[0] : ex.rep[0] + '–' + ex.rep[1]));
   if(ex.tplRir != null) parts.push('RIR ' + ex.tplRir);
   if(ex.rest) parts.push('rest ' + mmss(ex.rest));
@@ -509,7 +521,7 @@ function renderRir(){
   if(!st){ ui.rir = null; el.hidden = true; return; }
   el.hidden = false;
   el.className = 'last';
-  el.innerHTML = '<div class="rirlab"><span class="grow">Last set: reps left? <span class="sub">' + esc(ex.n) + '</span></span>'
+  el.innerHTML = '<div class="rirlab"><span class="grow">' + (ex.backoff ? 'Top set' : 'Last set') + ': reps left? <span class="sub">' + esc(ex.n) + '</span></span>'
     + '<button class="ib" data-act="rirClose" aria-label="Skip">×</button></div><div class="chips">'
     + [0, 1, 2, 3, 4].map(v => '<button class="chip" data-act="rir" data-v="' + v + '">' + (v === 4 ? '4+' : v) + '</button>').join('') + '</div>';
 }
@@ -614,9 +626,9 @@ function routinesSheet(){
   const d = S.draft, have = new Set(d.exercises.map(e => e.n));
   const names = keys => keys.map(k => E.ROUTINES[k].name.split(' — ')[0]).join(' · ');
   const full = keys => keys.every(k => E.ROUTINES[k].ex.every(e => have.has(e.n)));
-  const today = E.floorFor(d.date);
+  const today = E.SKILL_DAY;
   let h = '<div class="sh-h">Add floor or stretching</div><div class="sub" style="margin-bottom:10px">After lifting is fine. Never before it: long holds make you weaker for the lift.</div><div class="menu">'
-    + '<button data-act="maddroutine" data-k="' + today.join(',') + '"><b>Today’s floor</b><br><span class="sub">' + esc(names(today)) + (full(today) ? ' · already in' : '') + '</span></button>';
+    + '<button data-act="maddroutine" data-k="' + today.join(',') + '"><b>The whole Skill day</b><br><span class="sub">' + esc(names(today)) + (full(today) ? ' · already in' : '') + '</span></button>';
   for(const [k, r] of Object.entries(E.ROUTINES))
     h += '<button data-act="maddroutine" data-k="' + k + '">' + esc(r.name) + '<br><span class="sub">' + esc(r.when) + (full([k]) ? ' · already in' : '') + '</span></button>';
   return h + '</div>';
@@ -655,12 +667,12 @@ function finishSheet(s){
     const prev = E.lastFor(ex.n, aH, d.date);
     if(c && (ex.kind === 'weight' || ex.kind === 'band') && r == null) noRir.push(d.exercises.indexOf(ex));
     h += '<div class="sumline"><b>' + esc(ex.n) + '</b> ' + (c ? esc(c.replace(/ @[\d.]+$/, '')) : '<span class="sub">not done</span>')
-      + (c && r != null ? ' · last-set RIR ' + r : '')
+      + (c && r != null ? (ex.backoff ? ' · top-set RIR ' : ' · last-set RIR ') + r : '')
       + (prev ? ' <span class="sub">· last time ' + esc(E.compact(prev.ex)) + '</span>' : '') + '</div>';
   }
   /* Each opens the reps-left chips for that exercise's last set; one tap on a
      chip rates it and comes straight back here. */
-  if(noRir.length) h += '<div class="hint">No RIR on the last set, so these cannot progress. Tap to rate:</div><div class="chips small" style="margin-top:6px">'
+  if(noRir.length) h += '<div class="hint">No RIR on the set that drives progression (the last set, or the top set on a heavy lift), so these cannot progress. Tap to rate:</div><div class="chips small" style="margin-top:6px">'
     + noRir.map(i => '<button class="chip" data-act="rateLast" data-i="' + i + '">' + esc(d.exercises[i].n) + '</button>').join('') + '</div>';
   h += '</div>';
 
@@ -730,6 +742,7 @@ function viewHistory(){
     const pills = (pending.has(k) ? '<span class="pill warn">pending</span>' : '')
       + (s.logMode ? '<span class="pill' + (s.logMode === 'live' ? ' ok' : '') + '">' + esc(s.logMode) + '</span>' : '')
       + (s.isDeload ? '<span class="pill">deload</span>' : '')
+      + (E.isLegacyKey(s.key) ? '<span class="pill">old plan</span>' : '')
       + (suspect ? '<span class="pill bad">unverified: excluded</span>' : '');
     h += '<div class="hist"><button class="hrow" data-act="hrow" data-k="' + esc(k) + '"><b class="grow">' + esc(s.name) + '</b><span class="sub">' + esc(E.niceDate(s.date)) + '</span>'
       + (pills ? '<span style="flex-basis:100%">' + pills + '</span>' : '') + '</button>';
@@ -810,10 +823,10 @@ function viewSettings(){
     + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button><button class="btn" data-act="test">Test</button></div></div>'
     + '<div class="card"><h3>Programme</h3>'
     + '<label>Block goal</label><select data-f="cfg" data-k="phase">'
-    + ['cut', 'maintain', 'gain'].map(p => '<option value="' + p + '"' + (c.phase === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>'
-    + '<div class="hint">On <b>cut</b> the bodyweight deload trigger is off, or it fires every time you deliberately diet.</div>'
+    + ['strength', 'maintain', 'gain', 'cut'].map(p => '<option value="' + p + '"' + (c.phase === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>'
+    + '<div class="hint">The winter block is <b>strength</b> (a small surplus): the bodyweight deload trigger is on. On <b>cut</b> it is off, or it fires every time you deliberately diet.</div>'
     + '<label>Deload every N weeks</label><input type="text" inputmode="numeric" data-f="cfg" data-k="deloadWeeks" value="' + esc(c.deloadWeeks) + '">'
-    + '<div class="hint">Programme v2 says every 4–6 weeks and non-negotiable in a deficit.</div>'
+    + '<div class="hint">Used only before the block starts (2026-10-05). Inside it, deloads fall in block weeks 6, 12 and 18.</div>'
     + '<label>One-sided low-back pinches before the app</label><input type="text" inputmode="numeric" data-f="cfg" data-k="priorPinches" value="' + esc(c.priorPinches ?? '') + '" placeholder="not set">'
     + '<div class="hint">Stays on this phone. A pinch logged at Finish is counted on top of it.</div>'
     + '<label>Band colours, lightest first</label><input data-f="cfg" data-k="bands" value="' + esc((c.bands || []).join(', ')) + '">'
@@ -846,12 +859,16 @@ function afterConfirm(i, j){
   if(st.warmup){ save(); render(); return; }
   startRest(ex.rest);
   const remaining = ex.sets.some(s => !s.warmup && s.state === 'planned');
+  /* The RIR that drives progression is asked once: after the last set, or on a
+     heavy exercise with back-offs after the top set. */
+  const rated = ex.kind === 'weight' || ex.kind === 'band';
+  const topSet = ex.backoff && ex.sets.findIndex(s => !s.warmup) === j;
+  ui.rir = rated && st.rir == null && (ex.backoff ? topSet : !remaining) ? { i, j } : null;
   if(!remaining){
-    ui.rir = st.rir == null && (ex.kind === 'weight' || ex.kind === 'band') ? { i, j } : null;
     ui.open.delete(i);
     const nx = currentIdx(S.draft);
     if(nx != null) ui.scrollTo = nx;
-  } else ui.rir = null;
+  }
   save(); render();
 }
 
@@ -930,6 +947,7 @@ const ACT = {
     ex.sets.forEach((st, j) => { if(!st.warmup && st.state === 'planned' && E.confirmSet(ex, st, 'bulk', now)) n++; });
     if(!n){ const j = ex.sets.findIndex(s => !s.warmup && s.state === 'planned'); toast('No target to copy yet: enter the first set.'); if(j >= 0) openSetSheet(i, j); return; }
     ex.sets.forEach((st, j) => { if(!st.warmup && st.state !== 'planned') last = j; });
+    if(ex.backoff) last = ex.sets.findIndex(s => !s.warmup);
     const left = ex.sets.filter(s => !s.warmup && s.state === 'planned').length;
     if(!left){
       ui.rir = last != null && ex.sets[last].rir == null && (ex.kind === 'weight' || ex.kind === 'band') ? { i, j:last } : null;
@@ -952,8 +970,7 @@ const ACT = {
   rirClose: () => { const r = ui.rir; ui.rir = null; if(r && r.back) backToFinish(); else render(); },
   rateLast: el => {
     const i = +el.dataset.i, ex = S.draft.exercises[i];
-    let j = -1;
-    ex.sets.forEach((st, k) => { if(!st.warmup && st.state !== 'planned' && E.hasData(st)) j = k; });
+    const j = E.rirIdx(ex);
     if(j < 0) return;
     ui.finishBack = ui.sheet; ui.sheet = null;
     ui.rir = { i, j, back:true }; ui.scrollTo = i;

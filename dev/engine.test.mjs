@@ -437,19 +437,21 @@ test('floor and custom sessions never count toward the week or the deload cadenc
   assert.equal(E.newSession('floor', [], '2026-09-23', 'x', true).isDeload, false);
   assert.equal(E.newSession('upper-push', [], '2026-09-23', 'x', true).isDeload, true);
 });
-test('deloadCheck: cadence fires at the setting, counted from the first lift', () => {
+test('deloadCheck: before the block the cadence still fires at the setting, counted from the first lift', () => {
   const h = [S5('2026-09-08', 'upper-push', [])];
   assert.equal(E.deloadCheck(h, [], { deloadWeeks: 5, phase: 'cut' }, '2026-09-23').fire, false);
-  const r = E.deloadCheck(h, [], { deloadWeeks: 5, phase: 'cut' }, '2026-10-12');
+  const r = E.deloadCheck(h, [], { deloadWeeks: 3, phase: 'cut' }, '2026-10-04');
   assert.equal(r.fire, true); assert.equal(r.codes[0].c, 'CADENCE');
 });
 test('weekPlan: any day in the week counts; suspect sessions show as unverified; next is today, else the earliest open', () => {
-  const sus = { date: '2026-09-22', key: 'upper-push', startedAt: '2026-09-22T10:00:00Z', endedAt: '2026-09-22T10:00:05Z', exercises: [X('a', [{ kg: 1, reps: 1, rir: null }], { rec: { kg: 1, reps: 1 } })] };
-  const list = [S5('2026-09-23', 'lower-b', []), sus];
-  const p = E.weekPlan(list, '2026-09-23');
-  assert.deepEqual(p.map(x => [x.day, x.state]), [['Mon', 'unverified'], ['Tue', 'done'], ['Wed', 'today'], ['Fri', 'upcoming']]);
-  assert.equal(E.nextTemplate(p), 'upper-pull');
-  assert.equal(E.nextTemplate(E.weekPlan(list, '2026-09-24')), 'upper-pull', 'Thursday: the missed Wednesday comes first');
+  const sus = { date: '2026-10-08', key: 'd2', startedAt: '2026-10-08T10:00:00Z', endedAt: '2026-10-08T10:00:05Z', exercises: [X('a', [{ kg: 1, reps: 1, rir: null }], { rec: { kg: 1, reps: 1 } })] };
+  const list = [S5('2026-10-07', 'd1', []), sus];
+  const p = E.weekPlan(list, '2026-10-09');
+  assert.deepEqual(p.map(x => [x.day, x.state]), [['Tue', 'done'], ['Thu', 'unverified'], ['Sat', 'upcoming'], ['Sun', 'upcoming']]);
+  assert.equal(E.nextTemplate(p), 'd3');
+  assert.equal(E.nextTemplate(E.weekPlan([S5('2026-10-06', 'd1', [])], '2026-10-08')), 'd2', 'Thursday: today comes first');
+  assert.equal(E.nextTemplate(E.weekPlan([S5('2026-10-06', 'd1', [])], '2026-10-10')), 'd3', 'Saturday');
+  assert.equal(E.nextTemplate(E.weekPlan([S5('2026-10-06', 'd1', [])], '2026-10-09')), 'd2', 'Friday: the missed Thursday comes first');
 });
 
 /* ------------------------------------------------------------- display */
@@ -468,7 +470,7 @@ test('compact and setText read the way Dan logs', () => {
 });
 
 /* ------------------------------------------------------ templates, purity */
-test('templates match programme v2', () => {
+test('legacy templates keep their Programme v2 shape', () => {
   const want = {
     'upper-push': [['Bench press (heavy)', 4, [5, 5], 2], ['Overhead press', 3, [6, 8], 2], ['Weighted dip', 3, [6, 8], 2], ['Preacher curl (one DB, two hands)', 3, [10, 12], 1], ['Pallof press', 3, [10, 10], 2]],
     'lower-b': [['Trap-bar / conventional DL', 3, [5, 5], 3], ['Romanian deadlift', 3, [8, 8], 2], ['45° back extension', 3, [10, 15], 1], ['Suitcase carry', 3], ['McGill Big 3', 2], ['Dead hang', 2]],
@@ -476,6 +478,7 @@ test('templates match programme v2', () => {
     'lower-a': [['High-bar back squat', 4, [5, 5], 2], ['Bulgarian split squat', 3, [8, 8], 2], ['Hanging knee/leg raise', 3, [8, 12], 1], ['Ab wheel rollout', 3, [6, 10], 1], ['Farmer’s carry', 3]]
   };
   for (const [k, list] of Object.entries(want)) {
+    assert.equal(E.TEMPLATES[k].legacy, true, k);
     assert.deepEqual(E.TEMPLATES[k].ex.map(e => e.n), list.map(x => x[0]), k);
     list.forEach(([n, sets, rep, rir], i) => {
       const e = E.TEMPLATES[k].ex[i];
@@ -484,7 +487,8 @@ test('templates match programme v2', () => {
       if (rir != null) assert.equal(e.rir, rir, n);
     });
   }
-  assert.deepEqual(Object.values(E.TEMPLATES).filter(t => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(t.day)).map(t => t.day), ['Mon', 'Tue', 'Wed', 'Fri']);
+  assert.equal(E.TEMPLATES['upper-push'].ex[0].hold, true, 'the old bench rule stays on the legacy template only');
+  assert.equal(E.TEMPLATES.floor.legacy, true);
 });
 test('engine.js is pure: no global state, DOM, network or clock', () => {
   const src = readFileSync(fileURLToPath(new URL('../engine.js', import.meta.url)), 'utf8')

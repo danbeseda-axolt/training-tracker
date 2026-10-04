@@ -8,44 +8,41 @@ import * as E from '../engine.js';
 const names = xs => xs.map(e => e.n);
 const done = (seconds, more = {}) => ({ seconds, warmup: false, state: 'done', doneAt: '2026-09-01T10:00:00Z', via: 'tick', target: null, ...more });
 
-test('the floor week matches daily-floor.md', () => {
-  // 2026-09-28 is a Monday. Block 1 every day; length A/B, ladder and skill by weekday.
-  const want = {
-    '2026-09-28': ['squat-block', 'length-b', 'hip-ladder', 'handstand'], // Mon
-    '2026-09-29': ['squat-block', 'length-a', 'hip-ladder', 'lsit'],      // Tue
-    '2026-09-30': ['squat-block', 'length-b', 'handstand'],               // Wed
-    '2026-10-01': ['squat-block', 'length-a', 'hip-ladder', 'lsit'],      // Thu
-    '2026-10-02': ['squat-block', 'length-b', 'handstand'],               // Fri
-    '2026-10-03': ['squat-block', 'length-a', 'hip-ladder', 'lsit'],      // Sat
-    '2026-10-04': ['squat-block', 'length-b', 'handstand']                // Sun
-  };
-  for (const [d, keys] of Object.entries(want)) assert.deepEqual(E.floorFor(d), keys, d);
-  const ladderDays = Object.keys(want).filter(d => E.floorFor(d).includes('hip-ladder')).length;
-  assert.equal(ladderDays, 4, 'the ladder runs 4 days a week');
+test('the daily floor week is gone: no floorFor, no FLOOR_WEEK, and floor is a legacy empty template', () => {
+  assert.equal(E.floorFor, undefined);
+  assert.equal(E.TEMPLATES.floor.legacy, true);
+  assert.deepEqual(E.newSession('floor', [], '2026-09-29', 'x').exercises, []);
+  assert.equal(E.isLiftKey('floor'), false);
 });
 
-test('a Daily floor session is built from that day’s blocks, tagged by routine', () => {
-  const s = E.newSession('floor', [], '2026-09-29', 'x');
+test('the Skill day is built from compression, handstand and flexibility, tagged by routine, and is not a lift', () => {
+  assert.deepEqual(E.SKILL_DAY, ['skill-compression', 'skill-handstand', 'skill-flex']);
+  const s = E.newSession('skill', [], '2026-10-09', 'x');
   assert.deepEqual(names(s.exercises), [
-    'Knee-to-wall ankle stretch', 'Deep squat hold', '90/90 hip switches', 'T-spine extension over roller',
-    'Pancake passive hold', 'Good morning pancake', 'Seated single-leg hamstring hinge',
-    'Hip flexor ladder', 'L-sit'
+    'Hip flexor ladder (working rung)', 'L-sit', 'Wrist prep', 'Wall handstand',
+    'Pancake passive hold', 'Frog stretch', 'Couch stretch', 'Seated single-leg hamstring hinge'
   ]);
-  assert.equal(s.exercises[0].routine, 'squat-block');
-  assert.equal(s.exercises[4].routine, 'length-a');
+  assert.equal(s.exercises[0].routine, 'skill-compression');
   assert.equal(s.isDeload, false);
+  assert.equal(E.newSession('skill', [], '2026-10-09', 'x', true).isDeload, false, 'a non-lift is never a deload');
+  assert.equal(E.isLiftKey('skill'), false);
+  assert.equal(E.TEMPLATES.skill.day, 'Optional');
+  assert.deepEqual(E.weekPlan([], '2026-10-09').map(p => p.key), ['d1', 'd2', 'd3', 'd4'], 'the Skill day is not one of the four lifts');
+  assert.deepEqual(E.sessionsInWeek([{ date: '2026-10-09', key: 'skill' }, { date: '2026-10-09', key: 'd2' }], '2026-10-05').map(h => h.key), ['d2']);
 });
 
 test('per-side work is one set per side', () => {
-  const s = E.newSession('floor', [], '2026-09-28', 'x');
+  const s = E.newSession('skill', [], '2026-10-09', 'x');
   const by = n => s.exercises.find(e => e.n === n);
-  assert.equal(by('Knee-to-wall ankle stretch').sets.length, 4, '2 × 30 s per side');
   assert.equal(by('Couch stretch').sets.length, 2, '60 s per side');
-  assert.equal(by('Hip flexor ladder').sets.length, 4);
+  assert.equal(by('Seated single-leg hamstring hinge').sets.length, 2, '45 s per side');
+  const d1 = E.newSession('d1', [], '2026-10-06', 'x');
+  assert.equal(d1.exercises.find(e => e.n === 'Knee-to-wall ankle stretch').sets.length, 2, '30 s per side');
+  assert.equal(d1.exercises.find(e => e.n === 'Adductor rocks').sets.length, 2, '8 per side');
 });
 
 test('a prescribed hold is one tap: the target is the dose', () => {
-  const s = E.newSession('floor', [], '2026-09-28', 'x');
+  const s = { exercises: E.routineExercises(['length-b', 'handstand'], [], '2026-09-28') };
   const couch = s.exercises.find(e => e.n === 'Couch stretch');
   assert.deepEqual(couch.sets[0].target, { seconds: 60, src: 'dose' });
   assert.ok(E.confirmSet(couch, couch.sets[0], 'tick', 'now'));
@@ -57,18 +54,18 @@ test('a prescribed hold is one tap: the target is the dose', () => {
 });
 
 test('a skill hold asks the first time, then targets last time’s typical hold', () => {
-  const first = E.newSession('floor', [], '2026-09-28', 'x').exercises.find(e => e.n === 'Hip flexor ladder');
+  const first = E.routineExercises(['hip-ladder'], [], '2026-09-28').find(e => e.n === 'Hip flexor ladder');
   assert.equal(first.sets[0].target, null, 'no invented number');
   assert.equal(E.canConfirm(first, first.sets[0]), false, 'so ✓ opens the sheet');
 
   const prev = { schemaVersion: 5, date: '2026-09-26', key: 'floor', name: 'Daily floor', isDeload: false, decisions: [],
     exercises: [{ n: 'Hip flexor ladder', kind: 'time', sets: [done(20), done(18), done(15), done(12, { warmup: true })] }] };
-  const next = E.newSession('floor', [prev], '2026-09-28', 'x').exercises.find(e => e.n === 'Hip flexor ladder');
+  const next = E.routineExercises(['hip-ladder'], [prev], '2026-09-28').find(e => e.n === 'Hip flexor ladder');
   assert.deepEqual(next.sets[0].target, { seconds: 18, src: 'last' }, 'median of working sets; the warm-up is ignored');
 });
 
 test('any session can add a routine, without doubling what is already there', () => {
-  const lift = E.newSession('lower-a', [], '2026-09-26', 'x');
+  const lift = E.newSession('lower-a', [], '2026-09-26', 'x'); // a legacy lift: any session can take a routine
   const before = lift.exercises.length;
   const add = E.routineExercises(['length-a', 'hip-ladder'], [], lift.date, names(lift.exercises));
   assert.deepEqual(names(add), ['Pancake passive hold', 'Good morning pancake', 'Seated single-leg hamstring hinge', 'Hip flexor ladder']);
@@ -91,7 +88,7 @@ test('floor work inside a lift session saves as done sets and adds no decisions'
 });
 
 test('a date change keeps a prescribed hold’s target', () => {
-  const d = E.newSession('floor', [], '2026-09-28', 'x');
+  const d = { date: '2026-09-28', key: 'custom', exercises: E.routineExercises(['squat-block'], [], '2026-09-28') };
   d.date = '2026-09-27';
   E.retarget(d, []);
   assert.deepEqual(d.exercises.find(e => e.n === 'Deep squat hold').sets[0].target, { seconds: 90, src: 'dose' });

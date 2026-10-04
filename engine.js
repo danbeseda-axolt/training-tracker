@@ -3,12 +3,12 @@
    Every function takes what it reads as arguments, and callers pass dates in,
    so plain Node can test all of it (node --test "tracker/dev/*.test.mjs").
 
-   As of 2026-09-23. Field meanings are in ../training/log/README.md. */
+   As of 2026-10-04. Field meanings are in ../training/log/README.md. */
 
 /** @typedef {{kg?:number|null, reps?:number|null, rir?:number|null, seconds?:number|null, metres?:number|null, rounds?:number|null, band?:string|null, warmup?:boolean, done?:boolean, state?:'planned'|'done'|'legacy', target?:Target|null, doneAt?:string|null, via?:'tick'|'sheet'|'bulk'|null}} LSet */
 /** @typedef {{kg?:number|null, reps?:number|null, metres?:number|null, seconds?:number|null, band?:string|null, rounds?:number|null, src?:string}} Target */
 /** @typedef {{rule:string, kg?:number|null, reps?:number|null, band?:string|null, why:string}} Rec */
-/** @typedef {{n:string, kind:string, load?:string, hold?:boolean, dist?:number|null, sets?:number, rep?:number[]|null, rir?:number|null, inc?:number|null, rest?:number|null, bar?:number|null, key?:boolean, note?:string, seed?:Target, dose?:number|null, routine?:string}} Tpl */
+/** @typedef {{n:string, kind:string, load?:string, hold?:boolean, dist?:number|null, sets?:number, rep?:number[]|null, rir?:number|null, inc?:number|null, rest?:number|null, bar?:number|null, key?:boolean, note?:string, seed?:Target, dose?:number|null, routine?:string, legacy?:boolean, cal?:boolean, heavy?:boolean, topRir?:number, single?:boolean, wk1?:boolean}} Tpl */
 /** @typedef {Record<string, any>} Obj */
 
 export const SCHEMA_VERSION = 5;
@@ -24,14 +24,48 @@ export const DEFAULT_BANDS = ['yellow', 'red', 'green', 'blue', 'black'];
 
 export const DEFAULTS = {
   settings: { token: '', owner: 'danbeseda-axolt', repo: 'dan-brain', branch: 'main',
-              path: 'training/log', restOn: true, phase: 'cut', deloadWeeks: 5,
+              path: 'training/log', restOn: true, phase: 'strength', planV: 2, deloadWeeks: 5,
               bands: DEFAULT_BANDS.slice(), wakeLock: true, priorPinches: null },
   draft: null, queue: [], bwQueue: [], history: [], bw: [], historyFetched: 0
 };
 
+/* ------------------------------------------------------------ the block */
+/* Winter strength block, 20 weeks from Monday 2026-10-05. Block week and phase
+   are derived from the date: nothing about them is stored except, optionally,
+   on a session as blockWeek / phase. Phases: 1 Base wk 1–6, 2 Build wk 7–12,
+   3 Intensify wk 13–18, 4 Test wk 19–20. Deloads are scheduled in weeks 6, 12
+   and 18 (starts 2026-11-09, 2026-12-21, 2027-02-01); they replace the old
+   "every N weeks" cadence for any date inside or after the block. */
+export const BLOCK = { start: '2026-10-05', weeks: 20, deloadWeeks: [6, 12, 18] };
+export const PHASES = [
+  { n: 1, name: 'Base', from: 1, to: 6 }, { n: 2, name: 'Build', from: 7, to: 12 },
+  { n: 3, name: 'Intensify', from: 13, to: 18 }, { n: 4, name: 'Test', from: 19, to: 20 }
+];
+/** Where a date falls in the block; null before it starts. @param {string} dateIso */
+export function blockInfo(dateIso) {
+  if (!dateIso || dateIso < BLOCK.start) return null;
+  const week = Math.floor(daysBetween(BLOCK.start, dateIso) / 7) + 1;
+  const ph = PHASES.find(p => week >= p.from && week <= p.to);
+  return { week, phase: ph ? ph.n : null, phaseName: ph ? ph.name : null,
+           deload: BLOCK.deloadWeeks.includes(week), calibration: week === 1, over: week > BLOCK.weeks };
+}
+/* Heavy-day prescription by phase, for template exercises flagged heavy. Phase
+   1 is the template itself (3×5 at RIR 2). Phases 2 and 3 are one top set and
+   back-offs below it: 3×4 with −7%, 3×3 with −10%. */
+const HEAVY_PHASE = /** @type {Record<number, {reps:number, back:number}>} */ ({ 2: { reps: 4, back: 0.07 }, 3: { reps: 3, back: 0.10 } });
+/** @param {Tpl} tpl @param {ReturnType<typeof blockInfo>} info */
+function heavyRx(tpl, info) {
+  if (!tpl.heavy || !info || info.phase == null) return null;
+  const p = HEAVY_PHASE[info.phase];
+  return p ? { reps: p.reps, back: p.back, rir: tpl.topRir ?? tpl.rir ?? 2 } : null;
+}
+
 /* ------------------------------------------------------------ templates */
-/* Programme v2: ../training/programme-v2-draft.md and daily-floor.md, as of
-   2026-08-30.
+/* The winter strength plan, as of 2026-10-04: four lift sessions a week in a
+   fixed order (Tue, Thu, Sat, Sun), each opened by the 10-minute pre-session
+   block (see PRE_BLOCK). The Programme v2 sessions below them are LEGACY: kept
+   so History, Edit and last-time lookups keep working for the sessions logged
+   from 2026-09-08 to 2026-09-27, but never offered as new sessions.
    kind : weight (kg/reps/rir) | band (band/reps/rir) | reps (a bare count)
           | time (s) | distance (kg/m) | rounds
    load : for weight only. kg (default) | bw+ (kg is ADDED load, 0 = bodyweight)
@@ -39,14 +73,66 @@ export const DEFAULTS = {
    rep  : [min,max] prescribed range     rir : target reps in reserve
    inc  : smallest useful load jump      rest: prescribed rest, seconds
    bar  : bar weight, enables the plate breakdown
-   key  : counts as a main lift for deload trigger D1
-   hold : "hold, don't chase". Load goes up only when the whole session is RIR 3+
+   key  : a main lift: counts for deload trigger D1, keeps all its sets in a deload
+   hold : (legacy bench only) load goes up only when the whole session is RIR 3+
    dist : prescribed distance in metres for a carry
-   seed : first-ever target, used only while the exercise has no history. bw+
-          lifts start at bodyweight, the deadlift at the programme's 85 kg.
-          Anything else with no history asks for its first set.               */
+   seed : first-ever target, used only while the exercise has no history.
+   cal  : calibrated at the start of the block: the first block session of this
+          lift is a ramp to ONE top set at RIR 2 with no kg target (✓ opens the
+          sheet); that weight is the start weight the next session carries.
+   heavy: heavy-day lift: reps, top set and back-offs follow the phase.
+   topRir: RIR of the top set in phases 2 and 3 (RIR 1 once the block allows it).
+   single: heavy lift tested as a single in block week 20.
+   wk1  : only in block week 1.
+   Template-level: pre ('lower' | 'upper') = which pre-session block opens it;
+   volume = a volume day (half sets in week 20); legacy = never offered.     */
 export const TEMPLATES = {
-  'upper-push': { name: 'Upper Push', day: 'Mon', ex: [
+  'd1': { name: 'Day 1 — Squat + bench volume', day: 'Tue', pre: 'lower', volume: true, ex: [
+    { n: 'High-bar back squat (volume)', kind: 'weight', sets: 3, rep: [8, 8], rir: 2, inc: 2.5, rest: 180, bar: 20, key: true, cal: true,
+      note: 'High bar. RIR 2–3. Starts from the week-1 top set of 8.' },
+    { n: 'Bench press (volume)', kind: 'weight', sets: 3, rep: [8, 8], rir: 2, inc: 2.5, rest: 150, bar: 20, key: true, cal: true,
+      note: 'First set paused 1 s. RIR 2.' },
+    { n: 'Chin-up', kind: 'weight', load: 'bw+', sets: 3, rep: [5, 8], rir: 2, inc: 2.5, rest: 150, seed: { kg: 0, reps: 5 }, note: 'Bodyweight: reps before load. Added kg, 0 = bodyweight.' },
+    { n: 'Single-arm DB row', kind: 'weight', sets: 3, rep: [10, 10], rir: 2, inc: 2, rest: 120, note: 'Per side. Hand AND knee on the bench — no bent-over barbell row.' },
+    { n: 'Hammer curl', kind: 'weight', sets: 3, rep: [10, 10], rir: 1, inc: 2, rest: 75, note: 'Per hand. Biceps set 1 of 3.' },
+    { n: 'Seated compression lift-offs', kind: 'reps', sets: 3, rep: [5, 5], rest: 60, note: 'Finisher, after the lifts. 2 s hold at the top of each rep.' }
+  ] },
+  'd2': { name: 'Day 2 — Heavy bench + deadlift', day: 'Thu', pre: 'lower', ex: [
+    { n: 'Bench press (heavy)', kind: 'weight', sets: 3, rep: [5, 5], rir: 2, topRir: 1, inc: 2.5, rest: 180, bar: 20, key: true, cal: true, heavy: true, single: true,
+      note: 'Heavy day: reps and top set follow the phase. Add load only when every set is clean.' },
+    { n: 'Trap-bar / conventional DL', kind: 'weight', sets: 3, rep: [5, 5], rir: 2, inc: 2.5, rest: 210, bar: 20, key: true, cal: true, heavy: true,
+      note: 'Trap bar, or a Romanian deadlift (⋯ → Swap). RIR 2 or more, no loaded spinal flexion. Film from the side. Stop on any one-sided pinch.' },
+    { n: 'Weighted dip', kind: 'weight', load: 'bw+', sets: 3, rep: [6, 8], rir: 2, inc: 2.5, rest: 150, seed: { kg: 0, reps: 6 }, note: 'Added kg (0 = bodyweight). Shoulders just below elbows. Add 2.5 kg when all three sets hit 8.' },
+    { n: 'Overhead triceps extension', kind: 'weight', sets: 3, rep: [12, 12], rir: 1, inc: 2, rest: 75, note: 'Triceps set 1 of 3.' },
+    { n: 'Hip thrust (paused top)', kind: 'weight', sets: 3, rep: [8, 12], rir: 2, inc: 5, rest: 120, bar: 20, note: 'Pause at the top. Ribs down, no back arch.' },
+    { n: 'L-sit tuck-to-extend', kind: 'reps', sets: 3, rep: [8, 10], rest: 60, note: 'Finisher, after the lifts.' }
+  ] },
+  'd3': { name: 'Day 3 — Heavy squat + press', day: 'Sat', pre: 'lower', ex: [
+    { n: 'High-bar back squat', kind: 'weight', sets: 3, rep: [5, 5], rir: 2, topRir: 1, inc: 2.5, rest: 210, bar: 20, key: true, cal: true, heavy: true, single: true,
+      note: 'High bar for all 20 weeks. Heavy day: reps and top set follow the phase.' },
+    { n: 'Overhead press', kind: 'weight', sets: 3, rep: [5, 5], rir: 2, inc: 2.5, rest: 150, bar: 20, key: true, cal: true, note: 'Strict, standing.' },
+    { n: 'Pull-up grease-the-groove', kind: 'reps', sets: 3, rep: [3, 3], rest: 0, note: 'Between press sets. RIR 3–4: never near failure.' },
+    { n: 'Bulgarian split squat', kind: 'weight', sets: 3, rep: [8, 8], rir: 2, inc: 2, rest: 120, note: 'Per leg.' },
+    { n: 'Curl (superset)', kind: 'weight', sets: 3, rep: [10, 12], rir: 1, inc: 2, rest: 0, note: 'Superset with the pushdown, then rest. Biceps set 2 of 3. Per hand.' },
+    { n: 'Triceps pushdown (superset)', kind: 'weight', sets: 3, rep: [10, 12], rir: 1, inc: 2.5, rest: 75, note: 'Triceps set 2 of 3.' },
+    { n: 'Hanging knee/leg raise', kind: 'weight', load: 'bw+', sets: 3, rep: [8, 12], rir: 1, inc: 2, rest: 90, seed: { kg: 0, reps: 8 }, note: 'Strict. Added kg, 0 = bodyweight. Knee or straight: say which in the note.' }
+  ] },
+  'd4': { name: 'Day 4 — Pull-ups, DB bench, rows, arms', day: 'Sun', pre: 'upper', volume: true, ex: [
+    { n: 'Pull-up max test (strict)', kind: 'reps', sets: 1, wk1: true, note: 'Block week 1 only. Strict, dead hang to chin over the bar, one set to the limit.' },
+    { n: 'Pull-up (EMOM 10×3)', kind: 'reps', sets: 1, rep: [30, 30], rest: 0,
+      note: 'First, while fresh. Log total reps for the 10 min. RIR 3–4. When 10×3 is clean, go to 10×4 (40 reps). Builds the 3×8 gate.' },
+    { n: 'Dumbbell bench press', kind: 'weight', sets: 3, rep: [8, 10], rir: 2, inc: 2, rest: 120, note: 'Per hand.' },
+    { n: 'Single-arm DB row', kind: 'weight', sets: 4, rep: [10, 10], rir: 2, inc: 2, rest: 90, note: 'Per side. Dumbbell or cable (⋯ → Swap).' },
+    { n: 'Seated incline curl', kind: 'weight', sets: 3, rep: [12, 12], rir: 1, inc: 2, rest: 75, note: 'Incline bench, dumbbells. Biceps set 3 of 3. Per hand.' },
+    { n: 'Triceps (cable or skull crusher)', kind: 'weight', sets: 3, rep: [12, 12], rir: 1, inc: 2.5, rest: 75, note: 'Triceps set 3 of 3.' },
+    { n: 'Dead hang', kind: 'time', sets: 2, rest: 90, note: '30–45 s, including knees-at-90° holds. Only on non-deadlift days.' }
+  ] },
+  /* Optional, not a lift: built from SKILL_DAY. */
+  'skill': { name: 'Skill day', day: 'Optional', ex: [] },
+  'custom': { name: 'Custom', day: 'Any', ex: [] },
+
+  /* ---- LEGACY: Programme v2, in use 2026-09-08 to 2026-09-27. Never offered. */
+  'upper-push': { name: 'Upper Push', day: 'Mon', legacy: true, ex: [
     { n: 'Bench press (heavy)', kind: 'weight', sets: 4, rep: [5, 5], rir: 2, inc: 2.5, rest: 180, bar: 20, key: true, hold: true,
       note: 'First set paused 1s. Hold, don’t chase — only add load if a whole session lands at RIR 3–4.' },
     { n: 'Overhead press', kind: 'weight', sets: 3, rep: [6, 8], rir: 2, inc: 2.5, rest: 150, bar: 20, key: true, note: 'Strict, standing.' },
@@ -54,7 +140,7 @@ export const TEMPLATES = {
     { n: 'Preacher curl (one DB, two hands)', kind: 'weight', sets: 3, rep: [10, 12], rir: 1, inc: 2, rest: 75, note: 'One dumbbell held in both hands, elbows on the bench pad. kg is that one dumbbell. Biceps fresh.' },
     { n: 'Pallof press', kind: 'band', sets: 3, rep: [10, 10], rir: 2, rest: 60, note: 'Per side. Pick the band colours.' }
   ] },
-  'lower-b': { name: 'Lower B — hinge', day: 'Tue', ex: [
+  'lower-b': { name: 'Lower B — hinge', day: 'Tue', legacy: true, ex: [
     { n: 'Trap-bar / conventional DL', kind: 'weight', sets: 3, rep: [5, 5], rir: 3, inc: 2.5, rest: 210, bar: 20, key: true, seed: { kg: 85, reps: 5 },
       note: 'Rebuild from 85–95 kg. Film from the side. Stop on any one-sided pinch.' },
     { n: 'Romanian deadlift', kind: 'weight', sets: 3, rep: [8, 8], rir: 2, inc: 2.5, rest: 150, bar: 20, note: 'Full ROM.' },
@@ -63,7 +149,7 @@ export const TEMPLATES = {
     { n: 'McGill Big 3', kind: 'rounds', sets: 2, rest: 60 },
     { n: 'Dead hang', kind: 'time', sets: 2, rest: 90, note: 'Build to 60s.' }
   ] },
-  'upper-pull': { name: 'Upper Pull', day: 'Wed', ex: [
+  'upper-pull': { name: 'Upper Pull', day: 'Wed', legacy: true, ex: [
     { n: 'Pull-up (EMOM 10×3)', kind: 'reps', sets: 1, rep: [30, 30], rest: 0,
       note: 'Log total reps for the whole 10 min. Progress by reps per minute, not by adding minutes.' },
     { n: 'Chin-up', kind: 'weight', load: 'bw+', sets: 3, rep: [5, 10], rir: 2, inc: 2.5, rest: 150, seed: { kg: 0, reps: 5 }, note: 'Added kg, 0 = bodyweight.' },
@@ -71,16 +157,15 @@ export const TEMPLATES = {
     { n: 'Face pull', kind: 'weight', sets: 3, rep: [12, 15], rir: 1, inc: 2.5, rest: 75 },
     { n: 'Hammer curl', kind: 'weight', sets: 3, rep: [10, 12], rir: 1, inc: 2, rest: 75, note: 'Per hand.' }
   ] },
-  'lower-a': { name: 'Lower A — squat', day: 'Fri', ex: [
+  'lower-a': { name: 'Lower A — squat', day: 'Fri', legacy: true, ex: [
     { n: 'High-bar back squat', kind: 'weight', sets: 4, rep: [5, 5], rir: 2, inc: 2.5, rest: 210, bar: 20, key: true, note: 'The lift being built.' },
     { n: 'Bulgarian split squat', kind: 'weight', sets: 3, rep: [8, 8], rir: 2, inc: 2, rest: 120, note: 'Per leg.' },
     { n: 'Hanging knee/leg raise', kind: 'weight', load: 'bw+', sets: 3, rep: [8, 12], rir: 1, inc: 2, rest: 90, seed: { kg: 0, reps: 8 }, note: 'Strict. Added kg, 0 = bodyweight. Knee or straight: say which in the note.' },
     { n: 'Ab wheel rollout', kind: 'weight', load: 'bw', sets: 3, rep: [6, 10], rir: 1, rest: 90, seed: { reps: 6 }, note: 'Knees down. Bodyweight: progress by reps, then a harder variation.' },
     { n: 'Farmer’s carry', kind: 'distance', dist: 40, sets: 3, rest: 90, note: '40 m.' }
   ] },
-  /* Built from ROUTINES for the day of the week: see floorFor(). */
-  'floor': { name: 'Daily floor', day: 'Every day', ex: [] },
-  'custom': { name: 'Custom', day: 'Any', ex: [] }
+  /* Legacy and empty: History keeps resolving the name. Daily floor is replaced by the Skill day. */
+  'floor': { name: 'Daily floor', day: 'Every day', legacy: true, ex: [] }
 };
 
 /* Earlier names of the same exercise, so a rename keeps its history. The
@@ -92,10 +177,10 @@ export const ALIASES = /** @type {Record<string, string[]>} */ ({
 /** @param {string} logged the name in a session file @param {string} wanted */
 export const sameEx = (logged, wanted) => logged === wanted || (ALIASES[wanted] || []).includes(logged);
 
-/* Floor and stretching routines: ../training/daily-floor.md, as of 2026-08-30.
-   A routine is one block of that file. The Daily floor session is built from
-   the blocks due that weekday, and any session can add a block from
-   ⋯ → Add floor or stretching (after lifting is fine; before it is not).
+/* Floor and stretching routines. The first seven are the blocks of the old
+   daily-floor.md (as of 2026-08-30), kept for History and for adding by hand
+   from ⋯ → Add floor or stretching (after lifting is fine; before it is not).
+   The pre-* and skill-* routines are the winter plan's (2026-10-04).
    dose : the prescribed hold in seconds. ✓ records exactly that, the same as
           ticking a lift at its target. Holds with no fixed dose (the ladder,
           L-sit, handstand) target last time's typical hold instead, and ask
@@ -132,31 +217,63 @@ export const ROUTINES = {
     { n: 'Deep squat hold', kind: 'time', dose: 90, sets: 1, rest: 0, note: '90 s.' },
     { n: 'Couch stretch', kind: 'time', dose: 60, sets: 2, rest: 0, note: '60 s per side.' },
     { n: 'Hip flexor ladder', kind: 'time', sets: 2, rest: 45, note: 'Two sets. Put the rung in the note.' }
+  ] },
+
+  /* The pre-session block (about 10 min) that opens every lift: submaximal,
+     no decisions, never a lift. Hard compression waits until after the lifts. */
+  'pre-core': { name: 'Pre-session block — all days', when: 'Opens every lift session', ex: [
+    { n: 'Couch stretch', kind: 'time', dose: 60, sets: 2, rest: 0, note: '60 s per side. Pelvis tucked, ribs down.' },
+    { n: 'Deep squat hold', kind: 'time', dose: 30, sets: 2, rest: 0, note: '30–45 s, active: pressing the knees out, chest tall. ✓ records 30 s; change it for longer.' }
+  ] },
+  'pre-lower': { name: 'Pre-session block — lower', when: 'Days 1–3, after the core block', ex: [
+    { n: 'Knee-to-wall ankle stretch', kind: 'time', dose: 30, sets: 2, rest: 0, note: '30 s per side. Heel stays down.' },
+    { n: 'Adductor rocks', kind: 'reps', rep: [8, 8], sets: 2, rest: 0, note: '8 per side.' },
+    { n: 'Hip flexor ladder (practice rung)', kind: 'time', dose: 5, sets: 2, rest: 0, note: 'One rung BELOW your current one, 5–8 s. No hard compression before squats or deadlifts.' }
+  ] },
+  'pre-upper': { name: 'Pre-session block — upper', when: 'Day 4, after the core block', ex: [
+    { n: 'Wrist prep', kind: 'rounds', sets: 1, rest: 0, note: '60 s: lean back palms down, palms up, knuckle weight shifts, wrist circles.' },
+    { n: 'Wall handstand', kind: 'time', sets: 2, rest: 60, note: 'About 70% of your best hold. Shoulders open, ribs tucked.' },
+    { n: 'L-sit', kind: 'time', sets: 4, rest: 45, note: 'Working sets at 70–80% of your best clean hold. Put the variation in the note.' },
+    { n: 'Hip flexor ladder (working rung)', kind: 'time', sets: 4, rest: 45, note: 'Working sets at 70–80% of your best clean hold. Put the rung (1–5) in the note.' }
+  ] },
+
+  /* The optional Skill day: 30–40 min, no lifting. */
+  'skill-compression': { name: 'Skill — compression and L-sit', when: 'Skill day, 10–12 min', ex: [
+    { n: 'Hip flexor ladder (working rung)', kind: 'time', sets: 5, rest: 45, note: 'Hold until form breaks, not to burning. Put the rung (1–5) in the note. Low back stays flat.' },
+    { n: 'L-sit', kind: 'time', sets: 5, rest: 45, note: 'Put the variation in the note. Push the shoulders down.' }
+  ] },
+  'skill-handstand': { name: 'Skill — handstand', when: 'Skill day, 10 min', ex: [
+    { n: 'Wrist prep', kind: 'rounds', sets: 1, rest: 0, note: '60 s: lean back palms down, palms up, knuckle weight shifts, wrist circles.' },
+    { n: 'Wall handstand', kind: 'time', sets: 4, rest: 60, note: 'Chest to wall. Shoulders fully open, ribs tucked, glutes squeezed.' }
+  ] },
+  'skill-flex': { name: 'Skill — flexibility', when: 'Skill day, 10–15 min', ex: [
+    { n: 'Pancake passive hold', kind: 'time', dose: 90, sets: 1, rest: 0, note: 'Gentle hold on a raised seat or with bent knees. Stay in a stretch sensation; stop at sharp, pinching or travelling pain. Pancake and long holds belong on this day only.' },
+    { n: 'Frog stretch', kind: 'time', dose: 60, sets: 1, rest: 0, note: 'Gentle. Contract-relax is fine.' },
+    { n: 'Couch stretch', kind: 'time', dose: 60, sets: 2, rest: 0, note: '60 s per side. Pelvis tucked, ribs down.' },
+    { n: 'Seated single-leg hamstring hinge', kind: 'time', dose: 45, sets: 2, rest: 0, note: '45 s per side. Chest to knee. Flat back.' }
   ] }
 };
 
-/* The fixed week from daily-floor.md, so there is nothing to decide: the squat
-   block every day, then length A or B, the ladder four days a week, and the
-   skill. Keys are getDay(): 0 = Sunday. */
-const FLOOR_WEEK = /** @type {Record<number, string[]>} */ ({
-  1: ['length-b', 'hip-ladder', 'handstand'],
-  2: ['length-a', 'hip-ladder', 'lsit'],
-  3: ['length-b', 'handstand'],
-  4: ['length-a', 'hip-ladder', 'lsit'],
-  5: ['length-b', 'handstand'],
-  6: ['length-a', 'hip-ladder', 'lsit'],
-  0: ['length-b', 'handstand']
+/* Which routines open a lift session (template.pre), and what the optional Skill
+   day is made of. */
+export const PRE_BLOCK = /** @type {Record<string, string[]>} */ ({
+  lower: ['pre-core', 'pre-lower'],
+  upper: ['pre-core', 'pre-upper']
 });
-/** The routine keys due on a date. @param {string} dateIso @returns {string[]} */
-export function floorFor(dateIso) {
-  return ['squat-block', ...FLOOR_WEEK[new Date(dateIso + 'T00:00:00').getDay()]];
-}
+export const SKILL_DAY = ['skill-compression', 'skill-handstand', 'skill-flex'];
 
-/* Floor and custom sessions are not lifts: they never count toward the week,
-   the deload cadence or a deload themselves. */
-const NON_LIFT = new Set(['floor', 'custom']);
+/* Floor, skill and custom sessions are not lifts: they never count toward the
+   week, a deload or the block's four lifts themselves. The old Daily floor
+   week is gone (replaced by the pre-session block and the Skill day); its
+   routines stay in ROUTINES for History and for adding by hand. */
+const NON_LIFT = new Set(['floor', 'skill', 'custom']);
 export const isLiftKey = (/** @type {string} */ k) => !NON_LIFT.has(k);
 const isLift = (/** @type {Obj} */ h) => !NON_LIFT.has(h.key);
+/** A Programme v2 template key, kept only so old sessions resolve. @param {string} k */
+export const isLegacyKey = k => !!(TEMPLATES[/** @type {keyof typeof TEMPLATES} */ (k)] && /** @type {Obj} */ (TEMPLATES)[k].legacy);
+/* Counts toward a week's lifts: a lift, and not a legacy-plan session dated in
+   or after the block (those are real data but not one of the block's four). */
+const countsAsLift = (/** @type {Obj} */ h) => isLift(h) && !(isLegacyKey(h.key) && h.date >= BLOCK.start);
 
 /* The programme fixes the deload cadence ("every 4–6 weeks, non-negotiable in
    a deficit") but not the dose. These numbers are a proposal, not the coach’s. */
@@ -326,6 +443,13 @@ export function carryForward(ex, j) {
   /** @type {Obj} */
   const vals = {};
   for (const k of f) vals[k] = st[k];
+  /* A heavy top set with back-offs: the sets after it keep their percentage
+     below whatever the top set actually was, at the prescribed reps. */
+  const isTop = ex.backoff && ex.sets.findIndex((/** @type {LSet} */ x) => !x.warmup) === j;
+  if (isTop && st.kg != null) {
+    vals.kg = roundTo(st.kg * (1 - ex.backoff), ex.inc || 2.5);
+    if (ex.rep) vals.reps = ex.rep[0];
+  }
   for (let m = j + 1; m < ex.sets.length; m++) {
     const o = ex.sets[m];
     if (o.state === 'planned' && !o.warmup) o.target = { ...vals, src: 'carried' };
@@ -417,8 +541,17 @@ export function lastRules(exName, n, history, beforeDate) {
 /** @param {Obj} ex */
 export function rirRef(ex) {
   const w = working(ex);
+  /* A heavy top set with back-offs: the top set's RIR is the honest reading,
+     the back-offs are easy by design. */
+  if (ex.backoff) return w.length && w[0].rir != null ? w[0].rir : null;
   for (let i = w.length - 1; i >= 0; i--) if (w[i].rir != null) return w[i].rir;
   return null;
+}
+/** The set whose RIR drives progression: the last working set, or the top set
+    on a heavy exercise with back-offs. -1 when none. @param {Obj} ex */
+export function rirIdx(ex) {
+  const idx = (ex.sets || []).map((/** @type {LSet} */ st, /** @type {number} */ i) => (!st.warmup && hasData(st) && performed(st) ? i : -1)).filter((/** @type {number} */ i) => i >= 0);
+  return idx.length ? (ex.backoff ? idx[0] : idx[idx.length - 1]) : -1;
 }
 /** @param {LSet[]} sets */
 const lastBand = sets => { for (let i = sets.length - 1; i >= 0; i--) if (sets[i].band) return sets[i].band; return null; };
@@ -453,12 +586,17 @@ export function recommend(tpl, history, beforeDate, deloadOn) {
   const load = loadOf(tpl);
   const prev = lastFor(tpl.n, history, beforeDate);
   if (!prev) return null;
+  const info = blockInfo(beforeDate);
+  const rx = deloadOn ? null : heavyRx(tpl, info);
+  if (rx) tpl = { ...tpl, rep: [rx.reps, rx.reps], rir: rx.rir };
   const sets = working(prev.ex);
-  const inc = tpl.inc || 2.5, bot = tpl.rep[0], top = tpl.rep[1];
+  const inc = tpl.inc || 2.5, bot = /** @type {number[]} */ (tpl.rep)[0], top = /** @type {number[]} */ (tpl.rep)[1];
   /* A legacy null kg reads as 0: for bw+ the template says 0 = bodyweight. */
   const base = Math.max(...sets.map(s => s.kg ?? 0));
   const band = lastBand(sets);
-  const reps = sets.map(s => s.reps ?? 0);
+  /* With back-offs only the top set is judged. */
+  const judged = prev.ex.backoff ? sets.slice(0, 1) : sets;
+  const reps = judged.map(s => s.reps ?? 0);
   /** @param {string} rule @param {number|null} kg @param {number} r @param {string} why @returns {Rec} */
   const mk = (rule, kg, r, why) =>
     kind === 'band' ? { rule, band, reps: r, why }
@@ -473,8 +611,19 @@ export function recommend(tpl, history, beforeDate, deloadOn) {
     return mk('R6', kg, bot, 'Deload week: ' + pct + '% for ' + bot + '. Should feel easy.');
   }
 
+  /* The calibration top set is the block's start weight: carry it, no jump. */
+  if (tpl.cal && prev.ex.cal === 'ramp')
+    return mk('RC', base, bot, 'Week-1 top set was the start weight: ' + base + ' kg for ' + bot + ' in every set.');
+
   const target = prev.ex.targetSets || sets.length;
   if (sets.length < target) return mk('R0', base, top, 'Last session was cut short: same again.');
+
+  /* A new phase re-prescribes the reps at the same top weight. */
+  if (rx) {
+    const pi = blockInfo(prev.date);
+    if (!pi || pi.phase !== (info && info.phase))
+      return mk('RP', base, rx.reps, 'Phase ' + (info && info.phase) + ' (' + (info && info.phaseName) + '): same top weight, ' + rx.reps + ' reps, then back-offs at −' + Math.round(rx.back * 100) + '%.');
+  }
 
   if (load === 'kg' || load === 'bw+') {
     const r5 = lastRules(tpl.n, 2, history, beforeDate);
@@ -487,7 +636,7 @@ export function recommend(tpl, history, beforeDate, deloadOn) {
   const weakest = Math.min(...reps);
 
   if (allTop && ref == null)
-    return mk('RN', base, top, 'No RIR logged last time: same weight. Log the last set\'s RIR to unlock progression.');
+    return mk('RN', base, top, 'No RIR logged last time: same weight. Log the RIR (the top set on a heavy day, else the last set) to unlock progression.');
 
   if (kind === 'band') {
     if (allTop && ref != null && ref >= tpl.rir) return mk('B1', null, bot, 'Topped out: go one band heavier.');
@@ -524,12 +673,35 @@ export function recommend(tpl, history, beforeDate, deloadOn) {
   return mk('R3', base, Math.min(top, weakest + 1), 'Same weight. Add a rep to the weakest set.');
 }
 
+/* Has this lift been done in the block yet? The first block session of a
+   calibrated lift is a ramp, wherever in the block it falls. */
+/** @param {Tpl} tpl @param {Obj[]} history @param {string} date */
+function calibratedInBlock(tpl, history, date) {
+  return history.some(h => !h.deleted && !h.isDeload && h.date >= BLOCK.start && h.date < date
+    && (h.exercises || []).some((/** @type {Obj} */ e) => sameEx(e.n, tpl.n) && !e.skipped && working(e).length));
+}
+
 /* The per-set target for every kind. Weight and band come from the rules;
    carries from the prescribed distance and the last load; the EMOM from the
-   bottom of its range. Time and rounds have no target. */
-/** @param {Tpl} tpl @param {Obj[]} history @param {string} date @param {boolean} [deloadOn] @returns {{rec:Rec|null, target:Target|null}} */
+   bottom of its range. Time and rounds have no target.
+   Extras for the winter block: cal ('ramp' | 'test') = a heavy or calibrated
+   lift with NO kg target (✓ opens the sheet); n = the set count that
+   overrides the template's; rx = the phase's reps/RIR (and back-off fraction);
+   back = the target of every set after the top set. */
+/** @param {Tpl} tpl @param {Obj[]} history @param {string} date @param {boolean} [deloadOn]
+    @returns {{rec:Rec|null, target:Target|null, cal?:string, n?:number, rx?:{reps:number, rir:number, back?:number}, back?:Target|null}} */
 export function targets(tpl, history, date, deloadOn) {
   if (tpl.kind === 'weight' || tpl.kind === 'band') {
+    const info = blockInfo(date);
+    if (tpl.cal && info && !deloadOn && tpl.kind === 'weight' && loadOf(tpl) === 'kg') {
+      const test = !!tpl.heavy && info.phase === 4;
+      if (test || !calibratedInBlock(tpl, history, date)) {
+        const single = test && !!tpl.single && info.week >= 20;
+        const reps = test ? (single ? 1 : 3) : (/** @type {number[]} */ (tpl.rep))[0];
+        return { rec: null, target: { kg: null, reps }, cal: test ? 'test' : 'ramp', n: test ? (single ? 1 : undefined) : 1,
+                 rx: test ? { reps, rir: tpl.topRir ?? tpl.rir ?? 1 } : undefined };
+      }
+    }
     const rec = recommend(tpl, history, date, deloadOn);
     if (!rec) {
       /* Never done before: the template's seed, if it has one. */
@@ -538,6 +710,11 @@ export function targets(tpl, history, date, deloadOn) {
     }
     if (tpl.kind === 'band') return { rec, target: { band: rec.band ?? null, reps: rec.reps } };
     if (loadOf(tpl) === 'bw') return { rec, target: { reps: rec.reps } };
+    const rx = deloadOn ? null : heavyRx(tpl, info);
+    if (rx) {
+      const back = rec.kg != null ? roundTo(rec.kg * (1 - rx.back), tpl.inc || 2.5) : null;
+      return { rec, target: { kg: rec.kg, reps: rec.reps }, rx, back: { kg: back, reps: rx.reps } };
+    }
     return { rec, target: { kg: rec.kg, reps: rec.reps } };
   }
   if (tpl.kind === 'distance') {
@@ -562,20 +739,25 @@ export function targets(tpl, history, date, deloadOn) {
 }
 
 /* Rebuilds the template from what the exercise stored at creation, so a date
-   change or a swap re-recommends with the same load type and hold rule. */
-/** @param {Obj} ex @returns {Tpl} */
-export function tplOf(ex) {
+   change or a swap re-recommends with the same load type and hold rule. Pass
+   the session's key so a name shared with a legacy template resolves to the
+   right one; the flags that only live in the template (heavy, cal) are read
+   from it, never from the session file. */
+/** @param {Obj} ex @param {string} [key] @returns {Tpl} */
+export function tplOf(ex, key) {
   /** @type {Obj|undefined} */
   let base;
-  if (!ex.substitutedFor) base = tplByName(ex.n);
+  if (!ex.substitutedFor) base = tplByName(ex.n, key);
+  const heavy = !!(base && base.heavy);
   return {
     n: ex.n, kind: ex.kind,
     load: ex.kind === 'weight' ? (ex.load ?? (base && base.kind === 'weight' ? base.load : undefined) ?? 'kg') : undefined,
     hold: ex.hold ?? (base ? !!base.hold : false),
     dist: ex.dist ?? (base ? base.dist ?? null : null),
-    rep: ex.rep, rir: ex.tplRir, inc: ex.inc,
+    rep: heavy ? base.rep : ex.rep, rir: heavy ? base.rir : ex.tplRir, inc: ex.inc,
     dose: ex.dose ?? (base && base.kind === ex.kind ? base.dose ?? null : null),
-    seed: base && base.kind === ex.kind ? base.seed : undefined
+    seed: base && base.kind === ex.kind ? base.seed : undefined,
+    heavy, cal: !!(base && base.cal), topRir: base ? base.topRir : undefined, single: !!(base && base.single)
   };
 }
 
@@ -588,17 +770,36 @@ export function retarget(d, history) {
   const own = d.editing && d.originPath ? String(d.originPath).split('/').pop() : null;
   const hist = own ? history.filter(h => fileKey(h) !== own) : history;
   for (const ex of d.exercises) {
-    const { rec, target } = targets(tplOf(ex), hist, d.date, d.isDeload);
-    if (!d.editing) ex.rec = rec;
-    for (const st of ex.sets) if (st.state === 'planned') st.target = target ? { ...target } : null;
+    const res = targets(tplOf(ex, d.key), hist, d.date, d.isDeload);
+    if (!d.editing) {
+      ex.rec = res.rec;
+      if (res.cal) ex.cal = res.cal; else delete ex.cal;
+      if (res.rx && res.rx.back) ex.backoff = res.rx.back; else delete ex.backoff;
+    }
+    let w = 0;
+    for (const st of ex.sets) {
+      if (st.state === 'planned') {
+        const t = !st.warmup && w > 0 && res.back ? res.back : res.target;
+        st.target = t ? { ...t } : null;
+      }
+      if (!st.warmup) w++;
+    }
   }
   d.week = weekOf(d.date);
   return d;
 }
 
-/** @param {Tpl} e @param {Obj[]} history @param {string} date @param {boolean} deload */
-function exerciseFrom(e, history, date, deload) {
-  const { rec, target } = targets(e, history, date, deload);
+/** @typedef {{deload?:boolean, volume?:boolean, legacy?:boolean, info?:ReturnType<typeof blockInfo>}} Ctx */
+/** @param {Tpl} e @param {Obj[]} history @param {string} date @param {boolean} deload @param {Ctx} [ctx] */
+function exerciseFrom(e, history, date, deload, ctx) {
+  const res = targets(e, history, date, deload);
+  const { rec, target } = res;
+  const c = ctx || {};
+  /* Set count: the calibration ramp is one top set; a block deload halves the
+     accessories (main lifts keep theirs); week 20 halves a volume day. */
+  let n = e.sets || 3;
+  if (res.n != null) n = res.n;
+  else if (!c.legacy && c.info && ((deload && !e.key) || (c.volume && c.info.week === 20))) n = Math.max(1, Math.ceil(n / 2));
   /** @type {Obj} */
   const ex = { n: e.n, kind: e.kind };
   if (e.kind === 'weight') ex.load = e.load || 'kg';
@@ -606,25 +807,38 @@ function exerciseFrom(e, history, date, deload) {
   if (e.dist != null) ex.dist = e.dist;
   if (e.dose != null) ex.dose = e.dose;
   if (e.routine) ex.routine = e.routine;
+  const lead = res.cal === 'ramp' ? 'Calibration: work up to ONE top set of ' + (/** @type {number[]} */ (e.rep))[0] + ' at RIR 2, then stop. That weight is your start weight for the block. '
+    : res.cal === 'test' ? 'Test phase: choose the weight yourself and work up to it. ' : '';
   Object.assign(ex, {
-    note: '', tplNote: e.note || '', rep: e.rep || null, tplRir: e.rir ?? null, inc: e.inc ?? null,
-    rest: e.rest ?? null, bar: e.bar ?? null, key: !!e.key, targetSets: e.sets || 3, substitutedFor: null, rec: rec || null
+    note: '', tplNote: lead + (e.note || ''), rep: res.rx ? [res.rx.reps, res.rx.reps] : e.rep || null, tplRir: res.rx ? res.rx.rir : e.rir ?? null, inc: e.inc ?? null,
+    rest: e.rest ?? null, bar: e.bar ?? null, key: !!e.key, targetSets: n, substitutedFor: null, rec: rec || null
   });
-  ex.sets = Array.from({ length: ex.targetSets }, () => blankSet(ex, target));
+  if (res.cal) ex.cal = res.cal;
+  if (res.rx && res.rx.back) ex.backoff = res.rx.back;
+  ex.sets = Array.from({ length: n }, (_, i) => blankSet(ex, i > 0 && res.back ? res.back : target));
   return ex;
 }
 /** @param {string} key @param {Obj[]} history @param {string} dateIso @param {string} nowIso @param {boolean} [isDeload] */
 export function newSession(key, history, dateIso, nowIso, isDeload) {
-  const t = TEMPLATES[/** @type {keyof typeof TEMPLATES} */ (key)];
+  const t = /** @type {Obj} */ (TEMPLATES)[key];
   const deload = !!isDeload && isLiftKey(key);
-  return {
+  const info = blockInfo(dateIso);
+  /** @type {Ctx} */
+  const ctx = { deload, volume: !!t.volume, legacy: !!t.legacy, info };
+  /* The pre-session block opens a lift session: routine sets with no rec, so
+     it can never make a decision or count as a lift. */
+  const pre = t.pre ? routineExercises(PRE_BLOCK[t.pre], history, dateIso) : [];
+  const lifts = /** @type {Tpl[]} */ (t.ex).filter(e => !e.wk1 || (info && info.week === 1)).map(e => exerciseFrom(e, history, dateIso, deload, ctx));
+  /** @type {Obj} */
+  const s = {
     schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION,
     date: dateIso, key, name: t.name, week: weekOf(dateIso), sessionRpe: null, symptoms: null,
     isDeload: deload, notes: '', startedAt: nowIso,
-    exercises: key === 'floor' ? routineExercises(floorFor(dateIso), history, dateIso)
-      : t.ex.map(e => exerciseFrom(e, history, dateIso, deload)),
+    exercises: key === 'skill' ? routineExercises(SKILL_DAY, history, dateIso) : [...pre, ...lifts],
     decisions: []
   };
+  if (info) { s.blockWeek = info.week; s.phase = info.phase; }
+  return s;
 }
 /* The exercises of one or more routines, each tagged with its routine key.
    An exercise already in the session (by name) is not added twice. */
@@ -719,6 +933,10 @@ export function finishSession(draft, nowIso, choice) {
   const doneWork = d.exercises.flatMap((/** @type {Obj} */ ex) => ex.sets.filter((/** @type {LSet} */ s) => s.state === 'done' && !s.warmup));
 
   const s = { ...d, schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION, decisions, week: weekOf(d.date) };
+  /* Optional block fields, derived from the date. A session outside the block
+     carries neither (and an edit that moves it out removes them). */
+  const bi = blockInfo(d.date);
+  if (bi) { s.blockWeek = bi.week; s.phase = bi.phase; } else { delete s.blockWeek; delete s.phase; }
   const editing = !!d.editing;
   for (const k of ['editing', 'originPath', 'origDate', 'origKey']) delete s[k];
   if (editing) { s.editedAt = nowIso; if (!s.endedAt) s.endedAt = nowIso; }
@@ -817,8 +1035,9 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
    anywhere in the same ISO week: moving Tuesday to Thursday is not a miss. */
 /** @param {Obj[]} list merged history, suspects included @param {string} todayIso */
 export function weekPlan(list, todayIso) {
-  const wk = weekOf(todayIso);
-  return Object.entries(TEMPLATES).filter(([, t]) => WEEKDAYS.includes(t.day)).map(([key, t]) => {
+  /* Before the block starts, the plan shown is block week 1, all upcoming. */
+  const wk = todayIso < BLOCK.start ? BLOCK.start : weekOf(todayIso);
+  return Object.entries(TEMPLATES).filter(([, t]) => !t.legacy && WEEKDAYS.includes(t.day)).map(([key, t]) => {
     const date = addDays(wk, WEEKDAYS.indexOf(t.day));
     const hits = list.filter(s => s.key === key && !s.deleted && weekOf(s.date) === wk);
     const real = hits.filter(s => !isSuspectPrefill(s) || s.verified === true);
@@ -838,7 +1057,7 @@ export function nextTemplate(plan) {
 
 /* ---------------------------------------------------------- deload check */
 /** @param {Obj[]} history @param {string} w */
-export const sessionsInWeek = (history, w) => history.filter(h => isLift(h) && weekOf(h.date) === w && !h.isDeload);
+export const sessionsInWeek = (history, w) => history.filter(h => countsAsLift(h) && weekOf(h.date) === w && !h.isDeload);
 /** @param {Obj[]} history @param {string} todayIso */
 export function weeksSinceDeload(history, todayIso) {
   const lifts = history.filter(isLift);
@@ -857,10 +1076,18 @@ export function deloadCheck(history, bw, settings, todayIso) {
   const week = sessionsInWeek(lifts, wk);
   const daysAgo = (/** @type {string} */ iso) => daysBetween(iso, todayIso);
 
-  /* Cadence. The coach’s rule, not a proposal: every 4–6 weeks. */
-  const wsd = weeksSinceDeload(lifts, todayIso);
-  if (lifts.length && wsd >= (settings.deloadWeeks || 5))
-    codes.push({ c: 'CADENCE', sev: 'severe', t: wsd + ' weeks since the last deload. Programme says every 4–6.' });
+  /* Inside the block (and after it) deloads are scheduled: weeks 6, 12 and 18.
+     Every day of such a week is a deload, for all four sessions, and the
+     weeks-since-deload cadence is not used at all. Before the block starts the
+     old cadence still applies: the coach’s rule, every 4–6 weeks. */
+  const bi = blockInfo(todayIso);
+  if (bi) {
+    if (bi.deload) codes.push({ c: 'BLOCK', sev: 'severe', t: 'Block week ' + bi.week + ': scheduled deload.' });
+  } else {
+    const wsd = weeksSinceDeload(lifts, todayIso);
+    if (lifts.length && wsd >= (settings.deloadWeeks || 5))
+      codes.push({ c: 'CADENCE', sev: 'severe', t: wsd + ' weeks since the last deload. Programme says every 4–6.' });
+  }
 
   /* D1: estimated 1RM regression on the main lifts. */
   const keys = new Set(); for (const t of Object.values(TEMPLATES)) for (const e of t.ex) if (e.key) keys.add(e.n);
@@ -903,7 +1130,8 @@ export function deloadCheck(history, bw, settings, todayIso) {
   if (lifts.length >= 4 && week.length && week.length <= 2)
     codes.push({ c: 'D5', sev: 'info', t: 'Only ' + week.length + ' of 4 sessions logged this week.' });
 
-  /* D6: bodyweight drop. Off while the block is a deliberate cut. */
+  /* D6: bodyweight drop. Off only while Dan is deliberately cutting; the
+     winter block is a strength / surplus phase, so it is on. */
   if (settings.phase !== 'cut') {
     const w = (bw || []).filter(b => b.type === 'bw' && b.kg);
     const recent = w.filter(b => daysAgo(b.date) <= 7).map(b => b.kg);
@@ -985,13 +1213,21 @@ export function compact(ex) {
 /* ------------------------------------------------------ local storage */
 /** @param {Obj} prev */
 function mergeSettings(prev) {
-  const s = { ...clone(DEFAULTS.settings), ...(prev && typeof prev === 'object' ? prev : {}) };
+  const p = prev && typeof prev === 'object' ? prev : {};
+  const s = { ...clone(DEFAULTS.settings), ...p };
+  /* One-time, on a phone that has not seen the winter plan: the old default
+     phase 'cut' becomes 'strength', so the bodyweight trigger (D6) is on.
+     After that the setting is Dan's. */
+  if (p.planV !== DEFAULTS.settings.planV) { if (s.phase === 'cut') s.phase = 'strength'; s.planV = DEFAULTS.settings.planV; }
   if (!Array.isArray(s.bands) || !s.bands.length) s.bands = DEFAULT_BANDS.slice();
   return s;
 }
-/** The template entry of the same name, if any. @param {string} n @returns {Tpl|undefined} */
-function tplByName(n) {
-  for (const t of [...Object.values(TEMPLATES), ...Object.values(ROUTINES)]) { const e = t.ex.find(x => x.n === n); if (e) return e; }
+/** The template entry of the same name, if any. The session's own template
+    first (legacy and new templates share exercise names), then the current
+    plan, then legacy, then the routines. @param {string} n @param {string} [key] @returns {Tpl|undefined} */
+function tplByName(n, key) {
+  const own = key && /** @type {Obj} */ (TEMPLATES)[key] ? [/** @type {Obj} */ (TEMPLATES)[key]] : [];
+  for (const t of [...own, ...Object.values(TEMPLATES), ...Object.values(ROUTINES)]) { const e = /** @type {Tpl[]} */ (t.ex).find(x => x.n === n); if (e) return e; }
   return undefined;
 }
 /* The target a v4 draft's set gets in the v5 shape of its exercise. */
@@ -1023,7 +1259,7 @@ export function migrateDraft(prevDraft) {
   for (const ex of d.exercises) {
     if (!Array.isArray(ex.sets)) throw new Error('exercise has no set list');
     const v4rec = ex.rec, wasWeight = ex.kind === 'weight';
-    const t = !d.editing && !ex.substitutedFor ? tplByName(ex.n) : undefined;
+    const t = !d.editing && !ex.substitutedFor ? tplByName(ex.n, d.key) : undefined;
     if (t && ex.sets.every((/** @type {LSet} */ s) => !s.state)) {
       ex.kind = t.kind;
       if (t.kind === 'weight') ex.load = t.load || 'kg'; else delete ex.load;
