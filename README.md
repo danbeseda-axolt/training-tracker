@@ -1,6 +1,6 @@
 # Ledger — training tracker
 
-**As of:** 2026-09-23 (v5)
+**As of:** 2026-10-04 (v5, build 5-5: the winter strength plan)
 
 Phone-first training log, built to be used one-handed in the gym. **The GitHub
 repo is the source of truth**; the phone holds a cache and a queue of anything
@@ -22,6 +22,84 @@ observation when Finish was pressed.
 v5 separates the two. A set is **planned** (a target, shown grey) until Dan
 confirms it, and only confirmed sets count for anything. The logging screen
 was rebuilt around that one tap.
+
+## What changed on 2026-10-04 (build 5-5): the winter strength plan
+
+The tracker moved from the Programme v2 rotation (Upper Push, Lower B, Upper
+Pull, Lower A, plus a daily floor) to the **20-week, four-day block that starts
+Monday 2026-10-05**. No file format change: `schemaVersion` stays 5 and every
+file already logged reads and edits as before. The plan itself is in the
+training notes; this section is what the app does with it.
+
+### The four sessions
+
+Fixed order, the next one on the next free day. The Log tab offers one big
+button (today's, else the earliest not yet done this week) and the rest as rows.
+
+| Key | Session | Day | Contents |
+|---|---|---|---|
+| `d1` | Day 1 — Squat + bench volume | Tue | squat (volume) 3×8, bench (volume) 3×8, chin-up, DB row, hammer curl, seated compression lift-offs |
+| `d2` | Day 2 — Heavy bench + deadlift | Thu | bench (heavy) 3×5, trap-bar / RDL slot 3×5 at RIR 2+, weighted dip, overhead triceps extension, hip thrust, L-sit tuck-to-extend |
+| `d3` | Day 3 — Heavy squat + press | Sat | squat 3×5, overhead press, pull-up grease-the-groove, Bulgarian split squat, curl + pushdown superset, hanging raise |
+| `d4` | Day 4 — Pull-ups, DB bench, rows, arms | Sun | pull-up EMOM 10×3, DB bench, row 4×10, incline curl, triceps, dead hang (+ a strict max-rep pull-up test in week 1 only) |
+| `skill` | Skill day (optional) | Fri or Mon | compression/L-sit, handstand, flexibility incl. pancake; a non-lift, like the old floor |
+
+The squat and bench exist twice, so each keeps its own history: **(volume)** on
+Day 1, the old names (`Bench press (heavy)`, `High-bar back squat`) on the heavy
+days. The deadlift slot keeps the name `Trap-bar / conventional DL`; for an RDL
+use ⋯ → Swap (logged as a substitution). The new incline curl is
+`Seated incline curl`, so the old `Incline DB curl` alias (a preacher curl)
+is untouched.
+
+### The pre-session block
+
+Every lift opens with about 10 minutes of routines, as the first exercises of
+the session: couch stretch 60 s per side and a deep squat hold (all days); on
+Days 1–3 ankle knee-to-wall, adductor rocks and the hip flexor ladder at
+*practice* rung; on Day 4 wrist prep, wall handstand, L-sit and the ladder as
+working sets. Each is tagged `routine: pre-core | pre-lower | pre-upper`, has no
+progression rule, makes no decision and never counts as a lift. Unticked ones
+are answered at Finish like any set. Hard compression sits after the lifts as
+each day's finisher.
+
+### Block week, phases and the week-1 ramp
+
+`BLOCK` and `PHASES` in `engine.js` give block week and phase from the date
+(week 1 = 2026-10-05; phase 1 weeks 1–6, 2 weeks 7–12, 3 weeks 13–18, 4 weeks
+19–20). The Log tab shows "Block week N of 20 · phase …". A session started in
+the block carries the optional `blockWeek` and `phase`.
+
+- **Week 1 is a calibration ramp.** The first block session of each main lift
+  (both squats, both benches, the deadlift slot, overhead press) is **one top
+  set at RIR 2** with **no kg target**: ✓ opens the sheet, the target line says
+  "Ramp to one top set of 5 · no kg target", and warm-ups work as usual. September's
+  weights are shown only as last time. Next session carries the top set as the
+  start weight (rule **RC**, no increase). A lift not done in week 1 is a ramp
+  the first time it turns up.
+- **Heavy days** (bench, squat, deadlift slot): phase 1 is 3×5 at RIR 2, +2.5 kg
+  when every set is clean. Phase 2 is 3×4: one top set at RIR 1 and two back-offs
+  at −7% (deadlift slot stays at RIR 2). Phase 3 is 3×3, back-offs −10%. The first
+  session of a phase keeps the top weight at the new reps (rule **RP**). With
+  back-offs, only the **top set** is judged, so the RIR chip is asked after the
+  top set, not the last.
+- **Phase 4 (test)**: heavy lifts show no kg target again (`cal: test`): triples
+  in week 19, a single on bench and squat in week 20 (the deadlift stays a
+  triple). Volume days run half their sets in week 20.
+- **Volume days** (Days 1 and 4) keep the double-progression rules unchanged in
+  every phase.
+
+### Legacy sessions
+
+The four Programme v2 templates and `floor` stay in `TEMPLATES` marked
+`legacy: true`, so History, Edit, last-time lookups and the decision log keep
+working for the seven files logged 2026-09-08 to 09-27. They are **never
+offered** as a new session (the Log tab skips them) and History tags them
+"old plan". A legacy-key session dated **before 2026-10-05** counts for its own
+earlier weeks; one dated **in or after the block** is real data (last time,
+e1RM) but is not one of the block's four lifts: it never ticks off a new day
+and is left out of the weekly attendance count. The old routines (squat block,
+length A/B, ladder, handstand, L-sit, 5-minute) stay in ⋯ → Add floor or
+stretching. The Daily floor week (`FLOOR_WEEK`, `floorFor`) is gone.
 
 ## How a session works
 
@@ -100,28 +178,23 @@ was rebuilt around that one tap.
 
 Bodyweight is no longer asked in a session. It lives on the Body tab.
 
-### Floor and stretching
+### Pre-session block, Skill day and stretching
 
-Every block of [daily-floor.md](../training/daily-floor.md) is in the app as a
-routine: the squat block, length A (posterior chain), length B (anterior hip),
-the hip flexor ladder, handstand, L-sit, and the 5-minute version.
-
-- **Daily floor** on the Log tab builds today's routine from the fixed week
-  in that file: squat block every day, then length A or B, the ladder four
-  days a week, and the skill. Its row shows what today holds.
-- **⋯ → Add floor or stretching**, in any session, adds today's floor or any
-  single block to the end of it. After lifting is fine; the sheet says not to
-  do it before. An exercise already in the session is not added twice.
 - **A prescribed hold is one tap**, like a lift at its target: ✓ on the couch
-  stretch records 60 s. Per-side work is one set per side, so "2 × 30 s per
-  side" is 4 sets.
+  stretch records 60 s. Per-side work is one set per side, so "30 s per side"
+  is 2 sets.
 - **Skill holds have no fixed dose** (the ladder, L-sit, handstand). The
   first time, ✓ asks for the seconds. After that the target is last time's
   typical hold, so a steady day is one tap and a better one is a change in the
   sheet. Put the ladder rung or the L-sit variation in the note.
+- **Skill day** (Log tab, optional, 30–40 min, no lifting) holds compression and
+  L-sit, handstand, and flexibility (pancake, frog, couch stretch, hamstring
+  hinge). **⋯ → Add floor or stretching**, in any session, adds the whole Skill
+  day or any single block (including the old floor blocks) to the end of it.
+  After lifting is fine; the sheet says not to do it before.
 
-Floor and custom sessions never count toward the week's four lifts or the
-deload cadence, and floor work added to a lift session makes no decisions.
+Skill, floor and custom sessions never count toward the week's four lifts or a
+deload, and routine work inside a lift session makes no decisions.
 
 ### History
 
@@ -154,12 +227,12 @@ for progression and planning:
 
 | Shape | Exercises | What a set stores |
 |---|---|---|
-| `weight`, load `kg` | Bench, OHP, squat, DL, RDL, curls, rows, face pull, split squat | kg, reps, RIR |
+| `weight`, load `kg` | Bench, OHP, squat, DL, RDL, curls, rows, hip thrust, triceps, split squat | kg, reps, RIR |
 | `weight`, load `bw+` | Weighted dip, chin-up, back extension, hanging raise | **added** kg (0 = bodyweight, shown `BW`, `BW+15`), reps, RIR |
 | `weight`, load `bw` | Ab wheel | reps, RIR; no kg at all |
 | `band` | Pallof press | band colours (`red+green`), reps, RIR; never kg |
 | `distance` | Farmer's (40 m), suitcase (30 m) | kg, metres; the target fills both |
-| `reps` | Pull-up EMOM, knee-to-wall cm | a count |
+| `reps` | Pull-up EMOM, compression lift-offs, grease-the-groove | a count |
 | `time`, `rounds` | holds, McGill | seconds, rounds |
 
 ## The progression rules
@@ -171,11 +244,13 @@ this order, **first match wins**:
 
 | # | When | What it proposes |
 |---|---|---|
+| RC | The last session was the week-1 ramp | The top set's weight for the template reps in every set, no increase |
+| RP | A heavy lift's first session in a new phase | Same top weight at the phase's reps; back-offs follow |
 | R6 | Deload session | 65% at the bottom of the range. Bands: same band. `bw`: reps only. `bw+`: 65% of the added load. Carries: 65% load, same distance |
 | R0 | Fewer working sets than prescribed | Hold, top of the range |
 | R5 | R4 on each of the last two evaluations (kg and bw+ only) | Down 10%, from the bottom of the range |
 | RN | Every set at the top, **no RIR logged** | Hold. Log the last set's RIR to unlock progression |
-| hold | Bench only ("hold, don't chase") | +1 increment only when every rated set is RIR 3+ and the last is 3+; otherwise R2 |
+| hold | Legacy bench only ("hold, don't chase"); removed from the new plan | +1 increment only when every rated set is RIR 3+ and the last is 3+; otherwise R2 |
 | R1 | Every set at the top, last-set RIR **at or above** target | +1 increment, back to the bottom |
 | R1b | Same, `kg` load, one increment is over 10% of the load | Add a rep instead, at most two past the top; once every set is two past, R1 |
 | R1v | Same, `bw` load | Make the variation harder |
@@ -204,31 +279,48 @@ Why the changes from v4:
 Deload sessions are excluded from progression. Floor and custom sessions never
 count toward the week, the deload cadence, or a deload.
 
-## The deload triggers
+## Deloads
 
-The **cadence** rule is the coach's: every 4–6 weeks, non-negotiable in a
-deficit. It ships at 5 and is settable. The rest can only pull a deload earlier.
+**Scheduled, by block week: 6, 12 and 18** (starts 2026-11-09, 2026-12-21,
+2027-02-01). In those weeks the check carries a severe `BLOCK` code, so **all
+four sessions start as deloads** (the date decides, not what was logged):
+65% of working load at the bottom of the range, **half the accessory sets**
+(main lifts keep all theirs; the pre-session block is unchanged), no back-offs,
+RIR 3–4. The weeks-since-deload **cadence is not used from 2026-10-05**: it still
+applies to dates before the block (it was due in the week of 2026-10-12, which
+would have been a spurious deload) and the Settings field "Deload every N weeks"
+now only governs that. After week 20 nothing is scheduled (March is unscheduled).
+⋯ → **Deload session** still switches any session to a deload by hand; it
+re-targets at 65% but does not halve the sets. Deload sessions are never "last
+time", so the week after reads the last normal session.
+
+The other triggers can only pull a deload earlier:
 
 | Code | Trigger | Severity |
 |---|---|---|
-| CADENCE | Weeks since the last deload ≥ the setting | Severe |
+| BLOCK | Block week 6, 12 or 18 | Severe |
+| CADENCE | Before the block only: weeks since the last deload ≥ the setting | Severe |
 | D1 | Rolling-3 e1RM down >5% from the six-week best, on two or more main lifts | Severe |
 | D2 | Weekly median RIR 1.5 or more below target, on three or more exercises | Severe |
 | D3 | 30%+ of working sets below the rep range | Moderate |
 | D4 | Session RPE averaging 9+ across the week | Moderate |
 | D5 | Two or fewer of four sessions logged | Informational |
-| D6 | Bodyweight down >2% in a week | Moderate, **off during a cut** |
+| D6 | Bodyweight down >2% in a week | Moderate, **off only on the `cut` setting** |
 
 One severe or two moderate in the same week raises the flag. D5 never fires
-alone: missing sessions reduces fatigue. The dose (65%) is a proposal, not the
-coach's; it lives in `DELOAD` in `engine.js`.
+alone: missing sessions reduces fatigue. **Settings → Block goal is now
+`strength` (a small surplus), so D6 is on.** A phone that still holds the old
+`cut` is switched to `strength` once, on first load of this build; after that the
+setting is Dan's. The dose (65%) is a proposal, not the coach's; it lives in
+`DELOAD` in `engine.js`.
 
-**Known gap:** only the session started while the flag shows is set up as a
-deload automatically. Logging it resets the cadence, so the rest of that week
-has to be switched on by hand (⋯ → Deload session); the banner says so.
-`DELOAD.resumePct` (95%) is not applied yet: the session after a deload
-recommends from the last normal session at 100%. Both need fixing before the
-cadence rule first fires, in the week of 2026-10-12.
+**Known gaps.** `DELOAD.resumePct` (95%) is not applied: the session after a
+deload recommends from the last normal session at 100%, which is what the plan
+wants, so the constant is unused. A manual ⋯ → Deload session does not halve
+accessory sets (a scheduled one does). The plan's "a week with fewer than 3
+sessions does not progress" is not enforced: loads move on by the last session
+of each lift. The old "only the session started while the flag shows" gap
+is closed for scheduled weeks and remains only for the other triggers.
 
 ## Where the data goes
 
@@ -325,9 +417,15 @@ finish sheet adds a newly logged pinch to.
 
 - **Templates** live in `TEMPLATES` at the top of `engine.js`. Per exercise:
   `kind`, `load` (`kg` / `bw+` / `bw`), `rep`, `rir`, `inc`, `rest`, `bar`
-  (turns on the plate breakdown), `key` (main lift for D1), `hold` (bench),
-  `dist` (carries) and `seed` (first-ever target, used only with no history). When the coach writes block 3, the templates are the thing
-  to update.
+  (turns on the plate breakdown), `key` (main lift: D1, keeps its sets in a
+  deload), `hold` (legacy bench), `dist` (carries) and `seed` (first-ever target,
+  used only with no history). The winter plan adds `cal` (week-1 ramp), `heavy`
+  (phase-driven reps and back-offs), `topRir`, `single` (week-20 single), `wk1`
+  (week 1 only); per template `pre` (`lower` / `upper` pre-session block),
+  `volume` and `legacy`. The block start, phases and deload weeks are `BLOCK`
+  and `PHASES`; the pre-session block is `PRE_BLOCK` and the Skill day
+  `SKILL_DAY`, both built from `ROUTINES`. Exercise names are the key to
+  history: a renamed lift loses its last time unless it gets an `ALIASES` entry.
 - **The rules** are in `engine.js`: pure functions, no page, no network.
 - **The screen** is `index.html`: CSS and one `<script type="module">`.
 - **Sync** is `sync.js`.
@@ -347,8 +445,10 @@ old files and old phone storage, confirming and finishing a session, file
 paths, the sync queue against a fake GitHub, the service worker's file list,
 one regression test per bug found in the 2026-09-23 review
 (`dev/regressions.test.mjs`),
-and the three real session files in `training/log` (read at test time, never
-copied into `tracker/`, which is public).
+the winter plan (`dev/plan.test.mjs`: templates, legacy keys, phases, week-1
+ramp, deload weeks, the pre-session block), and the real session files in
+`training/log` (read at test time, never copied into `tracker/`, which is
+public).
 
 Local preview: `node tracker/dev/serve.js`, then http://localhost:8099. A second
 checker running at the same time should use its own origin (`PORT=8100 node
