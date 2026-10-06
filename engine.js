@@ -101,7 +101,7 @@ export const TEMPLATES = {
     { n: 'Bench press (heavy)', kind: 'weight', sets: 3, rep: [5, 5], rir: 2, topRir: 1, inc: 2.5, rest: 180, bar: 20, key: true, cal: true, heavy: true, single: true,
       note: 'Heavy day: reps and top set follow the phase. Add load only when every set is clean.' },
     { n: 'Trap-bar / conventional DL', kind: 'weight', sets: 3, rep: [5, 5], rir: 2, inc: 2.5, rest: 210, bar: 20, key: true, cal: true, heavy: true,
-      note: 'Trap bar, or a Romanian deadlift (⋯ → Swap). RIR 2 or more, no loaded spinal flexion. Film from the side. Stop on any one-sided pinch.' },
+      note: 'Conventional deadlift (back confirmed OK 2026-10-06). RIR 2 or more. Film from the side. Stop on any one-sided pinch and see a physiotherapist.' },
     { n: 'Weighted dip', kind: 'weight', load: 'bw+', sets: 3, rep: [6, 8], rir: 2, inc: 2.5, rest: 150, seed: { kg: 0, reps: 6 }, note: 'Added kg (0 = bodyweight). Shoulders just below elbows. Add 2.5 kg when all three sets hit 8.' },
     { n: 'Overhead triceps extension', kind: 'weight', sets: 3, rep: [12, 12], rir: 1, inc: 2, rest: 75, note: 'Triceps set 1 of 3.' },
     { n: 'Hip thrust (paused top)', kind: 'weight', sets: 3, rep: [8, 12], rir: 2, inc: 5, rest: 120, bar: 20, note: 'Pause at the top. Ribs down, no back arch.' },

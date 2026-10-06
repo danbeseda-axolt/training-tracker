@@ -1,6 +1,6 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-04 (v5, build 5-5: the winter strength plan)
+**As of:** 2026-10-04 (v5, build 5-6: the winter strength plan)
 
 Phone-first training log, built to be used one-handed in the gym. **The GitHub
 repo is the source of truth**; the phone holds a cache and a queue of anything
@@ -23,7 +23,7 @@ v5 separates the two. A set is **planned** (a target, shown grey) until Dan
 confirms it, and only confirmed sets count for anything. The logging screen
 was rebuilt around that one tap.
 
-## What changed on 2026-10-04 (build 5-5): the winter strength plan
+## What changed on 2026-10-04 (build 5-6): the winter strength plan
 
 The tracker moved from the Programme v2 rotation (Upper Push, Lower B, Upper
 Pull, Lower A, plus a daily floor) to the **20-week, four-day block that starts
@@ -39,15 +39,15 @@ button (today's, else the earliest not yet done this week) and the rest as rows.
 | Key | Session | Day | Contents |
 |---|---|---|---|
 | `d1` | Day 1 — Squat + bench volume | Tue | squat (volume) 3×8, bench (volume) 3×8, chin-up, DB row, hammer curl, seated compression lift-offs |
-| `d2` | Day 2 — Heavy bench + deadlift | Thu | bench (heavy) 3×5, trap-bar / RDL slot 3×5 at RIR 2+, weighted dip, overhead triceps extension, hip thrust, L-sit tuck-to-extend |
+| `d2` | Day 2 — Heavy bench + deadlift | Thu | bench (heavy) 3×5, conventional deadlift 3×5 at RIR 2+, weighted dip, overhead triceps extension, hip thrust, L-sit tuck-to-extend |
 | `d3` | Day 3 — Heavy squat + press | Sat | squat 3×5, overhead press, pull-up grease-the-groove, Bulgarian split squat, curl + pushdown superset, hanging raise |
 | `d4` | Day 4 — Pull-ups, DB bench, rows, arms | Sun | pull-up EMOM 10×3, DB bench, row 4×10, incline curl, triceps, dead hang (+ a strict max-rep pull-up test in week 1 only) |
 | `skill` | Skill day (optional) | Fri or Mon | compression/L-sit, handstand, flexibility incl. pancake; a non-lift, like the old floor |
 
 The squat and bench exist twice, so each keeps its own history: **(volume)** on
 Day 1, the old names (`Bench press (heavy)`, `High-bar back squat`) on the heavy
-days. The deadlift slot keeps the name `Trap-bar / conventional DL`; for an RDL
-use ⋯ → Swap (logged as a substitution). The new incline curl is
+days. The deadlift slot keeps the name `Trap-bar / conventional DL` so history carries over, and is a
+conventional deadlift (back confirmed OK on 2026-10-06; for a trap bar or RDL use ⋯ → Swap). The new incline curl is
 `Seated incline curl`, so the old `Incline DB curl` alias (a preacher curl)
 is untouched.
 
