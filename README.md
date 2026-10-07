@@ -1,6 +1,6 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-04 (v5, build 5-6: the winter strength plan)
+**As of:** 2026-10-07 (v5, build 5-8: the winter strength plan plus account mode beta)
 
 Phone-first training log, built to be used one-handed in the gym. **The GitHub
 repo is the source of truth**; the phone holds a cache and a queue of anything
@@ -370,6 +370,69 @@ that a threshold is wrong. Nothing retunes itself.
 The only thing a lost phone can lose is a session logged offline and never
 synced.
 
+## Account (Supabase) — beta
+
+**As of 2026-10-07.** Opt-in, for release 1 (stories S1, S4 and the import
+half of S7 in [ledger-r1-spec.md](../projects/ledger-r1-spec.md)). Nothing
+changes unless you sign in: GitHub stays the default.
+
+- **Sign in:** Settings → Account → email → **Send code** → type the code from
+  the email → **Sign in**. A code, not a link, so it works in the home-screen
+  app. The access token refreshes itself; the refresh token keeps you signed
+  in for weeks.
+- **What is sent:** once signed in, every saved, edited, verified or deleted
+  session is also queued for the `sessions` table (one row per session, keyed
+  by the file name, so a retry or a second import updates the row instead of
+  adding one). Bodyweight and floor benchmarks are not sent.
+- **Where the log lives is a fixed mode per phone** (`storage` in the saved
+  state), shown on the Account card. It is never inferred from whether a token
+  happens to be there, so clearing an expired token cannot move sessions.
+  - **`github`** (Dan): set the first time GitHub settings are valid on the
+    phone, or for any state saved before the mode existed that holds GitHub
+    data. GitHub queue and History work exactly as before; a blank token just
+    holds the queue. The account is a copy that never changes what History
+    shows. Once the account has been used, changes are held for it even while
+    signed out, so a delete or verify replaces the held copy.
+  - **`account`** (a friend): set by a sign-in on a phone where GitHub was
+    never set up. Every change goes to the account (held while signed out),
+    History → Reload reads from it, and anything left in the GitHub queue from
+    before the first sign-in moves to the account queue. Moving never drops a
+    session because a same-named copy is there: the newer `savedAt` is kept,
+    and nobody else's copy is touched.
+  - **One way only: account → github.** When GitHub settings become valid on
+    an `account` phone (for example Dan reinstalling: signed in first, token
+    pasted after), the phone becomes `github` and says "GitHub is set up. From
+    now on sessions go to GitHub and your account keeps a copy." Everything
+    the account held for its owner is set aside and, after the next successful
+    GitHub pull, goes to the GitHub queue when GitHub has no copy or an older
+    one (a deletion only when GitHub has the file). A failed pull keeps it set
+    aside for the next one. `github` never becomes `account`.
+  - Before either (a fresh phone), the Log tab says "Not saved anywhere yet.
+    Sign in under Settings → Account to keep your sessions." 
+- **Copy my history to my account** (S7) pushes every session on the phone.
+  Safe to run twice. It reports how many were copied and how many are held.
+- **Same queue guarantees as GitHub:** a write counts only on 200 / 201 / 204,
+  one upload at a time, each item removed only after its own success, and a
+  queued newer version replaces an older one not yet on its way.
+- **One owner per phone.** The first account signed in owns what the phone
+  holds, and each queued item records whose it is. Signed in as anyone else,
+  only that person's own new sessions upload; the owner's stay held, and
+  nothing is pulled or copied. The card says why. An empty phone adopts the
+  new account. An item is never sent without a user id; it is held instead.
+- **Signing out** clears the tokens only. A refresh still in flight cannot
+  sign you back in. History and anything not yet sent
+  stay on the phone and go up after the next sign-in. If the server refuses a
+  refresh, the app signs out the same way. No signal is not a sign-out.
+- **Privacy:** row-level security in the database (migration in
+  `supabase/migrations/`) means each user reads and writes only their own rows.
+  The tokens live in this phone's storage, like the GitHub token, and are not
+  in Export JSON (token fields inside raw `ledger_corrupt_*` copies are
+  blanked too). Deletes also filter on `user_id` as a second guard.
+- **Needs, in the Supabase dashboard:** the email template (Authentication →
+  Emails → Magic Link) must contain `{{ .Token }}`, or no code is emailed.
+  Supabase's built-in email sends only a few emails an hour and only to the
+  project team, so friends need a real email sender first.
+
 ## Setup
 
 ### 1. Create a token — you do this, not me
@@ -385,19 +448,37 @@ GitHub → Settings → Developer settings → Personal access tokens →
 chat with me, or anywhere else.** If the phone is lost or the token leaks,
 revoke it on that same GitHub page and generate a new one.
 
+### Where the code lives (rule, 2026-10-07)
+
+**`dan-brain/tracker/` is the only place the app's code is changed.** The
+public repo `danbeseda-axolt/training-tracker` is a published copy and is only
+ever updated by the deploy step below. On 2026-10-07 the public repo was found
+four commits ahead (the winter plan, edited there directly), and a deploy from
+here would have rolled it back. Never commit to the public repo by hand.
+
 ### 2. Hosting
 
-The app is static: `index.html`, two modules (`engine.js`, `sync.js`), a
-manifest, an icon and a service worker. No secrets in it, so the code is public
-while the data repo stays private.
+The app is static: `index.html`, three modules (`engine.js`, `sync.js`,
+`cloud.js`), a manifest, an icon and a service worker. No secrets in it (the
+Supabase URL and publishable key in `cloud.js` are public by design), so the
+code is public while the data repo stays private.
 
 It is served by GitHub Pages at
 **https://danbeseda-axolt.github.io/training-tracker/**, from the public repo
 `danbeseda-axolt/training-tracker`. To deploy a change:
 
+The two repos' histories are unrelated, so `git subtree push` is refused.
+Deploy by copying the folder onto a fresh clone of the public repo and
+committing there:
+
 ```
-git subtree push --prefix tracker https://github.com/danbeseda-axolt/training-tracker.git main
+git clone https://github.com/danbeseda-axolt/training-tracker.git /tmp/tt
+cd /tmp/tt && git ls-files -z | xargs -0 rm -f && cp -a <path>/dan-brain/tracker/. . && cd -
+cd /tmp/tt && git add -A && git commit -m "Deploy: <what changed>" && git push origin main
 ```
+
+Before copying, check the public repo has nothing dan-brain lacks
+(`diff -r` against the last deployed tree).
 
 ### 3. Add to home screen
 
@@ -428,8 +509,8 @@ finish sheet adds a newly logged pinch to.
   history: a renamed lift loses its last time unless it gets an `ALIASES` entry.
 - **The rules** are in `engine.js`: pure functions, no page, no network.
 - **The screen** is `index.html`: CSS and one `<script type="module">`.
-- **Sync** is `sync.js`.
-- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the two
+- **Sync** is `sync.js`; **account mode** is `cloud.js`.
+- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the three
   imports in `index.html` together.** The service worker caches the modules at
   those exact URLs, so a page can never run with a module from another build.
 
@@ -442,7 +523,8 @@ node --test "tracker/dev/*.test.mjs"
 Plain Node (tested on v25), no npm, no install. Do not add a `package.json`
 under `tracker/`. The tests cover every rule, the deload cadence, migration of
 old files and old phone storage, confirming and finishing a session, file
-paths, the sync queue against a fake GitHub, the service worker's file list,
+paths, the sync queue against a fake GitHub, account mode against a fake
+Supabase (`dev/cloud.test.mjs`), the service worker's file list,
 one regression test per bug found in the 2026-09-23 review
 (`dev/regressions.test.mjs`),
 the winter plan (`dev/plan.test.mjs`: templates, legacy keys, phases, week-1

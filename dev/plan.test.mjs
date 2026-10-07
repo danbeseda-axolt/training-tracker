@@ -117,9 +117,10 @@ test('the real session files load, list in History, keep their names and read as
   if (!existsSync(LOG)) { t.skip('training/log not present'); return; }
   const files = readdirSync(LOG).filter(f => /^\d{4}-\d{2}-\d{2}-.+\.json$/.test(f));
   assert.ok(files.length >= 7, 'the seven sessions logged 2026-09-08 to 09-27');
-  const raw = files.map(f => JSON.parse(readFileSync(path.join(LOG, f), 'utf8')));
+  // The September files, logged before the block started. Sessions logged in the block (d1-d4) are newer and not legacy.
+  const raw = files.map(f => JSON.parse(readFileSync(path.join(LOG, f), 'utf8'))).filter(s => s.date < '2026-10-05');
   const merged = E.mergedHistory(raw, []);
-  assert.equal(merged.length, files.length, 'History lists every file');
+  assert.equal(merged.length, raw.length, 'History lists every pre-block file');
   for (const s of merged) { assert.ok(s.name && s.date && s.key, s.date); assert.ok(E.TEMPLATES[s.key], 'key ' + s.key + ' resolves'); }
   for (const k of ['upper-push', 'lower-a', 'lower-b', 'upper-pull', 'floor']) assert.ok(merged.some(s => s.key === k), k + ' is in the log');
   assert.ok(merged.filter(s => E.isLegacyKey(s.key)).length === merged.length, 'every real file is a legacy-key session');

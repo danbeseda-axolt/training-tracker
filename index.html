@@ -208,8 +208,9 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-6';
-import { makeSync } from './sync.js?v=5-6';
+import * as E from './engine.js?v=5-8';
+import { makeSync } from './sync.js?v=5-8';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-8';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -251,7 +252,8 @@ function corruptBackups(){
   try{
     for(let i = 0; i < localStorage.length; i++){
       const k = localStorage.key(i);
-      if(k && k.startsWith('ledger_corrupt_')) out[k] = localStorage.getItem(k);
+      /* A raw copy of state can hold the GitHub token and account tokens. */
+      if(k && k.startsWith('ledger_corrupt_')) out[k] = redactSecrets(localStorage.getItem(k));
     }
   }catch(e){}
   return out;
@@ -268,9 +270,80 @@ const sync = makeSync({
   fetch: (u, i) => fetch(u, i), getState: () => S, save,
   onStatus: (c, m) => { setSync(c, m); if(c !== 'pending') softRender(); }
 });
+/* Account mode (beta, opt-in): sessions also go to Supabase once signed in.
+   GitHub stays the default and, when it is set up, the source of history. */
+/* Where this phone keeps its log, 'github' | 'account' | null (not yet).
+   Decided from the state once; 'github' the first time GitHub settings are
+   valid, 'account' only on a sign-in where GitHub never was. A blank token
+   never changes it. It moves one way only: when GitHub becomes valid on an
+   'account' phone, the phone becomes 'github', and what the account holds is
+   offered to GitHub after the next pull shows what GitHub already has. */
+function mode(){
+  const before = S.storage;
+  let m = resolveStorage(S, sync.cfgOk());
+  if(m === 'account' && sync.cfgOk() && promoteToGithub(S, cloud.ownerId(), Date.now())){
+    m = S.storage; ui.notice = 'promoted';
+    setTimeout(() => { pullGithub().then(softRender); }, 0);
+  }
+  if(m !== before) save();
+  return m;
+}
+/* Every GitHub pull goes through here, so sessions set aside by a promotion
+   reach the GitHub queue as soon as GitHub's own list is known. */
+function pullGithub(){
+  return sync.pullHistory().then(ok => {
+    const items = adoptAfterPull(S, ok);
+    for(const it of items) sync.enqueue(it);
+    save();
+    if(items.length) sync.flushQueue();
+    return ok;
+  });
+}
+const cloud = makeCloud({
+  fetch: (u, i) => fetch(u, i), getState: () => S, save,
+  ownsHistory: () => mode() === 'account',
+  onStatus: (c, m) => { ui.cloudStatus = [c, m]; if(mode() === 'account') setSync(c, m); if(c !== 'pending') softRender(); }
+});
+const cloudQ = () => S.cloudQueue || [];
+/* What the views read as pending. In 'github' mode only the GitHub queue:
+   the account queue is a copy and never feeds the views. In 'account' mode,
+   the account queue too. */
+const accountOwns = () => mode() === 'account';
+const pend = () => pendingView(S.history, S.queue, cloudQ(), accountOwns());
+/* 'github' mode: queued for GitHub exactly as before (a blank token just
+   holds it), and for the account as a copy once it has been used on this
+   phone. 'account' mode: the account only (held while signed out). */
+function queueItem(item){
+  const to = routeSave(mode(), cloud.inUse());
+  if(to.github) sync.enqueue(item);
+  if(to.account) cloud.enqueue(item);
+}
+/* 'account' mode only: anything left in the GitHub queue (saved before the
+   first sign-in) moves to the account queue, unless a newer copy of the same
+   session is already there. Never in 'github' mode, whatever the token. */
+function adoptGithubQueue(){
+  if(mode() !== 'account' || !S.queue.length) return;
+  /* Never drops an item because a same-named copy is there: the newer one is
+     kept, and only items already placed leave the GitHub queue. */
+  const placed = new Set(cloud.adoptItems(S.queue.slice()));
+  S.queue = S.queue.filter(q => !placed.has(q)); save();
+}
+function flushAll(opts){
+  adoptGithubQueue();
+  const a = sync.flushQueue(opts);
+  return cloud.signedIn() ? Promise.all([a, cloud.flushQueue(opts)]) : a;
+}
+/* Every session as stored (never the migrated in-memory copies), for S7's
+   copy to the account. */
+function rawAll(){
+  const m = new Map();
+  for(const h of S.history) if(h && !h.deleted) m.set(E.fileKey(h), h);
+  for(const q of pend()){ if(!q || !q.date) continue; if(q.deleted) m.delete(E.fileKey(q)); else m.set(E.fileKey(q), q); }
+  return [...m.values()];
+}
 const dir = () => sync.dir();
-const aHist = () => E.analysisHistory(S.history, S.queue);
-const merged = () => E.mergedHistory(S.history, S.queue);
+const aHist = () => E.analysisHistory(S.history, pend());
+const merged = () => E.mergedHistory(S.history, pend());
 
 /* An edit opened by the v4 page carries no origin; its current path is the
    best evidence of where it came from. */
@@ -282,7 +355,8 @@ if(S.draft){
 }
 
 /* ---------------------------------------------------------------- ui state */
-const ui = { tab:'log', open:new Set(), info:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null };
+const ui = { tab:'log', open:new Set(), info:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
+  cloudStatus:null, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' } };
 
 function toast(msg, undo){
   const el = $('#toast');
@@ -375,17 +449,26 @@ function softRender(){
 
 function noticeBanner(){
   if(!ui.notice) return '';
+  if(ui.notice === 'promoted') return '<div class="banner info">GitHub is set up. From now on sessions go to GitHub and your account keeps a copy.<div class="row"><button class="btn" data-act="noticeOk">OK</button></div></div>';
   const t = ui.notice === 'v5-unreadable'
     ? '<b>This phone’s saved data could not be read.</b> The GitHub settings were kept and the log reloads from GitHub. Anything that had not synced yet is only in a raw copy on this phone: Settings → Export JSON includes it.'
     : '<b>The session in progress could not be read</b> and was set aside. A raw copy is kept on this phone: Settings → Export JSON includes it.';
   return '<div class="banner bad">' + t + '<div class="row"><button class="btn" data-act="noticeOk">OK</button></div></div>';
 }
 function tokenBanner(){
-  return sync.cfgOk() ? '' : '<div class="banner warn">No GitHub token. Log normally: sessions are held on this phone and pushed once a token is set in <b>Settings</b>.</div>';
+  if(sync.cfgOk() || mode() === 'account') return '';
+  if(mode() === null) return '<div class="banner warn">Not saved anywhere yet. Sign in under Settings → Account to keep your sessions.</div>';
+  return '<div class="banner warn">No GitHub token. Log normally: sessions are held on this phone and pushed once a token is set in <b>Settings</b>.</div>';
 }
 function queueBanner(){
-  const n = S.queue.length + S.bwQueue.length;
-  return n ? '<div class="banner warn"><b>' + n + ' item' + (n > 1 ? 's' : '') + ' not yet on GitHub.</b> Held on this phone.<div class="row"><button class="btn" data-act="retry">Retry now</button></div></div>' : '';
+  /* With GitHub set up and signed out, the held account copies are counted
+     on the Account card only: GitHub is the source and is up to date. */
+  const n = S.queue.length + S.bwQueue.length, c = accountOwns() || cloud.signedIn() ? cloudQ().length : 0;
+  if(!n && !c) return '';
+  const parts = [];
+  if(n) parts.push('<b>' + n + ' item' + (n > 1 ? 's' : '') + ' not yet on GitHub.</b>');
+  if(c) parts.push('<b>' + c + ' session' + (c > 1 ? 's' : '') + ' not yet in your account.</b>' + (cloud.signedIn() ? '' : ' Sign in again in Settings to send ' + (c > 1 ? 'them' : 'it') + '.'));
+  return '<div class="banner warn">' + parts.join(' ') + ' Held on this phone.<div class="row"><button class="btn" data-act="retry">Retry now</button></div></div>';
 }
 function deloadBanner(aH){
   const r = E.deloadCheck(aH, S.bw, S.settings, today());
@@ -732,9 +815,10 @@ function pinchText(p){
 /* ---------------------------------------------------------------- history */
 function viewHistory(){
   const list = merged();
-  const pending = new Set(S.queue.filter(q => !q.deleted).map(q => E.fileKey(q)));
-  let h = '<button class="rowbtn" data-act="pull"><span class="grow">Reload from GitHub</span></button>';
-  if(!list.length) return h + '<div class="empty">No sessions yet.' + (sync.cfgOk() ? ' Reload to fetch them, or log one.' : ' Add a token in Settings first.') + '</div>';
+  const pending = new Set(pend().filter(q => !q.deleted).map(q => E.fileKey(q)));
+  const fromAccount = mode() === 'account' && cloud.signedIn();
+  let h = '<button class="rowbtn" data-act="pull"><span class="grow">Reload from ' + (fromAccount ? 'my account' : 'GitHub') + '</span></button>';
+  if(!list.length) return h + '<div class="empty">No sessions yet.' + (sync.cfgOk() || fromAccount ? ' Reload to fetch them, or log one.' : mode() === null ? ' Sign in under Settings → Account to keep your sessions.' : ' Add a token in Settings first.') + '</div>';
   h += '<div class="card" style="padding:4px 12px">';
   for(const s of list){
     const k = E.fileKey(s);
@@ -821,6 +905,7 @@ function viewSettings(){
     + '<input data-f="cfg" data-k="token" type="password" value="' + esc(c.token) + '" placeholder="github_pat_…" autocomplete="off">'
     + '<div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only. Never send it to anyone, including me.</div>'
     + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button><button class="btn" data-act="test">Test</button></div></div>'
+    + viewAccount()
     + '<div class="card"><h3>Programme</h3>'
     + '<label>Block goal</label><select data-f="cfg" data-k="phase">'
     + ['strength', 'maintain', 'gain', 'cut'].map(p => '<option value="' + p + '"' + (c.phase === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>'
@@ -834,10 +919,55 @@ function viewSettings(){
     + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="wakeLock" style="width:24px;min-height:24px"' + (c.wakeLock !== false ? ' checked' : '') + '> Keep the screen on during a session</label>'
     + '</div>'
     + '<div class="card"><h3>Data</h3>'
-    + '<div class="sub">' + merged().length + ' sessions · ' + allBw().length + ' body entries · ' + (S.queue.length + S.bwQueue.length) + ' pending upload · storage: ' + esc(ui.persist || 'checking') + '</div>'
+    + '<div class="sub">' + merged().length + ' sessions · ' + allBw().length + ' body entries · ' + (S.queue.length + S.bwQueue.length + cloudQ().length) + ' pending upload · storage: ' + esc(ui.persist || 'checking') + '</div>'
     + '<button class="btn w100" style="margin-top:10px" data-act="export">Export JSON backup</button>'
     + '<div class="hint">The repo is the source of truth and every push is a git commit, so an edit never destroys what it replaced. This phone holds a cache and anything unsynced, which is the only thing a lost phone can lose.</div></div>';
 }
+
+/* Account (beta). Signed out: email → code → in. Signed in: the email, the
+   one-off copy of history (S7) and sign-out. GitHub above is unaffected. */
+function viewAccount(){
+  const a = ui.ac, st = ui.cloudStatus, held = cloudQ().length;
+  const line = (st ? '<span class="pill ' + esc(st[0]) + '">' + esc(st[1]) + '</span>' : '')
+    + (held ? '<span class="pill warn">' + held + ' held on this phone</span>' : '');
+  const msg = a.msg ? '<div class="hint" style="color:var(--' + (a.cls === 'bad' ? 'bad' : a.cls === 'ok' ? 'ok' : 'dim') + ')">' + esc(a.msg) + '</div>' : '';
+  const m = mode();
+  let h = '<div class="card"><h3>Account <span class="pill">beta</span></h3>'
+    + '<div class="hint" style="margin:4px 0 8px">' + (m === 'github'
+        ? '<b>Your log lives in GitHub</b> on this phone. The account only keeps a copy; a missing token just holds sessions here until it is back.'
+        : m === 'account'
+        ? '<b>Your log lives in your account</b> on this phone. GitHub has never been set up here.'
+        : '<b>Where your log lives is not set yet.</b> Signing in makes it your account; setting up GitHub above makes it GitHub.') + '</div>';
+  if(cloud.signedIn()){
+    h += '<div class="sub">Signed in as <b>' + esc(cloud.email()) + '</b>. Each saved session also goes to your account'
+      + (mode() === 'github' ? ', as well as to GitHub.' : '.') + ' Bodyweight and floor benchmarks are not sent to the account.</div>'
+      + (line ? '<div style="margin-top:8px">' + line + '</div>' : '')
+      + (cloud.foreign()
+        ? '<div class="banner warn" style="margin-top:12px">What is on this phone belongs to another account' + (cloud.owner() && cloud.owner().email ? ' (<b>' + esc(cloud.owner().email) + '</b>)' : '') + '. Nothing is uploaded or copied while you are signed in as ' + esc(cloud.email()) + '. Sign out, then sign in as that account to send it.</div>'
+        : '<button class="btn primary w100" style="margin-top:12px" data-act="acImport"' + (a.busy ? ' disabled' : '') + '>Copy my history to my account</button>'
+          + '<div class="hint">Copies all ' + rawAll().length + ' sessions on this phone. Safe to run again: a session already there is updated, not doubled.</div>')
+      + msg
+      + '<button class="btn w100" style="margin-top:12px" data-act="acSignOut">Sign out</button>'
+      + '<div class="hint">Signing out keeps everything on this phone, including sessions not yet sent.</div>';
+  } else {
+    const email = a.email || cloud.email();
+    h += '<div class="sub">' + (m === 'account'
+        ? 'Sign in to send the sessions held on this phone to your account.'
+        : 'Optional. Sign in with your email to also keep your sessions in your own account. Nothing changes for GitHub.') + '</div>'
+      + (line ? '<div style="margin-top:8px">' + line + '</div>' : '')
+      + '<label>Email</label><input type="email" data-f="acEmail" value="' + esc(email) + '" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com">';
+    if(!a.sent){
+      h += '<button class="btn primary w100" style="margin-top:12px" data-act="acSend"' + (a.busy ? ' disabled' : '') + '>Send code</button>';
+    } else {
+      h += '<label>Code from the email</label><input type="text" data-f="acCode" value="' + esc(a.code) + '" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" placeholder="6 digits">'
+        + '<button class="btn primary w100" style="margin-top:12px" data-act="acVerify"' + (a.busy ? ' disabled' : '') + '>Sign in</button>'
+        + '<div class="row" style="margin-top:4px"><button class="textbtn plain" data-act="acSend"' + (a.busy ? ' disabled' : '') + '>Send a new code</button><button class="textbtn plain" data-act="acReset">Use another email</button></div>';
+    }
+    h += msg;
+  }
+  return h + '</div>';
+}
+function acSay(msg, cls){ ui.ac.msg = msg; ui.ac.cls = cls || ''; }
 
 /* ---------------------------------------------------------------- actions */
 const ex_ = el => S.draft.exercises[+el.dataset.i];
@@ -890,8 +1020,8 @@ const ACT = {
   mtab: el => goTab(el.dataset.tab),
   menu: () => { ui.sheet = { type:'menu' }; renderSheet(); },
   closeSheet: () => { ui.sheet = null; render(); },
-  retry: () => sync.flushQueue(),
-  pull: () => sync.pullHistory().then(render),
+  retry: () => flushAll(),
+  pull: () => (mode() === 'account' && cloud.signedIn() ? cloud.pullHistory() : pullGithub()).then(render),
   undo: () => { const f = ui.undo; ui.undo = null; $('#toast').hidden = true; if(f) f(); },
   noticeOk: () => { ui.notice = null; render(); },
 
@@ -1093,11 +1223,11 @@ const ACT = {
     const d = S.draft, now = nowIso();
     const res = E.finishSession(d, now, ui.sheet && ui.sheet.choice || undefined);
     if(res.blocked){ toast(res.blocked === 'empty' ? 'Nothing to save yet.' : 'Choose what happened to the unticked sets.'); return; }
-    const plan = E.planSave(d, res.session, S.history, S.queue, dir(), now);
-    for(const item of plan.items) sync.enqueue(item);
+    const plan = E.planSave(d, res.session, S.history, pend(), dir(), now);
+    for(const item of plan.items) queueItem(item);
     endSession(); save(); render();
-    toast('Saved' + (sync.cfgOk() ? '' : ' on this phone'));
-    sync.flushQueue();
+    toast('Saved' + (sync.cfgOk() || (mode() === 'account' && cloud.signedIn()) ? '' : ' on this phone'));
+    flushAll();
   },
 
   hrow: el => { const k = el.dataset.k; ui.hist.has(k) ? ui.hist.delete(k) : ui.hist.add(k); render(); },
@@ -1111,26 +1241,26 @@ const ACT = {
   },
   del: el => {
     const k = el.dataset.k;
-    const raw = [...S.queue].reverse().find(q => !q.deleted && E.fileKey(q) === k) || S.history.find(h => E.fileKey(h) === k);
+    const raw = [...pend()].reverse().find(q => !q.deleted && E.fileKey(q) === k) || S.history.find(h => E.fileKey(h) === k);
     if(!raw) return;
     if(!confirm('Delete ' + raw.name + ' on ' + raw.date + '? The file is marked deleted, and git keeps every earlier version.')) return;
     const { qid, ...body } = raw;
     /* Queued before history is touched: a tombstone is only pushed for a file
        GitHub already holds, and history is how sync knows that. */
-    sync.enqueue({ ...body, deleted:true, savedAt:nowIso() });
+    queueItem({ ...body, deleted:true, savedAt:nowIso() });
     S.history = S.history.filter(h => E.fileKey(h) !== k);
-    save(); render(); sync.flushQueue();
+    save(); render(); flushAll();
   },
   /* Confirms a suspect session: the file gets verified:true and nothing
      else changes, so the rules read it from now on. */
   verify: el => {
     const k = el.dataset.k;
-    const raw = [...S.queue].reverse().find(q => !q.deleted && E.fileKey(q) === k) || S.history.find(h => E.fileKey(h) === k);
+    const raw = [...pend()].reverse().find(q => !q.deleted && E.fileKey(q) === k) || S.history.find(h => E.fileKey(h) === k);
     if(!raw) return;
     if(!confirm('Confirm ' + raw.name + ' on ' + raw.date + ' was lifted as recorded? It will count toward the next targets.')) return;
     const { qid, unverified, ...body } = raw;
-    sync.enqueue({ ...body, verified:true });
-    ui.hist.delete(k); render(); sync.flushQueue();
+    queueItem({ ...body, verified:true });
+    ui.hist.delete(k); render(); flushAll();
   },
 
   logbw: () => {
@@ -1146,7 +1276,53 @@ const ACT = {
     if(!any){ toast('Nothing filled in.'); return; }
     sync.enqueueBw(e); render(); sync.flushQueue();
   },
-  savecfg: () => { save(); setSync('', 'saved'); sync.flushQueue({ quiet:true }).then(render); },
+  savecfg: () => { save(); mode(); setSync('', 'saved'); sync.flushQueue({ quiet:true }).then(render); },
+
+  acSend: async () => {
+    const email = (ui.ac.email || cloud.email()).trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ acSay('Enter your email address first.', 'bad'); render(); return; }
+    ui.ac.email = email; ui.ac.busy = true; acSay('Sending…'); render();
+    try{ await cloud.requestCode(email); ui.ac.sent = true; ui.ac.code = ''; acSay('Code sent to ' + email + '. It can take a minute; check spam too.', 'ok'); }
+    catch(e){ acSay(explain(e), 'bad'); }
+    ui.ac.busy = false; render();
+  },
+  acVerify: async () => {
+    const code = String(ui.ac.code || '').replace(/\D/g, '');
+    if(code.length < 6){ acSay('Enter the 6-digit code from the email.', 'bad'); render(); return; }
+    ui.ac.busy = true; acSay('Checking…'); render();
+    try{
+      const who = await cloud.verifyCode(ui.ac.email || cloud.email(), code);
+      claimStorage(S, sync.cfgOk()); save();
+      if(mode() === 'account') setSync('ok', 'signed in');
+      ui.ac = { email:'', code:'', sent:false, busy:false, msg:'', cls:'' };
+      if(who.foreign){ acSay('Signed in, but nothing on this phone will be uploaded: it belongs to another account.', 'bad'); render(); return; }
+      acSay('Signed in. New sessions now also go to your account.', 'ok');
+      render();
+      adoptGithubQueue();
+      await cloud.flushQueue({ quiet:true });
+      if(mode() === 'account' && !S.history.length) await cloud.pullHistory();
+    }catch(e){ ui.ac.busy = false; acSay(explain(e), 'bad'); }
+    softRender();
+  },
+  acReset: () => { ui.ac = { email:'', code:'', sent:false, busy:false, msg:'', cls:'' }; render(); },
+  acImport: async () => {
+    if(cloud.foreign()){ acSay(explain(cloud.lastError() || { code:'foreign', message:'This phone holds another account’s data. Nothing was copied.' }), 'bad'); render(); return; }
+    const list = rawAll();
+    if(!list.length){ acSay('There are no sessions on this phone to copy.', ''); render(); return; }
+    ui.ac.busy = true; acSay('Copying ' + list.length + ' sessions…'); render();
+    try{
+      const r = await cloud.importHistory(list);
+      const err = cloud.lastError();
+      acSay(r.held ? 'Copied ' + r.saved + ' of ' + r.total + ' sessions. ' + r.held + ' are held on this phone and are sent on the next try. ' + (err ? explain(err) : '')
+        : 'Copied all ' + r.total + ' sessions to your account.', r.held ? 'bad' : 'ok');
+    }catch(e){ acSay(explain(e), 'bad'); }
+    ui.ac.busy = false; render();
+  },
+  acSignOut: () => {
+    const held = cloudQ().length;
+    if(!confirm('Sign out of your account? Everything stays on this phone' + (held ? ', including ' + held + ' session' + (held > 1 ? 's' : '') + ' not yet sent' : '') + '.')) return;
+    cloud.signOut(); ui.cloudStatus = null; acSay('Signed out. Nothing on this phone was removed.', ''); render();
+  },
   test: async () => {
     save();
     try{
@@ -1157,7 +1333,7 @@ const ACT = {
     }catch(e){ setSync('bad', 'failed'); alert('Failed: ' + e.message); }
   },
   export: () => {
-    const blob = new Blob([JSON.stringify({ history:S.history, bw:S.bw, queue:S.queue, bwQueue:S.bwQueue, draft:S.draft, corrupt:corruptBackups() }, null, 2)], { type:'application/json' });
+    const blob = new Blob([JSON.stringify({ history:S.history, bw:S.bw, queue:S.queue, bwQueue:S.bwQueue, cloudQueue:cloudQ(), draft:S.draft, corrupt:corruptBackups() }, null, 2)], { type:'application/json' });
     const u = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = u; a.download = 'ledger-backup-' + today() + '.json'; a.click(); URL.revokeObjectURL(u);
   }
@@ -1166,7 +1342,9 @@ const ACT = {
 const INPUT = {
   exnote: el => { S.draft.exercises[+el.dataset.i].note = el.value; save(); },
   shval: el => { if(ui.sheet) ui.sheet.v[el.dataset.k] = num(el.value); },
-  notes: el => { S.draft.notes = el.value; save(); }
+  notes: el => { S.draft.notes = el.value; save(); },
+  acEmail: el => { ui.ac.email = el.value; },
+  acCode: el => { ui.ac.code = el.value; }
 };
 const CHANGE = {
   findate: el => {
@@ -1179,7 +1357,7 @@ const CHANGE = {
     else if(k === 'priorPinches'){ const n = parseInt(el.value, 10); S.settings[k] = Number.isFinite(n) && n >= 0 ? n : null; }
     else if(k === 'bands') S.settings.bands = el.value.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
     else S.settings[k] = el.value.trim();
-    save();
+    save(); mode();
   },
   cfgbool: el => { S.settings[el.dataset.k] = el.checked; save(); if(el.dataset.k === 'wakeLock') syncWake(); }
 };
@@ -1194,9 +1372,10 @@ document.addEventListener('input', e => { const f = e.target.dataset && e.target
 document.addEventListener('change', e => { const f = e.target.dataset && e.target.dataset.f; if(f && CHANGE[f]) CHANGE[f](e.target); });
 
 /* ---------------------------------------------------------------- boot */
+mode();
 save();
-const pending = S.queue.length + S.bwQueue.length;
-setSync(pending ? 'pending' : '', pending ? pending + ' pending' : (sync.cfgOk() ? 'ready' : 'no token'));
+const pending = S.queue.length + S.bwQueue.length + (accountOwns() ? cloudQ().length : 0);
+setSync(pending ? 'pending' : '', pending ? pending + ' pending' : (sync.cfgOk() || (mode() === 'account' && cloud.signedIn()) ? 'ready' : 'no token'));
 render();
 try{
   if(navigator.storage && navigator.storage.persist){
@@ -1204,8 +1383,10 @@ try{
       .then(p => { ui.persist = p ? 'persistent' : 'best-effort'; if(ui.tab === 'settings') softRender(); }).catch(() => { ui.persist = 'best-effort'; });
   } else ui.persist = 'best-effort';
 }catch(e){ ui.persist = 'best-effort'; }
-if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length) return sync.pullHistory(); }).then(softRender);
-window.addEventListener('online', () => sync.flushQueue({ quiet:true }));
+if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length || S.adoptPending) return pullGithub(); }).then(softRender);
+adoptGithubQueue();
+if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(() => { if(mode() === 'account' && !S.history.length) return cloud.pullHistory(); }).then(softRender);
+window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()) cloud.flushQueue({ quiet:true }); });
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
