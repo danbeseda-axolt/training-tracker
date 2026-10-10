@@ -10,7 +10,7 @@
 :root{
   --bg:#f7f7f8; --panel:#fff; --line:#e2e4e7; --text:#16181b; --dim:#63686e;
   --accent:#2f6df6; --ok:#177a47; --on-ok:#fff; --warn:#7d5a00; --bad:#c0392b; --chip:#eef0f3;
-  --scrim:rgba(10,12,14,.45); --hdr:52px; --bar:64px; --nav:56px; --rir:100px; --next:64px;
+  --scrim:rgba(10,12,14,.45); --hdr:52px; --bar:84px; --nav:56px; --rir:100px; --next:64px;
   --rirH:0px; --nextH:0px;
   --safe-b:env(safe-area-inset-bottom); --safe-t:env(safe-area-inset-top);
 }
@@ -99,6 +99,9 @@ textarea{min-height:90px; resize:vertical}
 .setrow.done .tick{background:var(--ok); border-color:var(--ok); color:var(--on-ok)}
 .setrow.legacy .tick{background:var(--chip); border-color:var(--line); color:var(--ok)}
 .exfoot{display:flex; gap:8px; margin-top:4px}
+.exnote{margin:6px 0 2px}
+button.exnote{display:block; width:100%; min-height:44px; text-align:left; padding:8px 12px; border:1px dashed var(--line); border-radius:10px; background:none; color:var(--dim); font-size:14px}
+.formlink{color:var(--accent); font-weight:600; text-decoration:none}
 .exfoot button{flex:1; min-height:44px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:14.5px}
 .exline{display:flex; align-items:center; gap:8px; width:100%; min-height:56px; border:none; background:none; text-align:left; padding:0 4px; font-size:15.5px}
 .card.collapsed{padding:0 8px}
@@ -112,10 +115,12 @@ textarea{min-height:90px; resize:vertical}
 #tabs button.on{color:var(--accent); font-weight:650}
 #bar{position:fixed; left:0; right:0; bottom:0; z-index:25; background:var(--panel); border-top:1px solid var(--line); padding-bottom:var(--safe-b)}
 .barin{display:flex; align-items:center; gap:8px; height:var(--bar); padding:0 12px}
-#barT{min-width:96px; min-height:48px; border:none; background:none; text-align:left; font-size:24px; font-weight:650; font-variant-numeric:tabular-nums; padding:0 4px}
-#barT small{display:block; font-size:11px; font-weight:400; color:var(--dim); line-height:1}
+/* The timer is read from arm's length between sets, so it is the biggest
+   thing on the bar. */
+#barT{min-width:150px; min-height:64px; border:none; background:none; text-align:left; font-size:44px; font-weight:700; font-variant-numeric:tabular-nums; padding:0 4px; line-height:1}
+#barT small{display:block; font-size:13px; font-weight:500; color:var(--dim); line-height:1.2}
 #barT.over{color:var(--ok)}
-#plus30{min-width:56px; min-height:48px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:14px}
+#plus30{min-width:64px; min-height:56px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:16px; font-weight:600}
 #finBtn{width:120px; min-height:48px; border-radius:12px; border:none; background:var(--accent); color:#fff; font-weight:650; font-size:16px; margin-left:auto}
 /* The next set's ✓, in thumb reach at the bottom of the screen. */
 #nextSet{display:flex; align-items:center; gap:10px; width:calc(100% - 24px); height:56px; margin:8px 12px 0; padding:0 14px; border:none; border-radius:12px; background:var(--ok); color:var(--on-ok); text-align:left; font-size:17px; font-weight:650; font-variant-numeric:tabular-nums; overflow:hidden}
@@ -123,7 +128,7 @@ textarea{min-height:90px; resize:vertical}
 #nextSet .nx{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 #nextSet small{display:block; font-size:12px; font-weight:500; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 #nextSet .ck{font-size:24px}
-.shrest{font-size:14px; font-weight:600; color:var(--dim); font-variant-numeric:tabular-nums}
+.shrest{font-size:22px; font-weight:700; color:var(--dim); font-variant-numeric:tabular-nums}
 .shrest.over{color:var(--ok)}
 #rirRow{border-bottom:1px solid var(--line); padding:6px 12px 10px}
 #rirRow.last{border-top:2px solid var(--accent); background:rgba(47,109,246,.07)}
@@ -208,9 +213,9 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-8';
-import { makeSync } from './sync.js?v=5-8';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-8';
+import * as E from './engine.js?v=5-9';
+import { makeSync } from './sync.js?v=5-9';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-9';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -355,7 +360,7 @@ if(S.draft){
 }
 
 /* ---------------------------------------------------------------- ui state */
-const ui = { tab:'log', open:new Set(), info:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
+const ui = { tab:'log', open:new Set(), info:new Set(), note:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
   cloudStatus:null, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' } };
 
 function toast(msg, undo){
@@ -546,6 +551,13 @@ function targetLine(ex){
   return parts.join(' · ');
 }
 
+/* A YouTube search rather than one fixed video: it works for every exercise,
+   swaps included, and never goes dead. */
+function formVideo(name){
+  const q = name.replace(/\(superset\)/i, '').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q + ' exercise form tutorial');
+}
+
 function exCard(ex, i, cur, aH){
   const w = ex.sets.filter(s => !s.warmup);
   const planned = w.filter(s => s.state === 'planned').length;
@@ -573,9 +585,14 @@ function exCard(ex, i, cur, aH){
         : '<p>No previous data: nothing to progress from yet.</p>')
       + (ex.rec ? '<p><span class="pill">' + esc(ex.rec.rule) + '</span>' + esc(ex.rec.why) + '</p>' : '')
       + (pb ? '<p>' + topKg + ' kg = <b>' + esc(pb) + '</b></p>' : '')
-      + '<label>Note</label><input data-f="exnote" data-i="' + i + '" value="' + esc(ex.note || '') + '" placeholder="cues, pain, variation, how it felt">'
+      + '<p><a class="formlink" href="' + esc(formVideo(ex.n)) + '" target="_blank" rel="noopener">▶ Watch form on YouTube</a></p>'
       + '</div>';
   }
+  /* The note sits on the card, not inside ⓘ, so it can be written mid-session. */
+  if(ui.note.has(i))
+    h += '<input class="exnote" data-f="exnote" data-i="' + i + '" value="' + esc(ex.note || '') + '" placeholder="Note: cues, pain, variation, how it felt">';
+  else if(ex.note)
+    h += '<button class="exnote shown" data-act="noteOpen" data-i="' + i + '">✎ ' + esc(ex.note) + '</button>';
   let wn = 0;
   ex.sets.forEach((st, j) => {
     const done = st.state !== 'planned', legacy = st.state === 'legacy';
@@ -589,6 +606,7 @@ function exCard(ex, i, cur, aH){
   if(!started && ex.kind === 'weight' && E.loadOf(ex) === 'kg' && ex.sets.filter(s => s.warmup).length < 3)
     foot.push('<button data-act="warm" data-i="' + i + '">+ Warm-up</button>');
   if(planned) foot.push('<button data-act="bulk" data-i="' + i + '">All as shown ✓</button>');
+  if(!ex.note && !ui.note.has(i)) foot.push('<button data-act="noteOpen" data-i="' + i + '">+ Note</button>');
   if(ui.open.has(i) && i !== cur) foot.push('<button data-act="collapse" data-i="' + i + '">Hide</button>');
   if(foot.length) h += '<div class="exfoot">' + foot.join('') + '</div>';
   return h + '</div>';
@@ -1011,7 +1029,7 @@ function backToFinish(){
 }
 
 function endSession(){
-  S.draft = null; ui.sheet = null; ui.rir = null; ui.finishBack = null; ui.open.clear(); ui.info.clear();
+  S.draft = null; ui.sheet = null; ui.rir = null; ui.finishBack = null; ui.open.clear(); ui.info.clear(); ui.note.clear();
   stopRest(); releaseWake();
 }
 
@@ -1031,7 +1049,7 @@ const ACT = {
     const deload = E.isLiftKey(key) && E.deloadCheck(aH, S.bw, S.settings, today()).fire;
     const d = E.newSession(key, aH, today(), nowIso(), deload);
     d.id = newId();
-    S.draft = d; ui.open.clear(); ui.info.clear(); ui.rir = null;
+    S.draft = d; ui.open.clear(); ui.info.clear(); ui.note.clear(); ui.rir = null;
     save(); window.scrollTo(0, 0); render();
   },
   discard: () => {
@@ -1041,6 +1059,7 @@ const ACT = {
   expand: el => { ui.open.add(+el.dataset.i); render(); },
   collapse: el => { ui.open.delete(+el.dataset.i); render(); },
   info: el => { const i = +el.dataset.i; ui.info.has(i) ? ui.info.delete(i) : ui.info.add(i); render(); },
+  noteOpen: el => { const i = +el.dataset.i; ui.note.add(i); render(); const t = $('input.exnote[data-i="' + i + '"]'); if(t) t.focus(); },
   exmenu: el => { ui.sheet = { type:'exmenu', i:+el.dataset.i }; renderSheet(); },
 
   tickNext: () => {
@@ -1169,7 +1188,7 @@ const ACT = {
   delex: el => {
     const i = +el.dataset.i, ex = S.draft.exercises[i], d = S.draft;
     d.exercises.splice(i, 1);
-    ui.sheet = null; ui.open.clear(); ui.info.clear(); if(ui.rir) ui.rir = null;
+    ui.sheet = null; ui.open.clear(); ui.info.clear(); ui.note.clear(); if(ui.rir) ui.rir = null;
     save(); render();
     toast('Deleted ' + ex.n, () => { if(S.draft === d){ d.exercises.splice(Math.min(i, d.exercises.length), 0, ex); save(); render(); } });
   },

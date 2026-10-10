@@ -1,6 +1,6 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-07 (v5, build 5-8: the winter strength plan plus account mode beta)
+**As of:** 2026-10-10 (v5, build 5-9: the winter strength plan plus account mode beta)
 
 Phone-first training log, built to be used one-handed in the gym. **The GitHub
 repo is the source of truth**; the phone holds a cache and a queue of anything
@@ -22,6 +22,20 @@ observation when Finish was pressed.
 v5 separates the two. A set is **planned** (a target, shown grey) until Dan
 confirms it, and only confirmed sets count for anything. The logging screen
 was rebuilt around that one tap.
+
+## What changed on 2026-10-10 (build 5-9): gym-floor fixes
+
+Dan, 2026-10-10: the rest timer was too small to read mid-workout; he wanted a
+form video for every exercise and a note on every exercise.
+
+- **Rest timer** is 44 px (was 24) and the bar is 84 px tall; the copy on the
+  set sheet is 22 px. Checked at 360 px wide: no overflow.
+- **ⓘ → "Watch form on YouTube"** on every exercise. It is a YouTube search
+  for the exercise name, not a curated video: it covers swaps and never goes
+  dead. Curated links (spec S6) can replace it per exercise later.
+- **Exercise note** moved out of ⓘ onto the card: "+ Note" in the footer, and a
+  saved note shows as a line on the card (tap to edit). Same `note` field in
+  the session file, so nothing changes in storage.
 
 ## What changed on 2026-10-04 (build 5-6): the winter strength plan
 
