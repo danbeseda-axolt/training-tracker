@@ -238,7 +238,9 @@ test('the next set\'s ✓, bulk undo, re-rating from Finish and "It happened" ar
 /* ------------------------------------------------------ privacy */
 test('no health history ships in the public tracker; the pinch count comes from Settings', () => {
   const pub = readdirSync(ROOT).filter(f => /\.(js|html|md|json)$/.test(f)).map(f => path.join(ROOT, f))
-    .concat(readdirSync(path.join(ROOT, 'dev')).map(f => path.join(ROOT, 'dev', f)));
+    .concat(readdirSync(path.join(ROOT, 'dev')).filter(f => f !== 'fixtures').map(f => path.join(ROOT, 'dev', f)))
+    /* The frozen fixtures are public too: scanned the same way. */
+    .concat(readdirSync(path.join(ROOT, 'dev', 'fixtures')).map(f => path.join(ROOT, 'dev', 'fixtures', f)));
   for (const f of pub) {
     if (f.endsWith('regressions.test.mjs')) continue;
     assert.doesNotMatch(readFileSync(f, 'utf8'), /30 Aug is unresolved|lumbar|two are on record|PRIOR_PINCHES|two one-sided/i, f);

@@ -132,6 +132,20 @@ export function redactSecrets(raw) {
     .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[removed]');
 }
 
+/* Everything on the phone that belongs to the person signed in, not to the
+   phone: their programme (and whether it is held / whose it is), the coach
+   flag, half-answered questions, a code waiting to be typed. Cleared on an
+   explicit sign-out and whenever a different account takes the phone over. */
+export const PER_USER = ['programme', 'programmeDirty', 'programmeOwner', 'coach', 'onboard', 'signin'];
+/** @param {Obj} S */
+export function forgetUser(S) { for (const k of PER_USER) delete S[k]; return S; }
+/** Whose the cached programme is (pre-5-12 caches: the phone's owner). @param {Obj} S */
+export const progOwner = S => S.programmeOwner || (S.cloudOwner && S.cloudOwner.id) || null;
+/** @param {Obj} S */
+const clearProgramme = S => { delete S.programme; delete S.programmeDirty; delete S.programmeOwner; };
+/** a was saved later than b (both programmes; no stamp = oldest). @param {Obj} a @param {Obj} b */
+export const newer = (a, b) => !!(a && a.updatedAt) && (!(b && b.updatedAt) || String(a.updatedAt) > String(b.updatedAt));
+
 /* Plain words for what went wrong, with what to do next. */
 /** @param {any} e */
 export function explain(e) {
@@ -154,8 +168,11 @@ export function explain(e) {
  * ownsHistory: true when the account, not GitHub, is where history comes
  * from (no GitHub configured). Only then does a confirmed write or a pull
  * change history; otherwise GitHub stays the source, as before.
+ * checkProgramme: returns a clean programme or throws (the page passes
+ * engine's normaliseProgramme; this module imports nothing).
  */
-export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.now(), ownsHistory = () => true, url = SUPABASE_URL, key = SUPABASE_KEY }) {
+export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.now(), ownsHistory = () => true, url = SUPABASE_URL, key = SUPABASE_KEY,
+                            checkProgramme = (/** @type {any} */ p) => { if (!p || typeof p !== 'object' || !Array.isArray(p.days)) throw new Error('programme: not an object'); return p; } }) {
   /** @type {Set<string>} */
   const inflight = new Set();
   /** @type {Promise<void>|null} */
@@ -271,6 +288,9 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     /* Whoever signs in first owns what the phone holds. Another account is
        adopted only when there is nothing on the phone to mix up. */
     if (!st.cloudOwner || (st.cloudOwner.id !== id && !st.cloudQueue.length && !st.history.length && !(st.queue || []).length)) {
+      /* A different account takes the phone over: nothing of the last one's
+         programme, coach flag or answers stays. */
+      if ((st.cloudOwner && st.cloudOwner.id !== id) || (st.programmeOwner && st.programmeOwner !== id)) forgetUser(st);
       st.cloudOwner = { id, email: mail }; save();
     }
     const isForeign = foreign();
@@ -316,7 +336,11 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     }
     return res;
   }
-  function signOut() { dropTokens(); status('', 'signed out'); }
+  /* An explicit sign-out also forgets the person's programme and answers, so
+     the next account on this phone never sees or sends them. Sessions and
+     the queue stay, as before. (A refused refresh is not a sign-out: it only
+     drops the tokens.) */
+  function signOut() { dropTokens(); forgetUser(S()); save(); status('', 'signed out'); }
 
   /** The user id the token was issued for. */
   function userId() {
@@ -494,8 +518,128 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     return { total: items.length, saved: items.length - held, held };
   }
 
+  /* ------------------------------------------------------------ programme */
+  /* The user's programme lives in their profiles row: settings.programme (the
+     JSON), programme_key (its id). No migration: settings is jsonb. The phone
+     keeps the copy the engine runs on in S.programme; S.programmeDirty marks
+     a change made here and not yet confirmed by the server, so a pull never
+     overwrites it and the next sync sends it. Same guarantees as sessions:
+     only 200/201/204 counts, signed out or another account holds it. */
+  const ready = () => {
+    if (!signedIn()) throw httpError(401, { error_code: 'signed_out', msg: 'signed out' });
+    if (foreign()) throw foreignError();
+    const uid = userId();
+    if (!uid) throw httpError(0, { error_code: 'no_user', msg: 'no user id' });
+    return uid;
+  };
+  /** The profile row, or null when the user has none yet. @param {string} uid */
+  async function getProfile(uid) {
+    const res = await authed('/rest/v1/profiles?select=programme_key,settings&id=eq.' + encodeURIComponent(uid));
+    if (res.status !== 200) throw httpError(res.status, await bodyOf(res));
+    const rows = await res.json();
+    return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  }
+
+  /* The server's programme, checked. Cached on the phone unless a local
+     change is still waiting to go up. Null when the account has none (the
+     phone's copy, if any, is kept). An unreadable one is not cached. */
+  async function pullProgramme() {
+    const uid = ready();
+    const row = await getProfile(uid);
+    const raw = row && row.settings && typeof row.settings === 'object' ? row.settings.programme : null;
+    const st = S();
+    /* Dan's own account: programme_key 'coach' and no programme JSON means the
+       coach programme in the code. Re-derived on every pull, so it never
+       sticks to a phone after another account signs in. */
+    if (!raw && row && row.programme_key === 'coach') st.coach = true; else delete st.coach;
+    /* The phone's copy counts only if it is this user's: a held change of
+       theirs waits to go up; anyone else's is dropped, never shown or sent. */
+    const mine = !!st.programme && progOwner(st) === uid;
+    if (!mine) clearProgramme(st);
+    const held = mine && !!st.programmeDirty;
+    if (!raw) { if (!held) clearProgramme(st); save(); return null; }
+    save();
+    const p = checkProgramme(raw);
+    /* Two phones: a held change is kept unless the account's copy is newer. */
+    if (held && !newer(p, st.programme)) return p;
+    st.programme = p; st.programmeOwner = uid; delete st.programmeDirty; save();
+    return p;
+  }
+
+  /** @type {Promise<boolean>|null} */
+  let progRunning = null;
+  let progRerun = false;
+  /* Sends the phone's programme. The other keys in settings are kept: the row
+     is read first and only settings.programme is replaced. An upsert, so the
+     first save creates the row. One at a time; a call during one runs again
+     after it, so the newest programme is the last one sent. */
+  function pushProgramme() {
+    if (progRunning) { progRerun = true; return progRunning; }
+    const p = (async () => {
+      let ok = false;
+      do {
+        progRerun = false;
+        const st = S(), sent = st.programme;
+        if (!sent) return false;
+        const uid = ready();
+        /* Never send a programme cached for another user to this user's row. */
+        if (progOwner(st) !== uid) throw httpError(403, { error_code: 'foreign', msg: 'This programme belongs to another account. It is not sent.' });
+        const row = await getProfile(uid);
+        const cur = row && row.settings && typeof row.settings === 'object' && !Array.isArray(row.settings) ? row.settings : {};
+        /* Another phone saved a newer programme meanwhile: keep that one and
+           drop this phone's older change, rather than overwrite it silently. */
+        if (cur.programme && newer(cur.programme, sent)) {
+          let theirs = null;
+          try { theirs = checkProgramme(cur.programme); } catch (e) { /* unreadable: ours replaces it */ }
+          if (theirs) {
+            if (S().programme === sent) { st.programme = theirs; st.programmeOwner = uid; delete st.programmeDirty; save(); }
+            lastError = httpError(409, { error_code: 'superseded', msg: 'A newer programme from another phone was kept.' });
+            ok = true;
+            continue;
+          }
+        }
+        const res = await authed('/rest/v1/profiles?on_conflict=id', {
+          method: 'POST', headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+          body: [{ id: uid, programme_key: sent.id, settings: { ...cur, programme: sent } }]
+        });
+        if (res.status !== 200 && res.status !== 201 && res.status !== 204) throw httpError(res.status, await bodyOf(res));
+        if (S().programme === sent) { delete S().programmeDirty; save(); }
+        ok = true;
+      } while (progRerun);
+      return ok;
+    })();
+    progRunning = p;
+    p.finally(() => { if (progRunning === p) progRunning = null; }).catch(() => {});
+    return p;
+  }
+
+  /* Sets the programme on this phone now (the engine can use it at once) and
+     sends it when it can. Resolves true when the server has it, false when it
+     is held (signed out, offline, another account); never rejects for that.
+     Throws only for a programme that fails the check. */
+  /** @param {Obj} prog */
+  async function setProgramme(prog) {
+    const p = checkProgramme(prog);
+    p.updatedAt = new Date(now()).toISOString();
+    const st = S();
+    st.programme = p; st.programmeDirty = true; st.programmeOwner = currentOwner(); save();
+    try { return await pushProgramme(); }
+    catch (e) { lastError = e; return false; }
+  }
+
+  /* On open or after sign-in: a held local change goes up; otherwise the
+     server's copy comes down. Resolves to the programme in use, or null. */
+  async function syncProgramme() {
+    try {
+      if (S().programmeDirty) await pushProgramme();
+      else await pullProgramme();
+    } catch (e) { lastError = e; }
+    return S().programme || null;
+  }
+
   return {
     requestCode, verifyCode, signOut, signedIn, refresh, pushSession, pullSessions, pullHistory,
+    pullProgramme, pushProgramme, setProgramme, syncProgramme,
     importHistory, enqueue, adoptItems, flushQueue, userId, inUse, foreign, ownerId: () => currentOwner(),
     owner: () => S().cloudOwner || null,
     email: () => { const a = auth(); return a ? (a.user && a.user.email) || a.signedOutEmail || '' : ''; },

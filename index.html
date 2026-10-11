@@ -68,7 +68,7 @@ textarea{min-height:90px; resize:vertical}
 .btn{min-height:48px; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:15px}
 .btn.primary,.big.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
 .btn.danger{color:var(--bad)}
-.btn[disabled]{opacity:.45; cursor:default}
+.btn[disabled],.big[disabled],.rowbtn[disabled]{opacity:.45; cursor:default}
 .w100{width:100%}
 .big{display:block; width:100%; min-height:56px; border-radius:12px; border:1px solid var(--line); font-size:17px; margin:4px 0 8px; padding:10px 14px}
 .rowbtn{display:flex; align-items:center; gap:10px; width:100%; min-height:56px; text-align:left; padding:8px 14px; background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:8px}
@@ -176,6 +176,41 @@ button.exnote{display:block; width:100%; min-height:44px; text-align:left; paddi
 .hdet .row .btn{min-height:44px; flex:1}
 .hdet .row .btn + .btn{margin-left:8px}
 
+/* ---- onboarding, programme, library (friends only) */
+body.friend{--rir:136px}
+.qbar{display:flex; gap:4px; margin:4px 0 14px}
+.qbar span{flex:1; height:4px; border-radius:2px; background:var(--line)}
+.qbar span.on{background:var(--accent)}
+.qh{font-size:20px; line-height:1.3; margin:4px 0 10px}
+.rowbtn.q{min-height:64px}
+.rowbtn.q.on,.rowbtn.q.sel{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.rowbtn.q:active{background:var(--chip)}
+.rowbtn .ck{font-size:20px; color:var(--accent); min-width:24px; text-align:right}
+.lines2{display:block; font-size:13px; font-weight:500; opacity:.85}
+.codein{text-align:center; font-size:22px; letter-spacing:8px; min-height:56px; font-variant-numeric:tabular-nums}
+.build{padding:40px 8px}
+.build .sub{font-size:15px; margin:8px 0}
+.prow{display:flex; align-items:center; gap:8px; border-top:1px solid var(--line); padding:6px 0}
+.prow .pmain{flex:1; min-width:0; min-height:56px; border:none; background:none; text-align:left; padding:4px 0}
+.prow .btn{min-height:44px; padding:6px 14px}
+.pbar{position:fixed; left:0; right:0; bottom:0; z-index:25; background:var(--panel); border-top:1px solid var(--line); padding:8px 12px calc(4px + var(--safe-b))}
+.pbar .big{margin:0}
+body.pbarOn main{padding-bottom:calc(150px + var(--safe-b))}
+.alt{display:flex; align-items:stretch; gap:6px; margin-bottom:8px}
+.alt .rowbtn{margin:0; flex-direction:column; align-items:flex-start; gap:2px}
+.alt .ib{border:1px solid var(--line); height:auto; min-height:56px; text-decoration:none; display:flex; align-items:center; justify-content:center}
+.alt .ib.off{opacity:.4}
+.libdet{border:1px solid var(--line); border-top:none; border-radius:0 0 12px 12px; margin:-10px 0 8px; padding:10px 12px; background:var(--panel)}
+.libdet .btn{margin-top:6px}
+.strip{display:flex; gap:10px; margin-top:6px; overflow-x:auto}
+.wk{display:flex; flex-direction:column; align-items:flex-start; gap:2px}
+.wk .segs{display:flex; gap:3px; padding:2px; border-radius:4px}
+.wk.cur .segs{outline:1px solid var(--dim)}
+.seg{width:10px; height:16px; border-radius:2px; border:1px solid var(--line)}
+.seg.on{background:var(--ok); border-color:var(--ok)}
+.seg.todo{border-style:dashed}
+.wk small{font-size:11px; color:var(--dim)}
+
 #toast{position:fixed; left:12px; right:12px; z-index:35; bottom:calc(var(--nav) + var(--safe-b) + 10px); background:var(--text); color:var(--bg); border-radius:12px; padding:6px 6px 6px 14px; display:flex; align-items:center; gap:8px; font-size:14.5px; max-width:616px; margin:0 auto}
 body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe-b) + 10px)}
 #toast button{min-height:44px; min-width:64px; border:none; border-radius:9px; background:transparent; color:var(--accent); font-weight:700}
@@ -184,6 +219,7 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <body>
 
 <header>
+  <button class="ib" id="backBtn" data-act="back" aria-label="Back" hidden>‹</button>
   <h1 id="title">Ledger</h1>
   <span id="datechip" hidden></span>
   <span id="sync">–</span>
@@ -213,9 +249,11 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-9';
-import { makeSync } from './sync.js?v=5-9';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-9';
+import * as E from './engine.js?v=5-13';
+import { makeSync } from './sync.js?v=5-13';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-13';
+import * as L from './library.js?v=5-13';
+import * as G from './programme.js?v=5-13';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -307,6 +345,7 @@ function pullGithub(){
 const cloud = makeCloud({
   fetch: (u, i) => fetch(u, i), getState: () => S, save,
   ownsHistory: () => mode() === 'account',
+  checkProgramme: raw => checkProg(raw),
   onStatus: (c, m) => { ui.cloudStatus = [c, m]; if(mode() === 'account') setSync(c, m); if(c !== 'pending') softRender(); }
 });
 const cloudQ = () => S.cloudQueue || [];
@@ -350,6 +389,66 @@ const dir = () => sync.dir();
 const aHist = () => E.analysisHistory(S.history, pend());
 const merged = () => E.mergedHistory(S.history, pend());
 
+/* ---------------------------------------------------------------- who sees what */
+/* A friend's own programme (generated from the five answers). Never on a
+   GitHub phone and never on Dan's coach account, whatever is cached: those
+   run the coach programme in engine.js exactly as before. */
+/* Any programme the page runs is checked twice: the engine's shape check,
+   then against its own answers (G.audit: every exercise still in the
+   library and still suitable, e.g. nothing hard on a joint the person said
+   hurts). A programme that fails is not run; the person sets it up again. */
+function checkProg(raw){
+  const n = E.normaliseProgramme(raw);
+  const bad = G.audit(n, L);
+  if(bad.length){ ui.badProg = raw; throw new Error('programme: ' + bad[0]); }
+  return n;
+}
+let progMemo = { raw: undefined, owner: undefined, me: undefined, val: null };
+function P(){
+  if(S.storage === 'github' || S.coach || !S.programme) return null;
+  /* Only the signed-in person's own programme (or, signed out, the last one
+     signed in on this phone): never another account's cached copy. */
+  const owner = S.programmeOwner || (S.cloudOwner && S.cloudOwner.id) || null;
+  const me = cloud.signedIn() ? cloud.userId() : (S.cloud && S.cloud.lastUserId) || owner;
+  if(progMemo.raw !== S.programme || progMemo.owner !== owner || progMemo.me !== me){
+    let val = null;
+    if(!(owner && me && owner !== me)) try{ val = checkProg(S.programme); }catch(e){ val = null; }
+    progMemo = { raw: S.programme, owner, me, val };
+  }
+  return progMemo.val;
+}
+/* Swaps and the library need readable answers and slot info on every exercise. */
+const canEdit = () => { const p = P(); return !!p && G.editable(p, L); };
+/* The friends' app: not a GitHub phone, not Dan's coach account. */
+const friend = () => S.storage !== 'github' && mode() !== 'github' && !S.coach;
+/* A friend's phone, signed in, with no programme yet: the questions (or
+   loading it). Signed out, the start page instead (G.entryScreen). */
+const needsProgramme = () => friend() && mode() === 'account' && cloud.signedIn() && !P() && !S.draft;
+/* Which full screen replaces the tabs, if any: G.entryScreen (pure, tested). */
+function screen(){
+  return G.entryScreen({ building: ui.building, storage: S.storage, mode: mode(), coach: !!S.coach, draft: S.draft,
+    retake: !!(S.onboard && S.onboard.retake), programme: !!P(), signedIn: cloud.signedIn(), githubOk: sync.cfgOk(),
+    hasData: [S.history, S.queue, S.bw, S.bwQueue].some(a => Array.isArray(a) && a.length), progLoad: ui.progLoad });
+}
+const genSession = d => !!d && E.isGeneratedKey(d.key) && !!P();
+const libByName = new Map(L.EXERCISES.map(e => [e.n, e]));
+const libById = new Map(L.EXERCISES.map(e => [e.id, e]));
+/* Saved sessions from any generated programme, for the first-session hints. */
+const genDone = () => merged().filter(s => s.programmeId).length;
+const online = () => navigator.onLine !== false;
+const rirLine = n => 'RIR ' + n + ': stop each set when you could still do ' + n + ' more good rep' + (n === 1 ? '' : 's') + '.';
+function equipText(a){
+  if(!a) return '';
+  const kit = [a.has && a.has.bar ? 'pull-up bar' : '', a.has && a.has.bands ? 'bands' : ''].filter(Boolean);
+  return G.PLACE_TEXT[a.place] + (a.place !== 'gym' && kit.length ? ' + ' + kit.join(' + ') : '');
+}
+function doseText(e){
+  const r = e.rep ? (e.rep[0] === e.rep[1] ? e.rep[0] : e.rep[0] + '–' + e.rep[1]) : null;
+  if(e.kind === 'time') return e.sets + ' × hold' + (e.seed && e.seed.seconds ? ' (start ~' + e.seed.seconds + ' s)' : '');
+  if(e.kind === 'distance') return e.sets + ' × ' + (e.dist || '?') + ' m';
+  return e.sets + ' × ' + (r ?? '?') + (e.rir != null ? ' · RIR ' + e.rir : '');
+}
+
 /* An edit opened by the v4 page carries no origin; its current path is the
    best evidence of where it came from. */
 if(S.draft){
@@ -361,7 +460,13 @@ if(S.draft){
 
 /* ---------------------------------------------------------------- ui state */
 const ui = { tab:'log', open:new Set(), info:new Set(), note:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
-  cloudStatus:null, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' } };
+  cloudStatus:null, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' },
+  /* friends: start page sign-in, programme load, build, pages */
+  si:{ step:'email', email:'', code:'', busy:false, err:null, until:0 }, progLoad:null, building:null,
+  page:null, pageFrom:null, pageBack:null, progOpen:new Set(), rirMore:false, libAll:false, libOpen:null, retakeArm:false, qPressed:null };
+/* A code asked for less than an hour ago: the start page opens on the code. */
+if(S.signin && S.signin.email && Date.now() - (S.signin.sentAt || 0) < 3600e3) Object.assign(ui.si, { step:'code', email:S.signin.email });
+else if(S.signin && S.signin.email) ui.si.email = S.signin.email;
 
 function toast(msg, undo){
   const el = $('#toast');
@@ -425,6 +530,14 @@ document.addEventListener('visibilitychange', () => { if(document.visibilityStat
 
 /* ---------------------------------------------------------------- render */
 function render(){
+  /* Friends' full screens (start page, questions, building) and pages (your
+     programme, library) replace the tabs. Dan's GitHub phone never gets here. */
+  const scr = screen();
+  if(scr || ui.page){ renderFriend(scr); return; }
+  document.body.classList.remove('pbarOn');
+  $('#backBtn').hidden = true; $('#sync').hidden = false;
+  document.body.classList.toggle('friend', friend());
+  $('#tabs [data-tab="body"]').hidden = friend();
   const d = S.draft, ses = ui.tab === 'log' && !!d;
   document.title = d ? 'Ledger · ' + d.name : 'Ledger';
   $('#title').textContent = ses ? d.name : 'Ledger';
@@ -476,7 +589,7 @@ function queueBanner(){
   return '<div class="banner warn">' + parts.join(' ') + ' Held on this phone.<div class="row"><button class="btn" data-act="retry">Retry now</button></div></div>';
 }
 function deloadBanner(aH){
-  const r = E.deloadCheck(aH, S.bw, S.settings, today());
+  const r = E.deloadCheck(aH, S.bw, S.settings, today(), P());
   if(!r.codes.length) return '';
   const list = r.codes.map(c => '<div class="hint">· ' + esc(c.t) + ' <span class="pill' + (c.sev === 'severe' ? ' bad' : c.sev === 'mod' ? ' warn' : '') + '">' + c.c + '</span></div>').join('');
   /* Only the next session started is set up as a deload automatically; the
@@ -498,7 +611,7 @@ function viewLog(){
   const aH = aHist();
   /* During a session the header pill carries sync state; the space goes to
      the exercise in hand. */
-  if(!S.draft) return noticeBanner() + tokenBanner() + queueBanner() + deloadBanner(aH) + pickerHTML(aH);
+  if(!S.draft) return noticeBanner() + tokenBanner() + queueBanner() + deloadBanner(aH) + (P() ? progPicker(aH) : pickerHTML(aH));
   const d = S.draft;
   let h = noticeBanner();
   if(isStale(d)) h += '<div class="banner warn"><b>Unfinished ' + esc(d.name) + ' from ' + esc(E.niceDate(d.date)) + '.</b> Finish it with what was done, or discard it.'
@@ -536,6 +649,45 @@ function pickerHTML(aH){
     h += '<button class="rowbtn" data-act="start" data-key="' + k + '"><span class="grow"><b>' + esc(t.name) + '</b>' + sub + '</span><span class="pill">' + esc(t.day) + '</span></button>';
   }
   return h;
+}
+
+/* A friend's Log: the next day in rotation, the week against perWeek, the
+   other days (UX R1 §2 day one and §3; spec Q2: no set days). */
+function progPicker(aH){
+  const p = P(), list = merged(), w = E.programmeWeek(p, list, today());
+  const day = E.programmeDay(p, w.next);
+  const deload = E.deloadCheck(aH, S.bw, S.settings, today(), p).fire;
+  const full = w.done >= w.target;
+  let h = '<button class="big' + (full ? '' : ' primary') + '" data-act="start" data-key="' + esc(w.next) + '">'
+    + (full ? 'Start another session' : 'Start today’s session') + '<span class="lines2">' + esc(day.name) + ' · ' + day.ex.length + ' exercises' + (deload ? ' · deload' : '') + '</span></button>';
+  if(!genDone()) h += '<div class="hint" style="margin:0 0 10px">First session: you choose the weights. Pick a weight you could lift 2–3 more times than the target. Tap ⓘ on an exercise to see what RIR means and watch the form.</div>';
+  h += onTrack(p, list, w);
+  const rest = p.days.filter(d => E.programmeKey(d) !== w.next);
+  if(rest.length) h += '<div class="sub" style="margin:4px 0 6px">Other sessions</div>'
+    + rest.map(d => '<button class="rowbtn" data-act="start" data-key="' + esc(E.programmeKey(d)) + '"><span class="grow"><b>' + esc(d.name) + '</b><br><span class="sub">' + d.ex.length + ' exercises</span></span></button>').join('');
+  return h;
+}
+/* "2 of 3 this week" and the last four weeks. Weeks before the programme
+   are not drawn, so they never read as missed. No red, no streaks. */
+function onTrack(p, list, w){
+  const n = w.target, wk = E.weekOf(today());
+  const lifts = list.filter(s => !s.deleted && E.isLiftKey(s.key));
+  const firstGen = lifts.filter(s => s.programmeId).map(s => s.date).sort()[0];
+  const startWk = E.weekOf([p.createdAt ? p.createdAt.slice(0, 10) : today(), firstGen || '9999'].sort()[0]);
+  const weeks = [-3, -2, -1, 0].map(k => E.addDays(wk, 7 * k)).filter(x => x >= startWk);
+  const count = x => lifts.filter(s => E.weekOf(s.date) === x).length;
+  const last = weeks.length > 1 ? count(weeks[weeks.length - 2]) : null;
+  let line2 = '';
+  if(w.done >= n) line2 = 'Week done. Next week starts Monday.';
+  else if(weeks.length === 1 && !w.done) line2 = 'Your first week';
+  else if(last === 0 && !w.done) line2 = 'Missed last week. Just start today’s session.';
+  const strip = weeks.map(x => {
+    const c = count(x), cur = x === wk;
+    return '<div class="wk' + (cur ? ' cur' : '') + '"><div class="segs">' + Array.from({ length:n }, (_, i) => '<span class="seg' + (i < c ? ' on' : cur ? ' todo' : '') + '"></span>').join('') + '</div>'
+      + '<small>' + (cur ? 'This week' : esc(E.niceDate(x).slice(4))) + '</small></div>';
+  }).join('');
+  return '<div class="card"><div style="font-weight:650' + (w.done >= n ? ';color:var(--ok)' : '') + '">' + w.done + ' of ' + n + ' this week' + (w.done >= n ? ' ✓' : '') + '</div>'
+    + (line2 ? '<div class="sub">' + esc(line2) + '</div>' : '') + '<div class="strip" aria-hidden="true">' + strip + '</div></div>';
 }
 
 function targetLine(ex){
@@ -577,7 +729,11 @@ function exCard(ex, i, cur, aH){
     const top = ex.sets.filter(s => !s.warmup).map(s => s.state === 'planned' ? (s.target && s.target.kg) : s.kg).filter(v => v != null);
     const topKg = top.length ? Math.max(...top) : null;
     const pb = ex.bar ? E.plateBreak(topKg, ex.bar) : null;
+    const gen = genSession(S.draft), lx = gen ? libByName.get(ex.n) : null;
     h += '<div class="info">'
+      + (gen && ex.tplRir != null ? '<p><b>' + esc(rirLine(ex.tplRir)) + '</b></p>' : '')
+      + (gen ? (lx && lx.form ? (online() ? '<a class="btn w100 row" style="text-decoration:none;color:inherit" href="' + esc(lx.form) + '" target="_blank" rel="noopener"><span class="grow">▶ Watch form</span><span class="sub">YouTube ↗</span></a>'
+          : '<button class="btn w100" disabled>▶ Watch form · needs internet</button>') : '') : '')
       + (ex.tplNote ? '<p>' + esc(ex.tplNote) + '</p>' : '')
       + (ex.substitutedFor ? '<p>Swapped in for <b>' + esc(ex.substitutedFor) + '</b></p>' : '')
       + (prev ? '<p>Last (' + esc(E.niceDate(prev.date)) + '): <b>' + esc(E.summarise(prev.ex)) + '</b></p>'
@@ -585,7 +741,7 @@ function exCard(ex, i, cur, aH){
         : '<p>No previous data: nothing to progress from yet.</p>')
       + (ex.rec ? '<p><span class="pill">' + esc(ex.rec.rule) + '</span>' + esc(ex.rec.why) + '</p>' : '')
       + (pb ? '<p>' + topKg + ' kg = <b>' + esc(pb) + '</b></p>' : '')
-      + '<p><a class="formlink" href="' + esc(formVideo(ex.n)) + '" target="_blank" rel="noopener">▶ Watch form on YouTube</a></p>'
+      + (gen && lx ? '' : '<p><a class="formlink" href="' + esc(formVideo(ex.n)) + '" target="_blank" rel="noopener">▶ Watch form on YouTube</a></p>')
       + '</div>';
   }
   /* The note sits on the card, not inside ⓘ, so it can be written mid-session. */
@@ -622,9 +778,13 @@ function renderRir(){
   if(!st){ ui.rir = null; el.hidden = true; return; }
   el.hidden = false;
   el.className = 'last';
-  el.innerHTML = '<div class="rirlab"><span class="grow">' + (ex.backoff ? 'Top set' : 'Last set') + ': reps left? <span class="sub">' + esc(ex.n) + '</span></span>'
+  /* Friends: the question in words, and for their first 3 sessions what the
+     ends of the scale mean. Dan's row is unchanged. */
+  const gen = genSession(d);
+  el.innerHTML = '<div class="rirlab"><span class="grow">' + (gen ? 'Last set: how many more good reps could you have done?' : (ex.backoff ? 'Top set' : 'Last set') + ': reps left?') + ' <span class="sub">' + esc(ex.n) + '</span></span>'
     + '<button class="ib" data-act="rirClose" aria-label="Skip">×</button></div><div class="chips">'
-    + [0, 1, 2, 3, 4].map(v => '<button class="chip" data-act="rir" data-v="' + v + '">' + (v === 4 ? '4+' : v) + '</button>').join('') + '</div>';
+    + [0, 1, 2, 3, 4].map(v => '<button class="chip" data-act="rir" data-v="' + v + '">' + (v === 4 ? '4+' : v) + '</button>').join('') + '</div>'
+    + (gen && genDone() < 3 ? '<div class="hint" style="margin-top:4px">0 = none, that was your limit · 4+ = it felt easy.</div>' : '');
 }
 
 /* The most frequent tap in a session, the next set's ✓, lives in the bottom
@@ -664,6 +824,7 @@ function renderSheet(){
   else if(s.type === 'exmenu') body = exMenuSheet(s);
   else if(s.type === 'date') body = dateSheet();
   else if(s.type === 'routines') body = routinesSheet();
+  else if(s.type === 'swap') body = swapSheet(s);
   else if(s.type === 'finish'){ body = finishSheet(s); full = true; }
   el.innerHTML = '<div class="scrim" data-act="closeSheet"></div><div class="panel' + (full ? ' full' : '') + '">' + (full ? '' : '<div class="grab"></div>') + body + '</div>';
   if(s.type === 'set') paintBar();
@@ -697,8 +858,10 @@ function setSheet(s){
   if(ex.kind === 'weight' || ex.kind === 'band'){
     const vals = [0, 1, 2, 3, 4];
     if(v.rir != null && !vals.includes(v.rir)) vals.push(v.rir);
-    h += '<label>RIR: reps left in the tank</label><div class="chips">' + vals.map(r =>
-      '<button class="chip' + (v.rir === r ? ' on' : '') + '" data-act="shrir" data-v="' + r + '">' + (r === 4 ? '4+' : r) + '</button>').join('') + '</div>';
+    const gen = genSession(S.draft);
+    h += '<label>' + (gen ? 'RIR: how many more good reps you could have done' : 'RIR: reps left in the tank') + '</label><div class="chips">' + vals.map(r =>
+      '<button class="chip' + (v.rir === r ? ' on' : '') + '" data-act="shrir" data-v="' + r + '">' + (r === 4 ? '4+' : r) + '</button>').join('') + '</div>'
+      + (gen ? '<div class="hint">0 = none left · 2 = could do 2 more · 4+ = easy</div>' : '');
   }
   h += '<div class="row" style="margin-top:14px;justify-content:space-between">'
     + '<button class="toggle' + (v.warmup ? ' on' : '') + '" data-act="shwarm">' + (v.warmup ? 'Warm-up ✓' : 'Warm-up') + '</button>'
@@ -712,10 +875,10 @@ function menuSheet(){
   return '<div class="menu">'
     + '<button data-act="mdate">Change date <span class="sub">(' + esc(E.niceDate(d.date)) + ')</span></button>'
     + (lift ? '<button data-act="mdeload">Deload session: ' + (d.isDeload ? '<b>on</b>' : 'off') + '</button>' : '')
-    + '<button data-act="mroutines">Add floor or stretching</button>'
+    + (friend() ? '' : '<button data-act="mroutines">Add floor or stretching</button>')
     + '<button data-act="maddex">Add exercise</button>'
     + '<button data-act="mtab" data-tab="history">History</button>'
-    + '<button data-act="mtab" data-tab="body">Body</button>'
+    + (friend() ? '' : '<button data-act="mtab" data-tab="body">Body</button>')
     + '<button data-act="mtab" data-tab="settings">Settings</button>'
     + (ui.tab !== 'log' ? '<button data-act="mtab" data-tab="log">Back to the session</button>' : '')
     + '<button class="danger" data-act="discard">Discard session</button></div>';
@@ -773,7 +936,9 @@ function finishSheet(s){
   }
   /* Each opens the reps-left chips for that exercise's last set; one tap on a
      chip rates it and comes straight back here. */
-  if(noRir.length) h += '<div class="hint">No RIR on the set that drives progression (the last set, or the top set on a heavy lift), so these cannot progress. Tap to rate:</div><div class="chips small" style="margin-top:6px">'
+  if(noRir.length) h += '<div class="hint">' + (genSession(d)
+      ? 'These have no answer for “how many more reps” on the last set, so Ledger can’t choose next time’s weight. Tap to answer:'
+      : 'No RIR on the set that drives progression (the last set, or the top set on a heavy lift), so these cannot progress. Tap to rate:') + '</div><div class="chips small" style="margin-top:6px">'
     + noRir.map(i => '<button class="chip" data-act="rateLast" data-i="' + i + '">' + esc(d.exercises[i].n) + '</button>').join('') + '</div>';
   h += '</div>';
 
@@ -913,6 +1078,11 @@ function viewBody(){
 /* ---------------------------------------------------------------- settings */
 function viewSettings(){
   const c = S.settings;
+  /* Friends: Account, Programme, Data. No GitHub, block goal, pinches or bands. */
+  if(friend() && P()) return viewAccount() + friendProgrammeCard()
+    + '<div class="card"><h3>Data</h3><div class="sub">' + merged().length + ' sessions · ' + cloudQ().length + ' waiting to upload · storage: ' + esc(ui.persist || 'checking') + '</div>'
+    + '<button class="btn w100" style="margin-top:10px" data-act="export">Export JSON backup</button>'
+    + '<div class="hint">Your sessions are kept in your account. This phone holds a copy and anything not yet sent.</div></div>';
   return '<div class="card"><h3>GitHub</h3>'
     + '<div class="sub">Each session is written as one JSON file into the repo below.</div>'
     + '<label>Owner</label><input data-f="cfg" data-k="owner" value="' + esc(c.owner) + '">'
@@ -987,6 +1157,400 @@ function viewAccount(){
 }
 function acSay(msg, cls){ ui.ac.msg = msg; ui.ac.cls = cls || ''; }
 
+/* ================================================================ friends */
+/* Everything below is reached only through screen() / ui.page, which are
+   never set on Dan's GitHub phone or his coach account. UX spec:
+   projects/ledger-ux-onboarding.md (+ ledger-ux-r1.md §1a/1b, §3, §4). */
+function renderFriend(scr){
+  const d = S.draft;
+  document.body.classList.remove('ses', 'chips', 'next');
+  document.body.classList.add('friend');
+  $('#tabs').hidden = true; $('#bar').hidden = true; $('#datechip').hidden = true;
+  /* Before sign-in there is nothing to sync and nothing in a menu. */
+  $('#sync').hidden = !!scr; $('#menuBtn').hidden = true;
+  const back = scr === 'questions' ? (S.onboard && (S.onboard.step > 0 || S.onboard.retake))
+    : !scr && ui.page && !(ui.page === 'programme' && ui.pageFrom === 'build');
+  $('#backBtn').hidden = !back;
+  const title = !scr && ui.page === 'programme' ? 'Your programme' : !scr && ui.page === 'library' ? 'Exercises' : 'Ledger';
+  $('#title').textContent = title; document.title = title === 'Ledger' ? 'Ledger' : 'Ledger · ' + title;
+  const bar = !scr && ui.page === 'programme' && ui.pageFrom === 'build' && !d;
+  document.body.classList.toggle('pbarOn', bar);
+  $('#view').innerHTML = scr === 'start' ? viewStart() : scr === 'questions' ? viewQuestion() : scr === 'building' ? viewBuilding()
+    : scr === 'loading' ? viewLoading() : ui.page === 'library' ? viewLibrary() : viewProgramme();
+  renderSheet();
+  tickSignin();
+}
+
+/* ---------------------------------------------------- start page and code */
+function viewStart(){
+  const s = ui.si, off = !online();
+  const err = s.err ? '<div class="banner ' + esc(s.err.cls) + '">' + esc(s.err.msg)
+    + (s.err.resend ? '<div class="row"><button class="btn primary" data-act="siResend" data-force="1">Send a new code</button></div>' : '') + '</div>' : '';
+  if(s.step === 'code'){
+    return '<div class="card"><h3>Check your email</h3><div class="sub" style="margin-top:4px">We sent a code to <b>' + esc(s.email) + '</b></div>'
+      + (off ? '<div class="banner warn" style="margin-top:10px">You’re offline. Your code still works: connect, then type it.</div>' : '')
+      + '<input class="codein" style="margin-top:12px" data-f="siCode" value="' + esc(s.code) + '" inputmode="numeric" autocomplete="one-time-code" aria-label="6-digit code"' + (s.busy || s.until > Date.now() ? ' disabled' : '') + '>'
+      + '<div class="hint" id="siHint">' + (s.busy ? 'Checking…' : 'It can take a minute to arrive. Not there? Check spam.') + '</div>'
+      + err
+      + '<button class="btn w100" style="margin-top:12px" id="siResend" data-act="siResend" disabled>Send a new code</button>'
+      + '<div class="center"><button class="textbtn plain" data-act="siChange">Wrong email? Change it</button></div></div>';
+  }
+  const ok = /@.+\./.test(s.email || '');
+  return '<div class="card"><h3>Your training plan, ready when you walk into the gym.</h3>'
+    + '<div class="sub" style="margin-top:6px">Answer 5 quick questions. Ledger builds your programme and tells you what to lift each session.</div>'
+    + (off ? '<div class="banner warn" style="margin-top:10px">You’re offline. Connect to the internet to sign in.</div>' : '') + err
+    + '<label>Email</label><input type="email" data-f="siEmail" value="' + esc(s.email) + '" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" autofocus' + (s.busy ? ' disabled' : '') + '>'
+    + '<button class="big primary" style="margin-top:12px" id="siSend" data-act="siSend"' + (!ok || s.busy || off || s.until > Date.now() ? ' disabled' : '') + '>' + (s.busy ? 'Sending…' : 'Send me a code') + '</button>'
+    + '<div class="hint">We email you a 6-digit code. No password.</div>'
+    + '<div class="hint" style="margin-top:14px">Your training is stored on Ledger’s server. Dan runs it and can see the database. Ask him to delete your data at any time.</div></div>';
+}
+/* Countdowns without re-rendering (a re-render would drop the keyboard). */
+function tickSignin(){
+  const s = ui.si, r = document.getElementById('siResend');
+  if(r){
+    const left = Math.ceil(((S.signin && S.signin.sentAt || 0) + 60000 - Date.now()) / 1000);
+    r.disabled = left > 0 || s.busy; r.textContent = left > 0 ? 'Send a new code (' + mmss(left) + ')' : 'Send a new code';
+  }
+  if(s.until && s.until <= Date.now()){ s.until = 0; if(s.err && s.err.wait){ s.err = null; if(screen() === 'start') render(); } }
+  else if(s.until && s.err && s.err.wait){
+    const b = document.querySelector('.banner.warn'); if(b) b.textContent = s.err.wait.replace('{t}', mmss((s.until - Date.now()) / 1000));
+  }
+}
+setInterval(() => { if(screen() === 'start') tickSignin(); }, 1000);
+function siError(e, onCode){
+  if(e && e.offline) return { cls:'warn', msg: onCode ? 'You’re offline. Your code still works: connect, then type it.' : 'You’re offline. Connect to the internet to sign in.' };
+  if(e && (e.status === 429 || /rate_limit/.test(String(e.code || '')))){
+    ui.si.until = Date.now() + 60000;
+    const wait = (onCode ? 'Too many tries. Wait {t}, then send a new code.' : 'Too many codes asked for. Wait {t}, then try again.');
+    return { cls:'warn', wait, msg: wait.replace('{t}', '1:00') };
+  }
+  /* Supabase answers a wrong and an expired code the same way. */
+  if(onCode && e && (e.code === 'otp_expired' || e.status === 403 || e.status === 400))
+    return { cls:'bad', resend:true, msg:'That code doesn’t match or has expired. Check the latest email and type it again, or send a new code.' };
+  return { cls:'bad', msg: onCode ? explain(e) : 'Couldn’t send the code. Try again in a minute.' };
+}
+async function siSend(force){
+  const s = ui.si, email = String(s.email || '').trim();
+  if(!/@.+\./.test(email) || s.busy) return;
+  s.busy = true; s.err = null; render();
+  try{
+    await cloud.requestCode(email);
+    S.signin = { email, sentAt: Date.now() }; save();
+    const again = s.step === 'code';
+    Object.assign(s, { step:'code', email, code:'' });
+    if(again) toast('New code sent. Use the latest one.');
+  }catch(e){ s.err = siError(e, s.step === 'code'); }
+  s.busy = false; render();
+  const c = $('[data-f="siCode"]'); if(c) c.focus();
+}
+/* Typed while offline: one retry when the signal is back (one listener, not
+   one per attempt). A refusal after that retry first checks whether a
+   sign-in did land (the first request may have reached the server). */
+let siRetryArmed = false;
+async function siVerify(){
+  const s = ui.si, code = String(s.code || '').replace(/\D/g, '');
+  if(cloud.signedIn()){ await afterSignIn({ foreign: cloud.foreign() }); return; }
+  if(code.length !== 6 || s.busy) return;
+  s.busy = true; s.err = null; render();
+  try{
+    const who = await cloud.verifyCode(s.email, code);
+    s.busy = false;
+    await afterSignIn(who);
+  }catch(e){
+    s.busy = false;
+    if(e && e.offline){
+      s.err = siError(e, true); render();
+      if(!siRetryArmed){ siRetryArmed = true; window.addEventListener('online', () => { siRetryArmed = false; siVerify(); }, { once:true }); }
+      return;
+    }
+    if(cloud.signedIn()){ await afterSignIn({ foreign: cloud.foreign() }); return; }
+    s.code = ''; s.err = siError(e, true); render();
+    const c = $('[data-f="siCode"]'); if(c) c.focus();
+  }
+}
+/* After any sign-in (start page or Settings): Dan's GitHub phone goes back
+   where it was; an account phone loads the programme, or asks the questions. */
+async function afterSignIn(who){
+  claimStorage(S, sync.cfgOk()); delete S.signin; save();
+  ui.si = { step:'email', email:'', code:'', busy:false, err:null, until:0 };
+  if(mode() === 'account') setSync('ok', 'signed in');
+  toast('Signed in');
+  if(mode() === 'account' && !who.foreign) await loadProgramme();
+  else render();
+  adoptGithubQueue();
+  await cloud.flushQueue({ quiet:true });
+  if(mode() === 'account' && !S.history.length) await cloud.pullHistory();
+  softRender();
+}
+/* "Loading your programme…". A failure never falls through to the questions:
+   that could overwrite a programme the person already has. */
+async function loadProgramme(){
+  ui.progLoad = 'loading'; render();
+  try{ await cloud.pullProgramme(); ui.progLoad = null; }
+  catch(e){
+    /* A programme that fails its checks is not a network problem: Try again
+       would fail the same way, so the way out is to set it up again. */
+    ui.progLoad = /^(programme|answers):/.test(String(e && e.message)) ? 'invalid' : 'error';
+    render(); return;
+  }
+  if(P()){ ui.tab = 'log'; ui.page = null; }
+  else if(friend() && !S.onboard) S.onboard = { step:0, answers:{}, painSel:[] };
+  save(); render();
+}
+function viewLoading(){
+  const out = '<div class="center" style="margin-top:8px"><button class="textbtn plain" data-act="qSignOut">Sign out</button></div>';
+  if(ui.progLoad === 'invalid') return '<div class="banner bad">Your saved programme doesn’t fit your answers or the exercise list any more, so Ledger won’t run it. Set it up again: it takes a minute, and your history stays.'
+    + '<div class="row"><button class="btn primary" data-act="setUpAgain">Set up again</button></div></div>' + out;
+  if(ui.progLoad === 'error') return '<div class="banner bad">Couldn’t load your programme. Check your connection and try again.<div class="row"><button class="btn primary" data-act="progRetry">Try again</button></div></div>' + out;
+  return '<div class="empty">Loading your programme…</div>';
+}
+
+/* ------------------------------------------------------------ the questions */
+const QN = 5;
+function qRow(v, l1, l2, on, sel){
+  return '<button class="rowbtn q' + (on ? ' on' : '') + (sel ? ' sel' : '') + '" data-act="qAns" data-s="' + (S.onboard ? S.onboard.step : 0) + '" data-v="' + esc(v) + '"><span class="grow"><b>' + esc(l1) + '</b>'
+    + (l2 ? '<br><span class="sub">' + esc(l2) + '</span>' : '') + '</span>' + (on ? '<span class="pill ok">Your answer</span>' : '') + '</button>';
+}
+function viewQuestion(){
+  if(!S.onboard) S.onboard = { step:0, answers:{}, painSel:[] };
+  const o = S.onboard, a = o.answers, st = o.step, pr = ui.qPressed;
+  let h = '<div class="sub">Question ' + (st + 1) + ' of ' + QN + '</div><div class="qbar">' + Array.from({ length:QN }, (_, i) => '<span' + (i <= st ? ' class="on"' : '') + '></span>').join('') + '</div>';
+  if(st === 0){
+    h += '<h3 class="qh">How many days a week can you train?</h3><div class="hint" style="margin:-4px 0 10px">Pick what you can keep up on a busy week. Not sure? Pick 3.</div>'
+      + [2, 3, 4, 5].map(n => qRow(n, n + ' days', G.DAYS_LINE[n], a.days === n, pr === String(n))).join('');
+    if(cloud.signedIn() && !o.retake) h += '<div class="hint" style="margin-top:14px">Signed in as ' + esc(cloud.email()) + '.</div><button class="textbtn plain" data-act="qSignOut">Not you? Sign out.</button>';
+  } else if(st === 1){
+    h += '<h3 class="qh">Where do you train?</h3>'
+      + qRow('gym', 'Full gym', 'Barbells, machines, cables', a.place === 'gym', pr === 'gym')
+      + qRow('db', 'Dumbbells only', 'A set of dumbbells, maybe a bench', a.place === 'db', pr === 'db')
+      + qRow('home', 'At home, no weights', 'Your bodyweight, plus anything below', a.place === 'home', pr === 'home');
+    /* Dumbbells or home: the two kit chips on the same screen (no sixth). */
+    if(o.kitFor === 'db' || o.kitFor === 'home'){
+      const has = o.has || {};
+      h += '<div class="sub" style="margin-top:6px">Do you have any of these?</div><div class="chips" style="margin:6px 0 10px">'
+        + '<button class="chip' + (has.bar ? ' on' : '') + '" data-act="qKit" data-k="bar">Pull-up bar</button>'
+        + '<button class="chip' + (has.bands ? ' on' : '') + '" data-act="qKit" data-k="bands">Resistance bands</button></div>'
+        + '<button class="big primary" data-act="qKitNext">Next</button><div class="hint">Neither? Just tap Next.</div>';
+    }
+  } else if(st === 2){
+    h += '<h3 class="qh">How long have you been lifting?</h3>'
+      + qRow('new', 'New to it', 'Never, or not in the last year', a.level === 'new', pr === 'new')
+      + qRow('some', 'Under 2 years', 'I know the main lifts', a.level === 'some', pr === 'some')
+      + qRow('exp', '2 years or more', 'Regularly, most weeks', a.level === 'exp', pr === 'exp');
+  } else if(st === 3){
+    const sel = o.painSel || [];
+    const row = (v, l) => '<button class="rowbtn q' + (sel.includes(v) ? ' sel' : '') + '" data-act="qPain" data-v="' + v + '" aria-pressed="' + sel.includes(v) + '"><span class="grow"><b>' + l + '</b></span><span class="ck">' + (sel.includes(v) ? '✓' : '☐') + '</span></button>';
+    h += '<h3 class="qh">Does anything hurt when you train?</h3><div class="sub" style="margin:-4px 0 10px">Pick all that apply. We leave out exercises that often make it worse.</div>'
+      + row('back', 'Low back') + row('knees', 'Knees') + row('shoulders', 'Shoulders') + row('none', 'Nothing hurts')
+      + '<button class="big primary" data-act="qPainNext"' + (sel.length ? '' : ' disabled') + '>Next</button>'
+      + '<div class="hint">This is not medical advice. If something hurts a lot, see a physiotherapist first.</div>';
+  } else {
+    const part = { days:a.days, place:a.place, has:a.has, level:a.level, pain:a.pain || [] };
+    h += '<h3 class="qh">How long can one session be?</h3><div class="sub" style="margin:-4px 0 10px">Including warm-up and rest between sets.</div>'
+      + G.MINUTES.map(m => { const c = G.aboutCount(part, m, L); return qRow(m, m + ' minutes', c ? 'About ' + c + ' exercises' : '', a.minutes === m, pr === String(m)); }).join('');
+  }
+  return h;
+}
+/* Advances from the question answered (G.onboardAdvance): a second tap or a
+   stale timer never skips a question. */
+function qAdvance(from){
+  const o = S.onboard; if(!o) return;
+  const next = G.onboardAdvance(o, from);
+  ui.qPressed = null; ui.qBusy = false;
+  if(next === o) return;
+  S.onboard = next; save(); try{ history.pushState({ q:next.step }, ''); }catch(e){} window.scrollTo(0, 0); render();
+}
+function qBack(){
+  const o = S.onboard; if(!o) return;
+  if(o.step === 0){ if(o.retake){ S.onboard = null; save(); ui.page = null; ui.tab = 'settings'; render(); } return; }
+  o.step--; delete o.kitFor; ui.qBusy = false; ui.qPressed = null; save(); render();
+}
+window.addEventListener('popstate', () => { if(screen() === 'questions') qBack(); });
+
+/* The questions, opened with earlier answers marked: every answer that still
+   reads is kept (an unknown pain flag drops the pain answer only). keep: an
+   earlier programme whose swaps carry over where they still fit. */
+function onboardFrom(answers, keep){
+  const a = answers && typeof answers === 'object' ? E.clone(answers) : {};
+  if(!Array.isArray(a.pain) || a.pain.some(x => !L.PAIN_FLAGS.includes(x))) delete a.pain;
+  const o = { step:0, answers:a, has:E.clone(a.has || {}), painSel: Array.isArray(a.pain) ? (a.pain.length ? a.pain.slice() : ['none']) : [] };
+  if(keep) o.keep = keep;
+  return o;
+}
+
+/* ----------------------------------------------------------------- building */
+function startBuild(){
+  const o = S.onboard;
+  if(!o) return;
+  /* An answer missing or unreadable (a stale tap, old saved state): back to
+     that question rather than an error. */
+  const miss = G.firstMissing(o.answers, L);
+  if(miss >= 0){ ui.building = null; o.step = miss; ui.qBusy = false; ui.qPressed = null; save(); render(); toast('Please answer this one again.'); return; }
+  const lines = (() => { try{ return G.buildLines(o.answers, L); }catch(e){ return []; } })();
+  ui.building = { lines, shown:0, failed:false };
+  render();
+  let prog = null;
+  try{
+    const keep = o.keep || (o.retake ? P() : null);
+    prog = checkProg(G.generate(o.answers, L, { id:'gen-' + Date.now().toString(36), createdAt:nowIso(), keep }));
+  }catch(e){ ui.building.failed = true; render(); return; }
+  const step = () => {
+    if(!ui.building) return;
+    if(ui.building.shown < lines.length){ ui.building.shown++; render(); setTimeout(step, 300); return; }
+    setTimeout(() => finishBuild(prog), 300);
+  };
+  setTimeout(step, 300);
+}
+function finishBuild(prog){
+  const retake = !!(S.onboard && S.onboard.retake);
+  cloud.setProgramme(prog).then(softRender);           // cached at once; sent when it can be
+  S.onboard = null; ui.building = null; ui.progOpen.clear(); save();
+  ui.page = 'programme'; ui.pageFrom = retake ? 'settings' : 'build'; ui.tab = 'log';
+  window.scrollTo(0, 0); render();
+  if(retake) toast('New programme saved. Your next session is ' + prog.days[0].name + '.');
+}
+function viewBuilding(){
+  const b = ui.building;
+  if(b.failed) return '<div class="banner bad">Something went wrong building your programme. Your answers are saved.'
+    + '<div class="row"><button class="btn primary" data-act="buildRetry">Try again</button><button class="btn" data-act="buildBack">Back to the questions</button></div></div>';
+  return '<div class="build center"><h3 class="qh">Building your programme…</h3>' + b.lines.slice(0, b.shown).map(l => '<div class="sub">✓ ' + esc(l) + '</div>').join('') + '</div>';
+}
+
+/* ------------------------------------------------------------- your programme */
+function viewProgramme(){
+  const p = P();
+  if(!p){ ui.page = null; return '<div class="empty">No programme yet.</div>'; }
+  const a = p.answers || {}, w = E.programmeWeek(p, merged(), today()), edit = canEdit();
+  let h = '<h3 class="qh" style="margin-bottom:2px">' + esc(p.name) + '</h3><div class="sub" style="margin-bottom:10px">' + esc(equipText(a)) + (a.minutes ? ' · about ' + a.minutes + ' min' : '') + '</div>';
+  if(S.draft && ui.pageFrom !== 'build') h += '<div class="banner info">You’re mid-session. Swaps apply from your next session.</div>';
+  for(const g of G.gapLines(p, L)) h += '<div class="banner info">' + esc(g) + '</div>';
+  const ex1 = p.days[0].ex.find(e => e.rep && e.rir != null) || p.days[0].ex[0];
+  const r = ex1.rep ? (ex1.rep[0] === ex1.rep[1] ? ex1.rep[0] : ex1.rep[0] + '–' + ex1.rep[1]) : null;
+  h += '<div class="banner info"><b>How to read it</b>'
+    + (r ? '<div>' + ex1.sets + ' × ' + r + ' = ' + ex1.sets + ' sets of ' + (ex1.rep[0] === ex1.rep[1] ? ex1.rep[0] : ex1.rep[0] + ' to ' + ex1.rep[1]) + ' reps.</div>' : '')
+    + (ex1.rir != null ? '<div>RIR ' + ex1.rir + ' = stop each set when you could still do ' + ex1.rir + ' more good reps.</div>' : '')
+    + (ui.rirMore ? '<div class="hint">' + esc(L.RIR_HELP.long) + '</div>' : '<button class="textbtn plain" style="padding:0;min-height:44px" data-act="rirMore">More about RIR</button>') + '</div>';
+  for(const d of p.days){
+    const k = E.programmeKey(d), isNext = k === w.next, open = isNext || ui.progOpen.has(d.key);
+    if(!open){ h += '<div class="card collapsed"><button class="exline" data-act="pDay" data-d="' + esc(d.key) + '"><b>' + esc(d.name) + ' · ' + d.ex.length + ' exercises</b><span class="cs">›</span></button></div>'; continue; }
+    h += '<div class="card"><div class="row" style="margin-bottom:4px"><h3 class="grow">' + esc(d.name) + '</h3>' + (isNext ? '<span class="pill ok">Next</span>' : '<button class="ib" data-act="pDay" data-d="' + esc(d.key) + '" aria-label="Close">⌃</button>') + '</div>'
+      + d.ex.map((e, i) => (edit
+        ? '<div class="prow"><button class="pmain" data-act="pSwap" data-d="' + esc(d.key) + '" data-i="' + i + '"><b>' + esc(e.n) + '</b>' + (e.picked ? ' <span class="pill">Your pick</span>' : '')
+          + '<br><span class="sub">' + esc(doseText(e)) + '</span></button><button class="btn" data-act="pSwap" data-d="' + esc(d.key) + '" data-i="' + i + '">Swap</button></div>'
+        : '<div class="prow"><div class="pmain"><b>' + esc(e.n) + '</b><br><span class="sub">' + esc(doseText(e)) + '</span></div></div>')).join('') + '</div>';
+  }
+  if(edit) h += '<div class="hint">You can swap any exercise. Sets, reps and days come from your answers: to change them, re-take the questions in Settings.</div>'
+    + '<div class="center"><button class="textbtn plain" data-act="page" data-p="library">Browse all exercises</button></div>';
+  else h += '<div class="hint">This programme can’t be changed here. To get one you can swap exercises in, re-take the questions in Settings.</div>';
+  if(ui.pageFrom === 'build' && !S.draft){
+    const nd = E.programmeDay(p, w.next);
+    h += '<div class="pbar"><button class="big primary" data-act="start" data-key="' + esc(w.next) + '">Start today’s session<span class="lines2">' + esc(nd.name) + ' · ' + nd.ex.length + ' exercises</span></button>'
+      + '<div class="center"><button class="textbtn plain" data-act="trainLater">I’ll train later</button></div></div>';
+  }
+  return h;
+}
+
+/* ------------------------------------------------------------- swap sheet */
+/* s: { d: programme day key, i: slot index, ses: session exercise index when
+   swapping for today only, lib: true when opened from the library }. */
+function swapSheet(s){
+  const p = P(); if(!p || !canEdit()) return '';
+  const day = p.days.find(x => x.key === s.d), cur = day && day.ex[s.i];
+  if(!cur) return '';
+  const a = p.answers, alts = G.alternatives(p, s.d, s.i, a, L);
+  const sesEx = s.ses != null && S.draft ? S.draft.exercises[s.ses] : null;
+  const started = sesEx && sesEx.sets.some(x => !x.warmup && x.state !== 'planned');
+  const today_ = sesEx ? (libByName.get(sesEx.n) || {}).id : null;
+  let h = '<div class="sh-h">' + (sesEx ? 'Swap for today: ' : 'Swap ') + esc(sesEx ? sesEx.n : cur.n) + '</div>'
+    + '<div class="sub" style="margin-bottom:10px">' + esc(cap(G.PATTERN_WORD[cur.slot.use] || '')) + ' · ' + esc(day.name) + ' · ' + esc(doseText(cur).split(' · ')[0]) + '</div>';
+  for(const x of alts){
+    const isCur = sesEx ? x.id === today_ : x.current;
+    h += '<div class="alt"><button class="rowbtn grow" data-act="swapPick" data-id="' + esc(x.id) + '"' + (started && !isCur ? ' disabled' : '') + '><span><b>' + esc(x.n) + '</b>' + (isCur ? ' <span class="pill ok">Current</span>' : '') + '</span><span class="sub">' + esc(x.why) + '</span></button>'
+      + (x.form && online() ? '<a class="ib" href="' + esc(x.form) + '" target="_blank" rel="noopener" aria-label="Watch form: ' + esc(x.n) + '">▶</a>' : '<span class="ib off" aria-label="Watch form needs internet">▶</span>') + '</div>';
+  }
+  if(alts.length < 2) h += '<div class="hint">Nothing else fits your answers for this slot.</div>';
+  if(started) h += '<div class="hint">You’ve logged sets of this exercise today, so it can’t be swapped now.</div>';
+  h += '<div class="hint">Same sets and reps. A new exercise starts fresh: the first time, you choose the weight.</div>'
+    + '<div class="hint">' + esc(filterLine(a)) + '</div>'
+    + (sesEx ? '<div class="hint">Want it every time? Swap it in Settings → Your programme.</div>' : '');
+  return h;
+}
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+function filterLine(a){
+  const eq = a.place === 'gym' ? 'a full gym' : a.place === 'db' ? 'dumbbells' : 'bodyweight' + (a.has && (a.has.bar || a.has.bands) ? ' and your kit' : '');
+  return a.pain && a.pain.length ? 'Only exercises for ' + eq + ' and easy on the ' + a.pain.map(x => G.PAIN_TEXT[x]).join(' and ') + ' are shown.' : 'Only exercises for ' + eq + ' are shown.';
+}
+/* Saves a new programme with Undo (6 s). */
+function applyProgramme(next, msg){
+  const prev = S.programme;
+  cloud.setProgramme(next).then(softRender);
+  ui.sheet = null; render();
+  toast(msg, () => { cloud.setProgramme(prev).then(softRender); render(); });
+}
+
+/* Today only (substitutedFor, as the prompt swap): the session exercise is
+   rebuilt for the new exercise, before any of its sets is logged. */
+function swapToday(s, p, id){
+  const d = S.draft, old = d.exercises[s.ses], day = p.days.find(x => x.key === s.d), slot = day.ex[s.i];
+  if(old.sets.some(x => !x.warmup && x.state !== 'planned')) return;
+  const tpl = id === slot.lib ? slot : E.normaliseProgramme(G.swap(p, s.d, s.i, id, p.answers, L)).days.find(x => x.key === s.d).ex[s.i];
+  if(tpl.n === old.n){ ui.sheet = null; render(); return; }
+  const nx = E.programmeExercise(tpl, aHist(), d.date, d.isDeload);
+  if(tpl.n !== slot.n) nx.substitutedFor = slot.n;
+  nx.note = old.note || '';
+  d.exercises[s.ses] = nx;
+  ui.sheet = null; ui.open.add(s.ses); save(); render();
+  toast('Swapped in ' + tpl.n + ' for today.', () => { if(S.draft === d && d.exercises[s.ses] === nx){ d.exercises[s.ses] = old; save(); render(); } });
+}
+
+/* ---------------------------------------------------------------- library */
+function viewLibrary(){
+  const p = P(); if(!p || !canEdit()) return '';
+  const a = p.answers;
+  let h = '<div class="chips small" style="margin-bottom:12px"><button class="chip' + (ui.libAll ? '' : ' on') + '" data-act="libAll" data-v="0">Fits you ✓</button><button class="chip' + (ui.libAll ? ' on' : '') + '" data-act="libAll" data-v="1">All</button></div>';
+  for(const g of G.GROUPS){
+    const list = L.EXERCISES.filter(e => g.patterns.includes(e.pattern)).map(e => ({ e, why: G.unfit(e, a, L) })).filter(x => ui.libAll || !x.why);
+    if(!list.length) continue;
+    h += '<div class="sub" style="margin:10px 0 6px">' + esc(g.name) + '</div>';
+    for(const { e, why } of list){
+      const inDays = G.daysWith(p, e.id);
+      h += '<button class="rowbtn" data-act="libRow" data-id="' + esc(e.id) + '"><span class="grow"><b>' + esc(e.n) + '</b></span>'
+        + (why ? '<span class="pill">' + esc(why) + '</span>' : inDays.length ? '<span class="pill ok" style="white-space:normal">In ' + esc(inDays.join(', ')) + '</span>' : '') + '</button>';
+      if(ui.libOpen === e.id) h += libDetail(p, e, why);
+    }
+  }
+  return h;
+}
+function libDetail(p, e, why){
+  let h = '<div class="libdet"><div class="sub">' + esc(e.why || '') + '</div>'
+    + (e.form ? (online() ? '<a class="btn w100 row" style="text-decoration:none;color:inherit;margin-top:8px" href="' + esc(e.form) + '" target="_blank" rel="noopener"><span class="grow">▶ Watch form</span><span class="sub">YouTube ↗</span></a>'
+      : '<button class="btn w100" style="margin-top:8px" disabled>▶ Watch form · needs internet</button>') : '');
+  if(why) return h + '</div>';                          // seen, never swapped in (Builder, Q3)
+  const slots = G.slotsFor(p, e.id, L);
+  if(!slots.length) return h + '<div class="hint">Your programme has no ' + esc(G.PATTERN_WORD[e.pattern] || e.pattern) + ' slot.</div></div>';
+  const usable = slots.filter(s => !s.has && G.alternatives(p, s.dayKey, s.i, p.answers, L, { max:99 }).some(x => x.id === e.id));
+  if(!usable.length) return h + '<div class="hint">Already in your programme wherever it fits.</div></div>';
+  return h + '<div class="sub" style="margin-top:8px">Use instead of:</div>' + usable.map(s => '<button class="btn w100" data-act="libUse" data-id="' + esc(e.id) + '" data-d="' + esc(s.dayKey) + '" data-i="' + s.i + '">'
+    + esc(s.current) + ' · ' + esc(s.dayName) + '</button>').join('') + '</div>';
+}
+
+/* ------------------------------------------------- friends' Settings card */
+function friendProgrammeCard(){
+  const p = P(), c = S.settings;
+  let h = '<div class="card"><h3>Programme</h3>';
+  if(p){
+    h += '<div class="sub">' + esc(p.name) + '<br>' + esc(equipText(p.answers)) + (p.answers && p.answers.minutes ? ' · about ' + p.answers.minutes + ' min' : '') + '</div>'
+      + '<button class="btn primary w100" style="margin-top:10px" data-act="page" data-p="programme">View my programme</button>'
+      + (canEdit() ? '<button class="btn w100" style="margin-top:8px" data-act="page" data-p="library">Exercise library</button>' : '')
+      + '<button class="btn w100" style="margin-top:8px" data-act="retake"' + (S.draft ? ' disabled' : '') + '>Re-take the questions</button>'
+      + (S.draft ? '<div class="hint">Finish or discard today’s session first.</div>' : '')
+      + (ui.retakeArm && !S.draft ? '<div class="banner warn" style="margin-top:10px">Re-take the 5 questions? You get a new programme. Your history stays. Your swaps are kept where they still fit.'
+        + '<div class="row"><button class="btn primary" data-act="retakeGo">Re-take</button><button class="btn" data-act="retakeNo">Cancel</button></div></div>' : '');
+  }
+  return h + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="restOn" style="width:24px;min-height:24px"' + (c.restOn ? ' checked' : '') + '> Start the rest timer when a set is ticked</label>'
+    + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="wakeLock" style="width:24px;min-height:24px"' + (c.wakeLock !== false ? ' checked' : '') + '> Keep the screen on during a session</label></div>';
+}
+
 /* ---------------------------------------------------------------- actions */
 const ex_ = el => S.draft.exercises[+el.dataset.i];
 const set_ = el => ex_(el).sets[+el.dataset.j];
@@ -1045,11 +1609,104 @@ const ACT = {
 
   start: el => {
     if(S.draft) return;
-    const key = el.dataset.key, aH = aHist();
-    const deload = E.isLiftKey(key) && E.deloadCheck(aH, S.bw, S.settings, today()).fire;
-    const d = E.newSession(key, aH, today(), nowIso(), deload);
+    const key = el.dataset.key, aH = aHist(), prog = P();
+    const deload = E.isLiftKey(key) && E.deloadCheck(aH, S.bw, S.settings, today(), prog).fire;
+    const d = E.newSession(key, aH, today(), nowIso(), deload, prog);
     d.id = newId();
     S.draft = d; ui.open.clear(); ui.info.clear(); ui.note.clear(); ui.rir = null;
+    ui.page = null; ui.tab = 'log';
+    save(); window.scrollTo(0, 0); render();
+  },
+
+  /* ---- friends: sign-in, questions, programme, library */
+  back: () => {
+    if(screen() === 'questions'){ qBack(); return; }
+    if(ui.page === 'library' && ui.pageBack === 'programme'){ ui.page = 'programme'; ui.pageBack = null; }
+    else if(ui.page){ ui.page = null; ui.tab = ui.pageFrom === 'build' ? 'log' : 'settings'; }
+    ui.sheet = null; window.scrollTo(0, 0); render();
+  },
+  page: el => {
+    const p = el.dataset.p;
+    if(p === 'library' && ui.page === 'programme') ui.pageBack = 'programme';
+    else { ui.pageBack = null; if(!ui.page) ui.pageFrom = 'settings'; }
+    ui.page = p; ui.libOpen = null; window.scrollTo(0, 0); render();
+  },
+  trainLater: () => { ui.page = null; ui.pageFrom = null; ui.tab = 'log'; render(); toast('Your programme is ready. Start it from here when you’re at the gym.'); },
+  siSend: () => siSend(),
+  siResend: () => siSend(true),
+  siChange: () => { Object.assign(ui.si, { step:'email', code:'', err:null }); delete S.signin; save(); render(); },
+  progRetry: () => loadProgramme(),
+  /* Sign-out from the questions or a failed load: cloud.signOut forgets the
+     programme, answers and coach flag; signed out with no programme, the
+     phone shows the start page (G.entryScreen). Sessions stay. */
+  qSignOut: () => { cloud.signOut(); ui.progLoad = null; ui.building = null; ui.page = null; ui.si = { step:'email', email:'', code:'', busy:false, err:null, until:0 }; save(); render(); },
+  /* Set up again after a programme failed its checks: the old answers that
+     still read are filled in, and its swaps are kept where they now fit. */
+  setUpAgain: () => {
+    const raw = ui.badProg; let keep = null;
+    try{ keep = raw ? E.normaliseProgramme(raw) : null; }catch(e){ keep = null; }
+    ui.progLoad = null; ui.badProg = null;
+    S.onboard = onboardFrom(keep && keep.answers, keep); save(); render();
+  },
+  buildBack: () => { const o = S.onboard; ui.building = null; if(o){ const m = G.firstMissing(o.answers, L); o.step = m >= 0 ? m : QN - 1; } ui.qBusy = false; ui.qPressed = null; save(); render(); },
+  qAns: el => {
+    const o = S.onboard, v = el.dataset.v, st = o ? o.step : -1;
+    /* A tap on a question that has already moved on, or a second tap during
+       the 150 ms advance, does nothing. */
+    if(!o || ui.qBusy || +el.dataset.s !== st) return;
+    if(st === 1 && (v === 'db' || v === 'home')){
+      if(o.answers.place !== v) o.has = { bar:false, bands:false };
+      else o.has = o.has || { ...(o.answers.has || {}) };
+      o.answers.place = v; o.kitFor = v; save(); render(); return;
+    }
+    if(st === 0) o.answers.days = +v;
+    else if(st === 1){ o.answers.place = v; o.answers.has = { bar:true, bands:true }; delete o.kitFor; }
+    else if(st === 2) o.answers.level = v;
+    else if(st === 4) o.answers.minutes = +v;
+    save();
+    ui.qPressed = v; ui.qBusy = true; render();
+    setTimeout(() => {
+      ui.qBusy = false;
+      if(!S.onboard || S.onboard.step !== st) return;           // Back was pressed meanwhile
+      if(st === QN - 1){ ui.qPressed = null; startBuild(); } else qAdvance(st);
+    }, 150);
+  },
+  qKit: el => { const o = S.onboard; o.has = o.has || {}; o.has[el.dataset.k] = !o.has[el.dataset.k]; save(); render(); },
+  qKitNext: () => { const o = S.onboard; if(!o || o.step !== 1) return; o.answers.has = { bar:!!(o.has && o.has.bar), bands:!!(o.has && o.has.bands) }; delete o.kitFor; qAdvance(1); },
+  qPain: el => {
+    const o = S.onboard, v = el.dataset.v;
+    let sel = (o.painSel || []).slice();
+    if(v === 'none') sel = sel.includes('none') ? [] : ['none'];
+    else { sel = sel.filter(x => x !== 'none'); sel = sel.includes(v) ? sel.filter(x => x !== v) : [...sel, v]; }
+    o.painSel = sel; save(); render();
+  },
+  qPainNext: () => { const o = S.onboard; if(!o || o.step !== 3 || !(o.painSel || []).length) return; o.answers.pain = o.painSel.filter(x => x !== 'none'); qAdvance(3); },
+  buildRetry: () => { ui.building = null; startBuild(); },
+  rirMore: () => { ui.rirMore = true; render(); },
+  pDay: el => { const k = el.dataset.d; ui.progOpen.has(k) ? ui.progOpen.delete(k) : ui.progOpen.add(k); render(); },
+  pSwap: el => { if(!canEdit()) return; ui.sheet = { type:'swap', d:el.dataset.d, i:+el.dataset.i }; renderSheet(); },
+  swapPick: el => {
+    const s = ui.sheet, p = P(), id = el.dataset.id;
+    if(!s || !p || !canEdit()) return;
+    const day = p.days.find(x => x.key === s.d), cur = day.ex[s.i], x = libById.get(id);
+    if(s.ses != null){ swapToday(s, p, id); return; }
+    if(id === cur.lib){ ui.sheet = null; render(); return; }
+    applyProgramme(G.swap(p, s.d, s.i, id, p.answers, L), 'Swapped in ' + x.n + (s.lib ? ' on ' + day.name : '') + '.');
+  },
+  libAll: el => { ui.libAll = el.dataset.v === '1'; render(); },
+  libRow: el => { ui.libOpen = ui.libOpen === el.dataset.id ? null : el.dataset.id; render(); },
+  libUse: el => {
+    if(!canEdit()) return;
+    const p = P(), d = el.dataset.d, i = +el.dataset.i, id = el.dataset.id;
+    const day = p.days.find(x => x.key === d);
+    applyProgramme(G.swap(p, d, i, id, p.answers, L), 'Swapped in ' + libById.get(id).n + ' on ' + day.name + '.');
+  },
+  retake: () => { ui.retakeArm = true; render(); },
+  retakeNo: () => { ui.retakeArm = false; render(); },
+  retakeGo: () => {
+    const p = P(); if(!p || S.draft) return;
+    ui.retakeArm = false;
+    S.onboard = { ...onboardFrom(p.answers, null), retake:true };
     save(); window.scrollTo(0, 0); render();
   },
   discard: () => {
@@ -1168,6 +1825,13 @@ const ACT = {
 
   swap: el => {
     const i = +el.dataset.i, ex = S.draft.exercises[i];
+    /* A friend's programme session: the library sheet, for today only. Dan
+       keeps the text prompt (his coach exercises are not in the library). */
+    if(genSession(S.draft) && canEdit()){
+      const day = E.programmeDay(P(), S.draft.key);
+      const si = day ? day.ex.findIndex(e => e.n === (ex.substitutedFor || ex.n)) : -1;
+      if(si >= 0){ ui.sheet = { type:'swap', d:day.key, i:si, ses:i }; renderSheet(); return; }
+    }
     const n = prompt('Swapped in what instead of "' + ex.n + '"?', '');
     if(!n || !n.trim()) return;
     /* Kept as a substitution, not logged under the prescribed name, or the
@@ -1196,10 +1860,10 @@ const ACT = {
   mdate: () => { ui.sheet = { type:'date' }; renderSheet(); },
   dsSave: () => {
     const v = ($('[data-f="dsdate"]') || {}).value;
-    if(v && v <= today()){ S.draft.date = v; E.retarget(S.draft, aHist()); save(); }
+    if(v && v <= today()){ S.draft.date = v; E.retarget(S.draft, aHist(), P()); save(); }
     ui.sheet = null; render();
   },
-  mdeload: () => { S.draft.isDeload = !S.draft.isDeload; E.retarget(S.draft, aHist()); ui.sheet = null; save(); render(); },
+  mdeload: () => { S.draft.isDeload = !S.draft.isDeload; E.retarget(S.draft, aHist(), P()); ui.sheet = null; save(); render(); },
   mroutines: () => { ui.sheet = { type:'routines' }; renderSheet(); },
   maddroutine: el => {
     const d = S.draft, keys = el.dataset.k.split(',');
@@ -1316,6 +1980,7 @@ const ACT = {
       ui.ac = { email:'', code:'', sent:false, busy:false, msg:'', cls:'' };
       if(who.foreign){ acSay('Signed in, but nothing on this phone will be uploaded: it belongs to another account.', 'bad'); render(); return; }
       acSay('Signed in. New sessions now also go to your account.', 'ok');
+      if(mode() === 'account' && friend() && !P() && !who.foreign){ ui.ac.busy = false; loadProgramme(); }
       render();
       adoptGithubQueue();
       await cloud.flushQueue({ quiet:true });
@@ -1338,9 +2003,12 @@ const ACT = {
     ui.ac.busy = false; render();
   },
   acSignOut: () => {
-    const held = cloudQ().length;
-    if(!confirm('Sign out of your account? Everything stays on this phone' + (held ? ', including ' + held + ' session' + (held > 1 ? 's' : '') + ' not yet sent' : '') + '.')) return;
-    cloud.signOut(); ui.cloudStatus = null; acSay('Signed out. Nothing on this phone was removed.', ''); render();
+    const held = cloudQ().length, prog = !!S.programme;
+    /* Friends: the programme leaves the phone with the person (privacy: the
+       next account here must never see it); an unsent change is said aloud. */
+    const progLine = !prog ? '' : S.programmeDirty ? ' Your latest programme change hasn’t been saved to your account yet and will be lost.' : ' Your programme stays in your account and comes back when you sign in.';
+    if(!confirm('Sign out of your account? ' + (prog ? 'Your sessions stay' : 'Everything stays') + ' on this phone' + (held ? ', including ' + held + ' session' + (held > 1 ? 's' : '') + ' not yet sent' : '') + '.' + progLine)) return;
+    cloud.signOut(); ui.cloudStatus = null; acSay(prog ? 'Signed out. Your sessions are still on this phone.' : 'Signed out. Nothing on this phone was removed.', ''); render();
   },
   test: async () => {
     save();
@@ -1363,12 +2031,16 @@ const INPUT = {
   shval: el => { if(ui.sheet) ui.sheet.v[el.dataset.k] = num(el.value); },
   notes: el => { S.draft.notes = el.value; save(); },
   acEmail: el => { ui.ac.email = el.value; },
+  /* Start page: enable Send without re-rendering (keeps the keyboard up). */
+  siEmail: el => { ui.si.email = el.value.trim(); const b = $('#siSend'); if(b) b.disabled = !/@.+\./.test(ui.si.email) || !online() || ui.si.until > Date.now(); },
+  /* The code submits itself on the sixth digit; a pasted "481 207" works. */
+  siCode: el => { const v = el.value.replace(/\D/g, '').slice(0, 6); if(el.value !== v) el.value = v; ui.si.code = v; if(v.length === 6) siVerify(); },
   acCode: el => { ui.ac.code = el.value; }
 };
 const CHANGE = {
   findate: el => {
     if(!el.value || el.value > today()) return;
-    S.draft.date = el.value; E.retarget(S.draft, aHist()); save(); renderSheet(); render();
+    S.draft.date = el.value; E.retarget(S.draft, aHist(), P()); save(); renderSheet(); render();
   },
   cfg: el => {
     const k = el.dataset.k;
@@ -1389,6 +2061,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => { const f = e.target.dataset && e.target.dataset.f; if(f && INPUT[f]) INPUT[f](e.target); });
 document.addEventListener('change', e => { const f = e.target.dataset && e.target.dataset.f; if(f && CHANGE[f]) CHANGE[f](e.target); });
+document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.dataset && e.target.dataset.f === 'siEmail'){ e.preventDefault(); siSend(); } });
 
 /* ---------------------------------------------------------------- boot */
 mode();
@@ -1405,7 +2078,12 @@ try{
 if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length || S.adoptPending) return pullGithub(); }).then(softRender);
 adoptGithubQueue();
 if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(() => { if(mode() === 'account' && !S.history.length) return cloud.pullHistory(); }).then(softRender);
-window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()) cloud.flushQueue({ quiet:true }); });
+window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page) softRender(); });
+window.addEventListener('offline', () => { if(screen() || ui.page) softRender(); });
+/* Friends: a signed-in account phone with no programme on it asks the
+   account first ("Loading your programme…"); one with a programme syncs it. */
+if(needsProgramme() && cloud.signedIn() && !S.onboard) loadProgramme();
+else if(friend() && cloud.signedIn() && (P() || S.programmeDirty)) cloud.syncProgramme().then(softRender);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>

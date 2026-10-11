@@ -275,6 +275,102 @@ export const isLegacyKey = k => !!(TEMPLATES[/** @type {keyof typeof TEMPLATES} 
    or after the block (those are real data but not one of the block's four). */
 const countsAsLift = (/** @type {Obj} */ h) => isLift(h) && !(isLegacyKey(h.key) && h.date >= BLOCK.start);
 
+/* ------------------------------------------------- a programme as data */
+/* A user's own programme (release 1, S2): the same exercise schema as
+   TEMPLATES, supplied per user instead of hard-wired. With none supplied every
+   function below runs Dan's plan exactly as before (TEMPLATES, BLOCK, PHASES).
+
+   { v: 1, id, name, source: 'coach'|'generated', perWeek, deloadEvery?,
+     days: [{ key, name, ex: [Tpl, ...] }], answers?, createdAt }
+
+   It has no block, no phases and no weekdays: the next session is the next
+   day in rotation after the last one done from this programme, and the
+   weekly target is perWeek. Progression is plain double progression from
+   each exercise's rep range and RIR, exactly the rules Dan's plan ran before
+   the block (no week-1 ramp, no heavy-day phases, no scheduled deload weeks).
+   The block-only flags are therefore stripped (BLOCK_ONLY).
+
+   A session from a programme day is keyed 'g-' + day.key and records the
+   programme's id (programmeId). The prefix keeps a programme day from ever
+   resolving to one of Dan's templates, whose names it may share (a day called
+   'd1' would otherwise pick up the week-1 ramp). History needs nothing from
+   the programme: each session file carries its own exercises, so it renders
+   after the programme changes or is replaced. Last time is by exercise name,
+   across programmes, as it always was. */
+export const GEN_PREFIX = 'g-';
+/** @param {string|null|undefined} k */
+export const isGeneratedKey = k => typeof k === 'string' && k.startsWith(GEN_PREFIX);
+const KINDS = ['weight', 'band', 'reps', 'time', 'distance', 'rounds'];
+const BLOCK_ONLY = ['cal', 'heavy', 'topRir', 'single', 'wk1', 'hold', 'routine'];
+/** @typedef {{key:string, name:string, ex:Tpl[]}} ProgDay */
+/** @typedef {{v:number, id:string, name:string, source:string, perWeek:number, deloadEvery:number|null, days:ProgDay[], answers?:Obj, gaps?:Obj[], createdAt:string|null, updatedAt?:string}} Programme */
+
+/* A checked, cleaned copy, or an Error saying what is wrong. Used on anything
+   read back from the phone or the server before the engine sees it. */
+/** @param {any} p @returns {Programme} */
+export function normaliseProgramme(p) {
+  const bad = (/** @type {string} */ m) => { throw new Error('programme: ' + m); };
+  const int = (/** @type {any} */ x, /** @type {number} */ lo, /** @type {number} */ hi) => Number.isInteger(x) && x >= lo && x <= hi;
+  if (!p || typeof p !== 'object' || Array.isArray(p)) bad('not an object');
+  if (typeof p.id !== 'string' || !/^[A-Za-z0-9._:-]{1,64}$/.test(p.id)) bad('id');
+  if (!Array.isArray(p.days) || !p.days.length || p.days.length > 7) bad('days: 1 to 7');
+  const keys = new Set();
+  const days = p.days.map((/** @type {any} */ d, /** @type {number} */ i) => {
+    if (!d || typeof d.key !== 'string' || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(d.key)) bad('day ' + i + ': key');
+    if (keys.has(d.key)) bad('day ' + d.key + ': duplicate key');
+    keys.add(d.key);
+    if (typeof d.name !== 'string' || !d.name.trim()) bad('day ' + d.key + ': name');
+    if (!Array.isArray(d.ex) || !d.ex.length) bad('day ' + d.key + ': no exercises');
+    const names = new Set();
+    const ex = d.ex.map((/** @type {any} */ e0) => {
+      const e = clone(e0), at = 'day ' + d.key + ', ' + (e && e.n);
+      if (!e || typeof e.n !== 'string' || !e.n.trim()) bad('day ' + d.key + ': exercise name');
+      if (names.has(e.n)) bad(at + ': twice in one day');
+      names.add(e.n);
+      if (!KINDS.includes(e.kind)) bad(at + ': kind');
+      for (const k of BLOCK_ONLY) delete e[k];
+      if (e.sets == null) e.sets = 3;
+      if (!int(e.sets, 1, 20)) bad(at + ': sets');
+      if (e.rep != null && !(Array.isArray(e.rep) && e.rep.length === 2 && int(e.rep[0], 1, 100) && int(e.rep[1], e.rep[0], 100))) bad(at + ': rep');
+      if (e.kind === 'weight' || e.kind === 'band') {
+        /* Without a range and a RIR target the rules never progress it. */
+        if (!e.rep || typeof e.rir !== 'number' || e.rir < 0 || e.rir > 5) bad(at + ': rep and rir are needed');
+      }
+      if (e.kind === 'weight') { if (e.load == null) e.load = 'kg'; if (!['kg', 'bw+', 'bw'].includes(e.load)) bad(at + ': load'); }
+      else delete e.load;
+      if (e.inc != null && !(typeof e.inc === 'number' && e.inc > 0)) bad(at + ': inc');
+      if (e.rest != null && !(typeof e.rest === 'number' && e.rest >= 0)) bad(at + ': rest');
+      return e;
+    });
+    return { key: d.key, name: d.name.trim(), ex };
+  });
+  const perWeek = p.perWeek == null ? days.length : p.perWeek;
+  if (!int(perWeek, 1, 7)) bad('perWeek');
+  const deloadEvery = p.deloadEvery == null ? null : p.deloadEvery;
+  if (deloadEvery != null && !int(deloadEvery, 2, 16)) bad('deloadEvery');
+  /** @type {Programme} */
+  const out = { v: 1, id: p.id, name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'My programme',
+    source: p.source === 'coach' ? 'coach' : 'generated', perWeek, deloadEvery, days,
+    createdAt: typeof p.createdAt === 'string' ? p.createdAt : null };
+  if (p.answers && typeof p.answers === 'object' && !Array.isArray(p.answers)) out.answers = clone(p.answers);
+  /* Slots the generator could not fill, for the overview's note. */
+  if (Array.isArray(p.gaps)) out.gaps = clone(p.gaps.filter((/** @type {any} */ g) => g && typeof g === 'object'));
+  if (typeof p.updatedAt === 'string') out.updatedAt = p.updatedAt;
+  return out;
+}
+/** The programme cached in the phone's state, checked; null when none or unreadable. @param {Obj|null|undefined} state */
+export function activeProgramme(state) {
+  if (!state || !state.programme) return null;
+  try { return normaliseProgramme(state.programme); } catch (e) { return null; }
+}
+/** The session key for a programme day. @param {{key:string}} day */
+export const programmeKey = day => GEN_PREFIX + day.key;
+/** The day a session key names, or null. @param {Programme|null|undefined} prog @param {string} key */
+export function programmeDay(prog, key) {
+  if (!prog || !isGeneratedKey(key)) return null;
+  return prog.days.find(d => programmeKey(d) === key) || null;
+}
+
 /* The programme fixes the deload cadence ("every 4–6 weeks, non-negotiable in
    a deficit") but not the dose. These numbers are a proposal, not the coach’s. */
 export const DELOAD = { loadPct: 0.65, resumePct: 0.95 };
@@ -742,12 +838,13 @@ export function targets(tpl, history, date, deloadOn) {
    change or a swap re-recommends with the same load type and hold rule. Pass
    the session's key so a name shared with a legacy template resolves to the
    right one; the flags that only live in the template (heavy, cal) are read
-   from it, never from the session file. */
-/** @param {Obj} ex @param {string} [key] @returns {Tpl} */
-export function tplOf(ex, key) {
+   from it, never from the session file. A programme session ('g-' key) reads
+   its own programme (prog), never Dan's templates. */
+/** @param {Obj} ex @param {string} [key] @param {Programme|null} [prog] @returns {Tpl} */
+export function tplOf(ex, key, prog) {
   /** @type {Obj|undefined} */
   let base;
-  if (!ex.substitutedFor) base = tplByName(ex.n, key);
+  if (!ex.substitutedFor) base = tplByName(ex.n, key, prog);
   const heavy = !!(base && base.heavy);
   return {
     n: ex.n, kind: ex.kind,
@@ -765,12 +862,12 @@ export function tplOf(ex, key) {
    are observations and never change. An edit keeps the rule Dan was shown at
    the time, which is what its decision log records, and never reads its own
    saved copy as "last time". */
-/** @param {Obj} d @param {Obj[]} history */
-export function retarget(d, history) {
+/** @param {Obj} d @param {Obj[]} history @param {Programme|null} [prog] the user's programme, for a 'g-' session */
+export function retarget(d, history, prog) {
   const own = d.editing && d.originPath ? String(d.originPath).split('/').pop() : null;
   const hist = own ? history.filter(h => fileKey(h) !== own) : history;
   for (const ex of d.exercises) {
-    const res = targets(tplOf(ex, d.key), hist, d.date, d.isDeload);
+    const res = targets(tplOf(ex, d.key, prog), hist, d.date, d.isDeload);
     if (!d.editing) {
       ex.rec = res.rec;
       if (res.cal) ex.cal = res.cal; else delete ex.cal;
@@ -818,11 +915,19 @@ function exerciseFrom(e, history, date, deload, ctx) {
   ex.sets = Array.from({ length: n }, (_, i) => blankSet(ex, i > 0 && res.back ? res.back : target));
   return ex;
 }
-/** @param {string} key @param {Obj[]} history @param {string} dateIso @param {string} nowIso @param {boolean} [isDeload] */
-export function newSession(key, history, dateIso, nowIso, isDeload) {
-  const t = /** @type {Obj} */ (TEMPLATES)[key];
+/* key is a TEMPLATES key, or a programme day's 'g-' key with prog supplied.
+   A programme session is outside the block: no ramp, no phase, no week-20 or
+   deload halving, no blockWeek on the file; it records programmeId. */
+/** @param {string} key @param {Obj[]} history @param {string} dateIso @param {string} nowIso @param {boolean} [isDeload] @param {Programme|null} [prog] */
+export function newSession(key, history, dateIso, nowIso, isDeload, prog) {
+  const gen = isGeneratedKey(key);
+  const day = gen ? programmeDay(prog, key) : null;
+  if (gen && !day) throw new Error('no programme day for ' + key);
+  const t = day
+    ? { name: day.name, ex: day.ex.map(e => { /** @type {Obj} */ const c = { ...e }; for (const k of BLOCK_ONLY) delete c[k]; return c; }) }
+    : /** @type {Obj} */ (TEMPLATES)[key];
   const deload = !!isDeload && isLiftKey(key);
-  const info = blockInfo(dateIso);
+  const info = gen ? null : blockInfo(dateIso);
   /** @type {Ctx} */
   const ctx = { deload, volume: !!t.volume, legacy: !!t.legacy, info };
   /* The pre-session block opens a lift session: routine sets with no rec, so
@@ -838,6 +943,7 @@ export function newSession(key, history, dateIso, nowIso, isDeload) {
     decisions: []
   };
   if (info) { s.blockWeek = info.week; s.phase = info.phase; }
+  if (day && prog) s.programmeId = prog.id;
   return s;
 }
 /* The exercises of one or more routines, each tagged with its routine key.
@@ -857,6 +963,15 @@ export function routineExercises(keys, history, date, have) {
     }
   }
   return out;
+}
+/* One programme exercise as a session exercise, for a swap inside a session:
+   the same build as newSession gives a programme day (no block, no ramp). */
+/** @param {Tpl} tpl @param {Obj[]} history @param {string} date @param {boolean} [deload] */
+export function programmeExercise(tpl, history, date, deload) {
+  /** @type {Obj} */
+  const c = { ...tpl };
+  for (const k of BLOCK_ONLY) delete c[k];
+  return exerciseFrom(/** @type {Tpl} */ (c), history, date, !!deload, { deload: !!deload, info: null });
 }
 /** A one-off exercise added inside a session. @param {string} name */
 export function customExercise(name) {
@@ -935,7 +1050,7 @@ export function finishSession(draft, nowIso, choice) {
   const s = { ...d, schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION, decisions, week: weekOf(d.date) };
   /* Optional block fields, derived from the date. A session outside the block
      carries neither (and an edit that moves it out removes them). */
-  const bi = blockInfo(d.date);
+  const bi = isGeneratedKey(d.key) ? null : blockInfo(d.date);
   if (bi) { s.blockWeek = bi.week; s.phase = bi.phase; } else { delete s.blockWeek; delete s.phase; }
   const editing = !!d.editing;
   for (const k of ['editing', 'originPath', 'origDate', 'origKey']) delete s[k];
@@ -1055,6 +1170,30 @@ export function nextTemplate(plan) {
   return open ? open.key : null;
 }
 
+/* A programme's week (spec Q2): no set days. The next session is the day after
+   the last one done from this programme, in rotation (the first day when none
+   is done yet, or when the last one's day is no longer in it). Done this week
+   counts every lift session in the ISO week, from any programme and deloads
+   included, against perWeek: it is the consistency metric (S5). */
+/** @param {Programme} prog @param {Obj[]} list merged history, suspects included @param {string} todayIso */
+export function programmeWeek(prog, list, todayIso) {
+  const keys = prog.days.map(programmeKey);
+  const live = (list || []).filter(s => s && s.date && !s.deleted);
+  const at = (/** @type {Obj} */ s) => s.date + '|' + String(s.savedAt || s.endedAt || s.startedAt || '');
+  /** @type {Obj|null} */
+  let last = null;
+  for (const s of live) if (s.programmeId === prog.id && keys.includes(s.key) && (!last || at(s) > at(last))) last = s;
+  const i = last ? (keys.indexOf(last.key) + 1) % keys.length : 0;
+  const wk = weekOf(todayIso);
+  const week = live.filter(s => countsAsLift(s) && weekOf(s.date) === wk && (!isSuspectPrefill(s) || s.verified === true));
+  return {
+    next: keys[i], nextName: prog.days[i].name,
+    last: last ? { key: last.key, date: last.date } : null,
+    done: week.length, target: prog.perWeek, doneToday: week.some(s => s.date === todayIso),
+    days: prog.days.map((d, j) => ({ key: keys[j], name: d.name, next: j === i }))
+  };
+}
+
 /* ---------------------------------------------------------- deload check */
 /** @param {Obj[]} history @param {string} w */
 export const sessionsInWeek = (history, w) => history.filter(h => countsAsLift(h) && weekOf(h.date) === w && !h.isDeload);
@@ -1066,8 +1205,11 @@ export function weeksSinceDeload(history, todayIso) {
   const from = d ? d.date : (first ? first.date : null);
   return from ? weeksBetween(weekOf(from), weekOf(todayIso)) : 0;
 }
-/** @param {Obj[]} history analysis history, newest first @param {Obj[]} bw @param {Obj} settings @param {string} todayIso */
-export function deloadCheck(history, bw, settings, todayIso) {
+/* With a programme (prog): no block, so no BLOCK code; the cadence applies
+   only when the programme sets deloadEvery (weeks); D1 reads the programme's
+   main lifts (key) and D5 its perWeek. Without one, Dan's plan as before. */
+/** @param {Obj[]} history analysis history, newest first @param {Obj[]} bw @param {Obj} settings @param {string} todayIso @param {Programme|null} [prog] */
+export function deloadCheck(history, bw, settings, todayIso, prog) {
   const lifts = history.filter(isLift);
   const codes = [];
   const thisWeek = weekOf(todayIso);
@@ -1080,17 +1222,21 @@ export function deloadCheck(history, bw, settings, todayIso) {
      Every day of such a week is a deload, for all four sessions, and the
      weeks-since-deload cadence is not used at all. Before the block starts the
      old cadence still applies: the coach’s rule, every 4–6 weeks. */
-  const bi = blockInfo(todayIso);
+  const bi = prog ? null : blockInfo(todayIso);
   if (bi) {
     if (bi.deload) codes.push({ c: 'BLOCK', sev: 'severe', t: 'Block week ' + bi.week + ': scheduled deload.' });
-  } else {
+  } else if (!prog) {
     const wsd = weeksSinceDeload(lifts, todayIso);
     if (lifts.length && wsd >= (settings.deloadWeeks || 5))
       codes.push({ c: 'CADENCE', sev: 'severe', t: wsd + ' weeks since the last deload. Programme says every 4–6.' });
+  } else if (prog.deloadEvery) {
+    const wsd = weeksSinceDeload(lifts, todayIso);
+    if (lifts.length && wsd >= prog.deloadEvery)
+      codes.push({ c: 'CADENCE', sev: 'severe', t: wsd + ' weeks since the last deload. Your programme deloads every ' + prog.deloadEvery + '.' });
   }
 
   /* D1: estimated 1RM regression on the main lifts. */
-  const keys = new Set(); for (const t of Object.values(TEMPLATES)) for (const e of t.ex) if (e.key) keys.add(e.n);
+  const keys = new Set(); for (const t of prog ? prog.days : Object.values(TEMPLATES)) for (const e of /** @type {Tpl[]} */ (t.ex)) if (e.key) keys.add(e.n);
   const regressed = [];
   for (const k of keys) {
     const series = lifts.filter(h => !h.isDeload)
@@ -1127,8 +1273,9 @@ export function deloadCheck(history, bw, settings, todayIso) {
     codes.push({ c: 'D4', sev: 'mod', t: 'Session RPE averaging 9+ this week.' });
 
   /* D5: attendance. Context only, never evidence on its own. */
-  if (lifts.length >= 4 && week.length && week.length <= 2)
-    codes.push({ c: 'D5', sev: 'info', t: 'Only ' + week.length + ' of 4 sessions logged this week.' });
+  const per = prog ? prog.perWeek : 4;
+  if (lifts.length >= 4 && week.length && week.length <= per - 2)
+    codes.push({ c: 'D5', sev: 'info', t: 'Only ' + week.length + ' of ' + per + ' sessions logged this week.' });
 
   /* D6: bodyweight drop. Off only while Dan is deliberately cutting; the
      winter block is a strength / surplus phase, so it is on. */
@@ -1224,8 +1371,15 @@ function mergeSettings(prev) {
 }
 /** The template entry of the same name, if any. The session's own template
     first (legacy and new templates share exercise names), then the current
-    plan, then legacy, then the routines. @param {string} n @param {string} [key] @returns {Tpl|undefined} */
-function tplByName(n, key) {
+    plan, then legacy, then the routines. A programme session ('g-' key) looks
+    in its programme (own day first) and the routines only, never in Dan's
+    templates. @param {string} n @param {string} [key] @param {Programme|null} [prog] @returns {Tpl|undefined} */
+function tplByName(n, key, prog) {
+  if (isGeneratedKey(key)) {
+    const days = prog ? prog.days : [], own = programmeDay(prog, /** @type {string} */ (key));
+    for (const t of [...(own ? [own] : []), ...days, ...Object.values(ROUTINES)]) { const e = /** @type {Tpl[]} */ (t.ex).find(x => x.n === n); if (e) return e; }
+    return undefined;
+  }
   const own = key && /** @type {Obj} */ (TEMPLATES)[key] ? [/** @type {Obj} */ (TEMPLATES)[key]] : [];
   for (const t of [...own, ...Object.values(TEMPLATES), ...Object.values(ROUTINES)]) { const e = /** @type {Tpl[]} */ (t.ex).find(x => x.n === n); if (e) return e; }
   return undefined;

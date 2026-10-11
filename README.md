@@ -1,6 +1,6 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-10 (v5, build 5-9: the winter strength plan plus account mode beta)
+**As of:** 2026-10-11 (v5, build 5-13: the winter strength plan, account mode beta, onboarding and generated programmes for friends)
 
 Phone-first training log, built to be used one-handed in the gym. **The GitHub
 repo is the source of truth**; the phone holds a cache and a queue of anything
@@ -22,6 +22,116 @@ observation when Finish was pressed.
 v5 separates the two. A set is **planned** (a target, shown grey) until Dan
 confirms it, and only confirmed sets count for anything. The logging screen
 was rebuilt around that one tap.
+
+## What changed on 2026-10-11 (builds 5-12, 5-13): QA fixes to onboarding
+
+Nothing changes for Dan's GitHub phone (checked against build 5-9 with a
+frozen fixture from invented sessions, `dev/fixtures/coach-plan-5-9.json`).
+
+- **One person's programme never reaches another.** Signing out forgets the
+  programme, the coach flag, half-answered questions and a pending code
+  (`PER_USER` in `cloud.js`); so does a different account taking the phone
+  over. The cached programme records whose it is (`programmeOwner`): it is
+  never shown to, or sent for, anyone else. If the account has no programme,
+  the phone's copy is dropped unless it is this user's own unsent change.
+  The coach flag is re-read from `programme_key` on every pull.
+- **Two phones:** a programme carries `updatedAt`; the newer one wins, and a
+  phone's older unsent change gives way to a newer one in the account
+  instead of overwriting it.
+- **Signed out with no programme** shows the start page, never the questions
+  (`entryScreen` in `programme.js`, the one rule for which screen shows).
+- **A stored programme that fails its own answers** (an exercise no longer in
+  the library, one hard on a joint the person said hurts, unreadable
+  answers) is not run: “Set it up again”, plus Sign out. A network failure
+  keeps Try again (plus Sign out). A programme with no answers or slot info
+  (coach or hand-written) runs, but offers no Swap and no library.
+- **Questions:** a double tap no longer skips a question; a missing answer at
+  build time goes back to that question; the build-error screen has “Back
+  to the questions”. Typing the code offline retries once when the signal
+  is back.
+- **5-13:** a re-take keeps a swap to any exercise that fits, not only the
+  first six on the swap sheet; “Set up again” after a failed check opens the
+  questions with the old answers and keeps the old swaps where they fit;
+  signing out with an unsent programme change says it will be lost; the
+  frozen fixture's history is fully invented.
+- **Generator** (library 2026-10-11, 57 exercises): a fallback into a
+  pattern stops at `PAIN_RULES.fallbackMaxOnDay` slots of it per day, and only
+  slots that survive the time trim use up an exercise for the week.
+
+## What changed on 2026-10-11 (build 5-11): onboarding for friends
+
+Spec: [ledger-ux-onboarding.md](../projects/ledger-ux-onboarding.md). Why:
+[decision 2026-10-11](../decisions/2026-10-11-ledger-onboarding-generator.md).
+**Dan's phone does not change**: none of this renders when storage is
+`github`, or on an account marked as the coach's (below), even if a
+programme is cached. Every rule below is for friends only.
+
+- **Start page** (signed out, nothing on the phone, no GitHub, no session in
+  progress): email → 6-digit code that submits itself on the sixth digit
+  (paste with a space works), 60 s resend countdown, and a code sent under an
+  hour ago reopens the code screen after a reload. The Settings sign-in card
+  stays for Dan.
+- **After sign-in** the account's profile is read ("Loading your
+  programme…"). A programme there → Log. None → the **five questions** (days,
+  where, experience, pain, minutes; dumbbells and home add pull-up bar / bands
+  chips). Every answer is saved on the phone at once, so a reload resumes.
+  A failed load says so and offers Try again; it never falls through to the
+  questions.
+- **The generator** is `programme.js` (pure, imports nothing, the library is
+  passed in): `generate(answers, library)` follows the rules in the header of
+  `library.js` in their order, including the pain fallbacks, the RIR floors,
+  time trimming and the light day. START_EASY is not applied. Slots nothing
+  fits are dropped and shown on Your programme (“Upper A has 6 exercises, not
+  7: …”), naming kit only when it would fill the slot.
+- **Your programme**: days with the next one open, Swap on every exercise
+  (sheet: the current exercise, then what fits the slot, ▶ form link, Undo),
+  “Your pick” on swapped rows, a RIR explanation, Browse all exercises. The
+  first time, a bottom bar starts today's session.
+- **Exercise library**: grouped, “Fits you” or “All”. In All, an exercise
+  that does not fit shows why and cannot be swapped in.
+- **Log** for friends: Start today's session (the next day in rotation),
+  “N of perWeek this week” with a 4-week strip, other days below. Body tab and
+  floor/stretching are hidden. ⋯ → Swap opens the library sheet, for today only.
+- **Settings** for friends: Account, Programme (view, library, re-take with a
+  confirm; re-take keeps swaps that still fit and restarts the rotation), Data.
+- **RIR in words** (friends' sessions only): ⓘ, the reps-left row, the set
+  sheet and the finish sheet use “how many more good reps”.
+- **Storage:** the programme and the answers (pain included, Builder's
+  decision) are in `profiles.settings.programme`, cached on the phone.
+- **Dan's account on a new phone:** set `programme_key = 'coach'` on his
+  profiles row (no programme JSON). Sign-in then skips the questions and runs
+  the coach programme, as it does today; add GitHub in Settings as before.
+
+## What changed on 2026-10-11 (build 5-10): the programme as data (engine only)
+
+Nothing on screen changes and Dan's plan runs exactly as before (checked
+byte-for-byte against build 5-9 over the real log). Groundwork for S2: the
+engine can run a **programme supplied per user** instead of `TEMPLATES`.
+
+- **Shape** (`normaliseProgramme` in `engine.js`): `{ v: 1, id, name, source:
+  'coach'|'generated', perWeek, deloadEvery (weeks or null), days: [{ key, name,
+  ex: [...same schema as TEMPLATES...] }], answers?, createdAt }`. The block-only
+  flags (`cal`, `heavy`, `topRir`, `single`, `wk1`, `hold`) are stripped: a
+  programme has no block, phases, week-1 ramp or weekdays, and progresses by
+  the plain rules (double progression on rep range + RIR; first time ✓ asks
+  for numbers or uses `seed`).
+- **Engine calls** take it as an optional last argument: `newSession(…, prog)`,
+  `retarget(d, history, prog)`, `tplOf(ex, key, prog)`, `deloadCheck(…, prog)`.
+  Without it, Dan's path. `programmeWeek(prog, list, today)` gives the next
+  session (the day after the last one done from this programme, in rotation)
+  and this week's count against `perWeek`.
+- **Session files** stay `schemaVersion: 5`. A programme session is keyed
+  `g-<day key>` (file `2026-10-20-g-upper-a.json`) and carries `programmeId`;
+  never `blockWeek`/`phase`. The prefix keeps a day from resolving to one of
+  Dan's templates. History renders from the file alone; last time is by
+  exercise name, across programmes.
+- **Deloads** for a programme: no scheduled block weeks; a cadence only if
+  `deloadEvery` is set; D1 reads its `key` lifts, D5 its `perWeek`.
+- **Storage:** `profiles.settings.programme` (+ `programme_key` = its id), no
+  migration. `cloud.js`: `setProgramme` (cached in `S.programme` at once,
+  `S.programmeDirty` until the server confirms), `pushProgramme` (reads the
+  row, keeps other settings keys, upserts), `pullProgramme`, `syncProgramme`.
+  Not wired to any screen yet.
 
 ## What changed on 2026-10-10 (build 5-9): gym-floor fixes
 
@@ -472,8 +582,8 @@ here would have rolled it back. Never commit to the public repo by hand.
 
 ### 2. Hosting
 
-The app is static: `index.html`, three modules (`engine.js`, `sync.js`,
-`cloud.js`), a manifest, an icon and a service worker. No secrets in it (the
+The app is static: `index.html`, five modules (`engine.js`, `sync.js`,
+`cloud.js`, `library.js`, `programme.js`), a manifest, an icon and a service worker. No secrets in it (the
 Supabase URL and publishable key in `cloud.js` are public by design), so the
 code is public while the data repo stays private.
 
@@ -524,7 +634,7 @@ finish sheet adds a newly logged pinch to.
 - **The rules** are in `engine.js`: pure functions, no page, no network.
 - **The screen** is `index.html`: CSS and one `<script type="module">`.
 - **Sync** is `sync.js`; **account mode** is `cloud.js`.
-- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the three
+- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the five
   imports in `index.html` together.** The service worker caches the modules at
   those exact URLs, so a page can never run with a module from another build.
 
