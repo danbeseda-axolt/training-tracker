@@ -249,11 +249,11 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-13';
-import { makeSync } from './sync.js?v=5-13';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-13';
-import * as L from './library.js?v=5-13';
-import * as G from './programme.js?v=5-13';
+import * as E from './engine.js?v=5-14';
+import { makeSync } from './sync.js?v=5-14';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-14';
+import * as L from './library.js?v=5-14';
+import * as G from './programme.js?v=5-14';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -1147,7 +1147,7 @@ function viewAccount(){
     if(!a.sent){
       h += '<button class="btn primary w100" style="margin-top:12px" data-act="acSend"' + (a.busy ? ' disabled' : '') + '>Send code</button>';
     } else {
-      h += '<label>Code from the email</label><input type="text" data-f="acCode" value="' + esc(a.code) + '" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" placeholder="6 digits">'
+      h += '<label>Code from the email</label><input type="text" data-f="acCode" value="' + esc(a.code) + '" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" placeholder="8 digits">'
         + '<button class="btn primary w100" style="margin-top:12px" data-act="acVerify"' + (a.busy ? ' disabled' : '') + '>Sign in</button>'
         + '<div class="row" style="margin-top:4px"><button class="textbtn plain" data-act="acSend"' + (a.busy ? ' disabled' : '') + '>Send a new code</button><button class="textbtn plain" data-act="acReset">Use another email</button></div>';
     }
@@ -1189,7 +1189,7 @@ function viewStart(){
   if(s.step === 'code'){
     return '<div class="card"><h3>Check your email</h3><div class="sub" style="margin-top:4px">We sent a code to <b>' + esc(s.email) + '</b></div>'
       + (off ? '<div class="banner warn" style="margin-top:10px">You’re offline. Your code still works: connect, then type it.</div>' : '')
-      + '<input class="codein" style="margin-top:12px" data-f="siCode" value="' + esc(s.code) + '" inputmode="numeric" autocomplete="one-time-code" aria-label="6-digit code"' + (s.busy || s.until > Date.now() ? ' disabled' : '') + '>'
+      + '<input class="codein" style="margin-top:12px" data-f="siCode" value="' + esc(s.code) + '" inputmode="numeric" autocomplete="one-time-code" aria-label="8-digit code"' + (s.busy || s.until > Date.now() ? ' disabled' : '') + '>'
       + '<div class="hint" id="siHint">' + (s.busy ? 'Checking…' : 'It can take a minute to arrive. Not there? Check spam.') + '</div>'
       + err
       + '<button class="btn w100" style="margin-top:12px" id="siResend" data-act="siResend" disabled>Send a new code</button>'
@@ -1201,7 +1201,7 @@ function viewStart(){
     + (off ? '<div class="banner warn" style="margin-top:10px">You’re offline. Connect to the internet to sign in.</div>' : '') + err
     + '<label>Email</label><input type="email" data-f="siEmail" value="' + esc(s.email) + '" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" autofocus' + (s.busy ? ' disabled' : '') + '>'
     + '<button class="big primary" style="margin-top:12px" id="siSend" data-act="siSend"' + (!ok || s.busy || off || s.until > Date.now() ? ' disabled' : '') + '>' + (s.busy ? 'Sending…' : 'Send me a code') + '</button>'
-    + '<div class="hint">We email you a 6-digit code. No password.</div>'
+    + '<div class="hint">We email you an 8-digit code. No password.</div>'
     + '<div class="hint" style="margin-top:14px">Your training is stored on Ledger’s server. Dan runs it and can see the database. Ask him to delete your data at any time.</div></div>';
 }
 /* Countdowns without re-rendering (a re-render would drop the keyboard). */
@@ -1250,7 +1250,7 @@ let siRetryArmed = false;
 async function siVerify(){
   const s = ui.si, code = String(s.code || '').replace(/\D/g, '');
   if(cloud.signedIn()){ await afterSignIn({ foreign: cloud.foreign() }); return; }
-  if(code.length !== 6 || s.busy) return;
+  if(code.length !== 8 || s.busy) return;
   s.busy = true; s.err = null; render();
   try{
     const who = await cloud.verifyCode(s.email, code);
@@ -1971,7 +1971,7 @@ const ACT = {
   },
   acVerify: async () => {
     const code = String(ui.ac.code || '').replace(/\D/g, '');
-    if(code.length < 6){ acSay('Enter the 6-digit code from the email.', 'bad'); render(); return; }
+    if(code.length < 8){ acSay('Enter the 8-digit code from the email.', 'bad'); render(); return; }
     ui.ac.busy = true; acSay('Checking…'); render();
     try{
       const who = await cloud.verifyCode(ui.ac.email || cloud.email(), code);
@@ -2033,8 +2033,8 @@ const INPUT = {
   acEmail: el => { ui.ac.email = el.value; },
   /* Start page: enable Send without re-rendering (keeps the keyboard up). */
   siEmail: el => { ui.si.email = el.value.trim(); const b = $('#siSend'); if(b) b.disabled = !/@.+\./.test(ui.si.email) || !online() || ui.si.until > Date.now(); },
-  /* The code submits itself on the sixth digit; a pasted "481 207" works. */
-  siCode: el => { const v = el.value.replace(/\D/g, '').slice(0, 6); if(el.value !== v) el.value = v; ui.si.code = v; if(v.length === 6) siVerify(); },
+  /* The code submits itself on the eighth digit (Supabase OTP length is 8); a pasted "4812 0736" works. */
+  siCode: el => { const v = el.value.replace(/\D/g, '').slice(0, 8); if(el.value !== v) el.value = v; ui.si.code = v; if(v.length === 8) siVerify(); },
   acCode: el => { ui.ac.code = el.value; }
 };
 const CHANGE = {

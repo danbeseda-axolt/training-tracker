@@ -67,7 +67,7 @@ Spec: [ledger-ux-onboarding.md](../projects/ledger-ux-onboarding.md). Why:
 programme is cached. Every rule below is for friends only.
 
 - **Start page** (signed out, nothing on the phone, no GitHub, no session in
-  progress): email → 6-digit code that submits itself on the sixth digit
+  progress): email → 8-digit code (the project's Supabase OTP length) that submits itself on the eighth digit
   (paste with a space works), 60 s resend countdown, and a code sent under an
   hour ago reopens the code screen after a reload. The Settings sign-in card
   stays for Dan.
