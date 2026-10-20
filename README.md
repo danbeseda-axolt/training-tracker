@@ -1,6 +1,175 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-11 (v5, build 5-13: the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+**As of:** 2026-10-19 (v5, build 5-15: the coach chat, built against a fake model; the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+
+## What changed on 2026-10-19 (build 5-15): the coach chat (not live yet)
+
+Spec: [ledger-chat-spec.md](../projects/ledger-chat-spec.md) (data, limits,
+errors) and [ledger-ux-chat.md](../projects/ledger-ux-chat.md) (screens, copy).
+Dan, 2026-10-19: *"A chat I could ask directly in the app, my trainer, about
+what he thinks about stuff."* So this build has **free chat (C1) and the week
+review (W1) together**, on one Edge Function. Builder's answers to the docs'
+open questions: caps 20 a person a day and 200 for everyone; pain answers and
+notes do go to the model (the first-run card says so); the coach answers in
+the language of the question (the week review: English, unless the person's
+recent messages are Czech); **no Monday card** for last week; History's
+"What should I take from this session?" is in.
+
+**Who sees it.** Only someone signed in to an account: friends, and Dan when
+his GitHub phone is also signed in. **Dan's GitHub phone signed out sees
+nothing new**: four tabs, no card, no button, no network call. A friend's
+phone whose sign-in expired keeps the tab, with "Sign in again to use the
+coach".
+
+**What is on screen**
+- **Coach tab** (Log · Coach · History · (Body) · Settings). First run: the
+  disclosure card (Anthropic gets the log, notes including pain, the
+  programme and the messages; Dan can see the database; delete any time; not
+  a physio), "OK, got it" stored in the account (`profiles.settings.coachChat`,
+  copy version `COPY_V` in `coach.js`), so a second phone doesn't ask.
+- Empty: up to 4 suggested questions from the person's own log (`suggestions`
+  in `coach.js`: this week or last week's review, the main lift done most in
+  8 weeks, next session / "why is today's weight lower?", deload or RIR), and
+  a composer (1,000 characters, counter from 900, Enter sends).
+- Thread: oldest first with date dividers, opened at the top of the latest
+  answer; "From N weeks, M sessions." under each answer; "In Ledger:" paths in
+  their own block; follow-up chips under the latest answer only. A pain answer
+  (`safety`) gets the fixed banner and the 155 footer, which come from code
+  (`SAFETY`, the same words in the function and the app), never from the AI.
+- Loading ("Reading your log…" → "Coach is thinking…" → "Still working…"),
+  offline (read only, nothing queued, text kept), errors with Try again,
+  "N messages left today" from 3, the limit banner, "coach is off".
+- **Log:** once the week's planned sessions are all saved, a card "Week
+  done: 3 of 3 ✓" with **How was my week?** (Dan: "all four lifts"); Not now
+  hides it for the week; afterwards "Read your week review ›". The save that
+  completes the week toasts "Saved. Week done: 3 of 3." "Ask the coach about
+  this week ›" sits in the on-track card (Dan: under "Not yet this week").
+- **History:** "What should I take from this session?" on lift sessions in
+  the account (disabled with a reason when not uploaded, offline or at the
+  limit). **Session ⋯ → Ask the coach.**
+- **Settings → Coach:** message count and **Delete my chat** (confirm). It
+  removes every chat row of the user; the usage counter is untouched.
+
+**How it works.** The app (`cloud.askCoach`) flushes the account queue, then
+POSTs `{question, kind: 'chat'|'week_review', week?, scope?: {session}}` to
+`/functions/v1/coach` with the user's token, 60 s timeout. The function
+(`supabase/functions/coach/`) takes one from the cap (`chat_take()`), reads
+the profile, the last 8 weeks of sessions and the last 10 messages from 14
+days **as the user** (their JWT + the publishable key; no service-role key
+anywhere), builds a compact text context with the engine (targets and rule
+codes for the next session, deload flags, e1RM, pinch count, the sessions with
+notes wrapped as data), calls Claude Sonnet 5.5 (`claude-sonnet-5-5`, adaptive
+thinking at low effort, `max_tokens` 2,500, server-side refusal fallback,
+prompt caching on the frozen system prompt and on the context), stores the
+question and the answer, and returns `{answer, safety, weeks, sessions,
+remaining, …}`. A week already reviewed returns the stored review, free.
+One retry on 429/529/5xx; then "busy". Errors the app tells apart: 401
+signed_out, 413 too_long, 429 limit, 503 off (no key, a refused key, or
+`COACH_OFF=1`), 502 busy, 504 timeout.
+
+- `supabase/functions/coach/coach-core.js`: everything, pure with the
+  database, model and clock injected (`makeCoach`, `buildContext`,
+  `handleHttp`). `index.ts` is the Deno wrapper.
+- `supabase/functions/_shared/engine.js`: a **byte-for-byte copy** of
+  `engine.js` (the test fails when they differ: after any engine change,
+  `cp tracker/engine.js tracker/supabase/functions/_shared/engine.js`).
+- `supabase/migrations/20261019_ledger_chat.sql`: `chat_messages` (RLS: own
+  rows, read/insert/delete, no update), `chat_usage` + `chat_take()` (the
+  caps live in SQL; a refused take is not counted; security definer, with the
+  reason in the file), one review per user per week (unique index). A
+  two-user verification script is at the bottom, commented.
+- `coach.js` (app): suggestions, follow-ups, the week card rule, answer
+  formatting (escaped; bold, line breaks, bullets only), copy.
+- Tests: `dev/coach-fn.test.mjs` (fake model, fake database: context from
+  invented rows, caps 20/200 and delete-doesn't-reset, safety by keyword and
+  by the model's `[SAFETY]` mark, injection in notes, one review a week,
+  error paths, every DB call as the user) and `dev/coach-app.test.mjs`.
+
+**QA round 1 (2026-10-19), still build 5-15:**
+- **Invite-only.** `coach_access` (one row per person, added by Builder in
+  SQL; no grant lets a user add themselves). `chat_take()` returns a `reason`
+  (`no_access`, `limit_user`, `limit_all`) and counts nothing without access.
+  The app checks the row when the tab opens and shows "The coach is
+  invite-only for now. Ask Dan to switch it on for you."; no card, link or
+  History button then.
+- **Cost bounded per message:** the context holds at most 8 weeks and 40
+  sessions, 12 exercises a session, 24,000 characters (oldest sessions
+  dropped first, and the context says "N older sessions left out").
+- **The week review can't be used up mid-week:** the function answers 409
+  `week_not_done` for this week until its planned sessions are saved
+  (`perWeek`, 4 on the coach plan); last week any time. Mid-week the chip is
+  the plain question "How is my week going so far?".
+- **Safety detection** (`painWords` in `coach-core.js`, QA round 2):
+  negations removed first ("no pain", "pain-free", "bez bolesti"); clear
+  symptom words always count (pain, hurt, bolí, Schmerz, chest tightness,
+  spasm, cramp/křeč, numb, tingling, swollen, dizzy, "gave way", unstable,
+  headache…); ambiguous words (pulled, tore, popped, tweaked, strained,
+  "killing me") only within 3 words of a body part and never before a number,
+  and "sore"/"tight" only on a joint, the back or the chest. So "I pulled 140
+  kg" and "DOMS: legs sore" are training, "I pulled a hamstring" is not.
+  From the data: a review (of a week or one session) is a safety answer when
+  its sessions had a flare-up or a pain note; a chat only when the question
+  names a body area that flared up in the last 14 days, and then the turn
+  tells the model why. Other recent flare-ups are listed in the context as
+  facts, and the model marks the answer itself ([SAFETY]) when it touches one.
+- **Pinches:** the context never states a total (the number before the app
+  is on the phone); it gives the weeks shown as a minimum, and the prompt
+  forbids guessing a total.
+- **Names are wrapped as data** like notes (`«…»`). History fed to the model
+  is only rows the function stored (`meta.src = 'fn'`, a model and token
+  counts); rows can't be dated into the future. A user forging such rows by
+  hand only steers their own coach.
+- **Time:** 50 s for the whole request; a retry only with 20 s left.
+- **"Off" clears** after a minute or on the next tab opening; a gateway error
+  without the function's own code reads "busy", not "off".
+- **First-run flag** is written with `settings_merge(patch)` (one statement,
+  `settings || patch`). `pushProgramme` still reads and rewrites the whole
+  settings object (its newer-copy-wins check needs the read), so a programme
+  save racing the first-run "OK" can still drop `coachChat`; the cost is the
+  first-run card showing once more.
+
+**Not built (on purpose or deferred):** the Monday "last week" card (Builder:
+dropped); the "account has 3 of your 14 sessions" banner for Dan (UX 4.11:
+needs a count query; the held-sessions banner is there); the eval set of ~20
+cases (spec build step 3; runs with the live model, step 4); streaming.
+
+### Deploy (Builder; nothing here is applied or deployed yet)
+
+1. **Migration.** Run `supabase/migrations/20261019_ledger_chat.sql` with the
+   verification block (uncommented) in one transaction ending in `rollback`;
+   check each `expect`. Then apply it as migration `ledger_r2_chat` and run
+   the security advisor (expect only the intended definer function). Then
+   switch the coach on per person:
+   `insert into public.coach_access (user_id) values ('<auth user id>');`
+2. **Function, fake model first.** Deploy `supabase/functions/coach/`
+   (`index.ts`, `coach-core.js`) together with `supabase/functions/_shared/engine.js`
+   as function `coach` (`supabase functions deploy coach`, or the dashboard /
+   MCP deploy with all three files; import path `../_shared/engine.js`).
+   `verify_jwt` on (default). Set the secret `COACH_MODEL=fake`, sign in on a
+   test phone, ask: the canned "(test reply)" comes back, two rows appear in
+   `chat_messages`, `chat_usage` counts 1. If the browser's CORS preflight is
+   refused by the gateway, redeploy with `verify_jwt = false`: the function
+   then rejects a call without a valid user token itself (chat_take fails).
+3. **Live model**, only after the x-chat-test result and Dan's tasks below:
+   remove `COACH_MODEL`, check one answer, run the eval once.
+4. **App:** deploy `tracker/` as usual (build 5-15). It is safe before the
+   function exists: the Coach tab then shows "The coach is busy" on a send.
+   Kill switch at any time: secret `COACH_OFF=1` ("The coach is off for now").
+
+### Dan's tasks (only Dan)
+
+1. **Anthropic API key** (console.anthropic.com, billing on, one key named
+   e.g. `ledger-coach`).
+2. **Put it in yourself**: Supabase dashboard → Edge Functions → Secrets →
+   `ANTHROPIC_API_KEY`. Prefer the dashboard to `supabase secrets set
+   ANTHROPIC_API_KEY=…`, which leaves the key in shell history. Never paste it
+   into a chat, a file or this repo.
+3. **Monthly spend limit** in the Anthropic console (suggested $20), with an
+   email alert below it. That is the real fuse: the caps allow ~6,000
+   messages a month (~$150) at worst.
+4. Your history in the account (Settings → Account → Copy my history), and
+   `programme_key = 'coach'` on your profiles row, or the coach sees an empty
+   log.
 
 Phone-first training log, built to be used one-handed in the gym. **The GitHub
 repo is the source of truth**; the phone holds a cache and a queue of anything
@@ -171,7 +340,7 @@ button (today's, else the earliest not yet done this week) and the rest as rows.
 The squat and bench exist twice, so each keeps its own history: **(volume)** on
 Day 1, the old names (`Bench press (heavy)`, `High-bar back squat`) on the heavy
 days. The deadlift slot keeps the name `Trap-bar / conventional DL` so history carries over, and is a
-conventional deadlift (back confirmed OK on 2026-10-06; for a trap bar or RDL use ⋯ → Swap). The new incline curl is
+conventional deadlift (for a trap bar or RDL use ⋯ → Swap). The new incline curl is
 `Seated incline curl`, so the old `Incline DB curl` alias (a preacher curl)
 is untouched.
 
@@ -582,8 +751,8 @@ here would have rolled it back. Never commit to the public repo by hand.
 
 ### 2. Hosting
 
-The app is static: `index.html`, five modules (`engine.js`, `sync.js`,
-`cloud.js`, `library.js`, `programme.js`), a manifest, an icon and a service worker. No secrets in it (the
+The app is static: `index.html`, six modules (`engine.js`, `sync.js`,
+`cloud.js`, `library.js`, `programme.js`, `coach.js`), a manifest, an icon and a service worker. No secrets in it (the
 Supabase URL and publishable key in `cloud.js` are public by design), so the
 code is public while the data repo stays private.
 
@@ -634,7 +803,7 @@ finish sheet adds a newly logged pinch to.
 - **The rules** are in `engine.js`: pure functions, no page, no network.
 - **The screen** is `index.html`: CSS and one `<script type="module">`.
 - **Sync** is `sync.js`; **account mode** is `cloud.js`.
-- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the five
+- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the six
   imports in `index.html` together.** The service worker caches the modules at
   those exact URLs, so a page can never run with a module from another build.
 

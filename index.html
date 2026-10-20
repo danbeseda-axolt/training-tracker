@@ -211,6 +211,14 @@ body.pbarOn main{padding-bottom:calc(150px + var(--safe-b))}
 .seg.todo{border-style:dashed}
 .wk small{font-size:11px; color:var(--dim)}
 
+/* ---- coach chat (release 2): the one addition is .card.me, the person's own message */
+.card.me{background:var(--chip); margin-left:15%; overflow-wrap:anywhere; white-space:pre-wrap}
+.ans{overflow-wrap:anywhere}
+.ans .gap{height:8px}
+.ans ul.cl{margin:4px 0; padding-left:20px}
+.cdiv{text-align:center; margin:12px 0 8px}
+#coachText{min-height:48px; resize:none}
+
 #toast{position:fixed; left:12px; right:12px; z-index:35; bottom:calc(var(--nav) + var(--safe-b) + 10px); background:var(--text); color:var(--bg); border-radius:12px; padding:6px 6px 6px 14px; display:flex; align-items:center; gap:8px; font-size:14.5px; max-width:616px; margin:0 auto}
 body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe-b) + 10px)}
 #toast button{min-height:44px; min-width:64px; border:none; border-radius:9px; background:transparent; color:var(--accent); font-weight:700}
@@ -230,6 +238,7 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 
 <nav id="tabs">
   <button data-act="tab" data-tab="log" class="on">Log</button>
+  <button data-act="tab" data-tab="coach" hidden>Coach</button>
   <button data-act="tab" data-tab="history">History</button>
   <button data-act="tab" data-tab="body">Body</button>
   <button data-act="tab" data-tab="settings">Settings</button>
@@ -249,11 +258,12 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-14';
-import { makeSync } from './sync.js?v=5-14';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-14';
-import * as L from './library.js?v=5-14';
-import * as G from './programme.js?v=5-14';
+import * as E from './engine.js?v=5-15';
+import { makeSync } from './sync.js?v=5-15';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-15';
+import * as L from './library.js?v=5-15';
+import * as G from './programme.js?v=5-15';
+import * as C from './coach.js?v=5-15';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -463,7 +473,9 @@ const ui = { tab:'log', open:new Set(), info:new Set(), note:new Set(), sheet:nu
   cloudStatus:null, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' },
   /* friends: start page sign-in, programme load, build, pages */
   si:{ step:'email', email:'', code:'', busy:false, err:null, until:0 }, progLoad:null, building:null,
-  page:null, pageFrom:null, pageBack:null, progOpen:new Set(), rirMore:false, libAll:false, libOpen:null, retakeArm:false, qPressed:null };
+  page:null, pageFrom:null, pageBack:null, progOpen:new Set(), rirMore:false, libAll:false, libOpen:null, retakeArm:false, qPressed:null,
+  /* the coach chat (release 2) */
+  coach:{ pending:null, failed:null, waiting:null, text:'', off:false, remaining:null, loading:false, checked:false, scroll:null, delArm:false, deleting:false, delErr:false } };
 /* A code asked for less than an hour ago: the start page opens on the code. */
 if(S.signin && S.signin.email && Date.now() - (S.signin.sentAt || 0) < 3600e3) Object.assign(ui.si, { step:'code', email:S.signin.email });
 else if(S.signin && S.signin.email) ui.si.email = S.signin.email;
@@ -538,6 +550,10 @@ function render(){
   $('#backBtn').hidden = true; $('#sync').hidden = false;
   document.body.classList.toggle('friend', friend());
   $('#tabs [data-tab="body"]').hidden = friend();
+  /* The Coach tab only when signed in (or a friend's sign-in expired): Dan's
+     GitHub phone signed out keeps exactly its four tabs. */
+  $('#tabs [data-tab="coach"]').hidden = !coachTab();
+  if(ui.tab === 'coach' && !coachTab()) ui.tab = 'log';
   const d = S.draft, ses = ui.tab === 'log' && !!d;
   document.title = d ? 'Ledger · ' + d.name : 'Ledger';
   $('#title').textContent = ses ? d.name : 'Ledger';
@@ -550,10 +566,14 @@ function render(){
   $('#tabs').hidden = ses;
   $('#bar').hidden = !ses;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  $('#view').innerHTML = ui.tab === 'log' ? viewLog() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : viewSettings();
+  $('#view').innerHTML = ui.tab === 'log' ? viewLog() : ui.tab === 'coach' ? viewCoach() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : viewSettings();
   renderRir(); renderNext(); renderSheet(); paintBar();
   if(ui.scrollTo != null){
     const el = document.getElementById('ex-' + ui.scrollTo); ui.scrollTo = null;
+    if(el) el.scrollIntoView({ block:'start' });
+  }
+  if(ui.tab === 'coach' && ui.coach.scroll){
+    const el = document.getElementById(ui.coach.scroll === 'pending' ? 'coachWait' : 'msg-' + ui.coach.scroll); ui.coach.scroll = null;
     if(el) el.scrollIntoView({ block:'start' });
   }
   syncWake();
@@ -637,11 +657,13 @@ function pickerHTML(aH){
   const next = E.nextTemplate(plan);
   const deload = E.deloadCheck(aH, S.bw, S.settings, today()).fire;
   let h = '<div class="sub center" style="margin-bottom:8px">' + esc(blockLine()) + '</div>';
+  h += weekCardHTML(plan.filter(p => p.state === 'done').length, plan.length, true);
   if(next) h += '<button class="big primary" data-act="start" data-key="' + next + '">Start ' + esc(E.TEMPLATES[next].name.split(' — ')[0]) + ' · ' + esc(E.TEMPLATES[next].name.split(' — ')[1] || '') + (deload ? ' · deload' : '') + '</button>';
   const open = plan.filter(p => p.state !== 'done');
   h += '<div class="sub center" style="margin-bottom:12px">' + (open.length
     ? 'Not yet this week: ' + open.map(p => esc(p.name.split(' — ')[0]) + ' (' + p.day + (p.state === 'unverified' ? ', unverified' : '') + ')').join(', ')
     : 'All four lifts are logged this week.') + '</div>';
+  h += askWeekLink(plan.filter(p => p.state === 'done').length);
   /* Legacy (Programme v2) templates are never offered: they exist for History. */
   for(const [k, t] of Object.entries(E.TEMPLATES)){
     if(k === next || t.legacy) continue;
@@ -658,7 +680,7 @@ function progPicker(aH){
   const day = E.programmeDay(p, w.next);
   const deload = E.deloadCheck(aH, S.bw, S.settings, today(), p).fire;
   const full = w.done >= w.target;
-  let h = '<button class="big' + (full ? '' : ' primary') + '" data-act="start" data-key="' + esc(w.next) + '">'
+  let h = weekCardHTML(w.done, w.target, false) + '<button class="big' + (full ? '' : ' primary') + '" data-act="start" data-key="' + esc(w.next) + '">'
     + (full ? 'Start another session' : 'Start today’s session') + '<span class="lines2">' + esc(day.name) + ' · ' + day.ex.length + ' exercises' + (deload ? ' · deload' : '') + '</span></button>';
   if(!genDone()) h += '<div class="hint" style="margin:0 0 10px">First session: you choose the weights. Pick a weight you could lift 2–3 more times than the target. Tap ⓘ on an exercise to see what RIR means and watch the form.</div>';
   h += onTrack(p, list, w);
@@ -687,7 +709,7 @@ function onTrack(p, list, w){
       + '<small>' + (cur ? 'This week' : esc(E.niceDate(x).slice(4))) + '</small></div>';
   }).join('');
   return '<div class="card"><div style="font-weight:650' + (w.done >= n ? ';color:var(--ok)' : '') + '">' + w.done + ' of ' + n + ' this week' + (w.done >= n ? ' ✓' : '') + '</div>'
-    + (line2 ? '<div class="sub">' + esc(line2) + '</div>' : '') + '<div class="strip" aria-hidden="true">' + strip + '</div></div>';
+    + (line2 ? '<div class="sub">' + esc(line2) + '</div>' : '') + '<div class="strip" aria-hidden="true">' + strip + '</div>' + askWeekLink(w.done) + '</div>';
 }
 
 function targetLine(ex){
@@ -878,6 +900,7 @@ function menuSheet(){
     + (friend() ? '' : '<button data-act="mroutines">Add floor or stretching</button>')
     + '<button data-act="maddex">Add exercise</button>'
     + '<button data-act="mtab" data-tab="history">History</button>'
+    + (coachTab() ? '<button data-act="mtab" data-tab="coach">Ask the coach</button>' : '')
     + (friend() ? '' : '<button data-act="mtab" data-tab="body">Body</button>')
     + '<button data-act="mtab" data-tab="settings">Settings</button>'
     + (ui.tab !== 'log' ? '<button data-act="mtab" data-tab="log">Back to the session</button>' : '')
@@ -1028,6 +1051,7 @@ function viewHistory(){
         + (s.notes ? '<div style="margin-top:6px">' + esc(s.notes) + '</div>' : '')
         + ((s.decisions || []).length ? '<div style="margin-top:6px">' + s.decisions.map(x =>
             esc(x.ex) + ': ' + esc(x.rule) + ' said ' + (x.recKg != null ? esc(x.recKg) + ' kg' : x.recBand ? esc(x.recBand) : '—') + ' → <b>' + esc(x.outcome) + '</b>').join('<br>') + '</div>' : '')
+        + askSessionButton(s, k)
         + '<div class="row"><button class="btn" data-act="edit" data-k="' + esc(k) + '">Edit</button>'
         + '<button class="btn danger" data-act="del" data-k="' + esc(k) + '">Delete</button></div></div>';
     }
@@ -1079,7 +1103,7 @@ function viewBody(){
 function viewSettings(){
   const c = S.settings;
   /* Friends: Account, Programme, Data. No GitHub, block goal, pinches or bands. */
-  if(friend() && P()) return viewAccount() + friendProgrammeCard()
+  if(friend() && P()) return viewAccount() + coachCard() + friendProgrammeCard()
     + '<div class="card"><h3>Data</h3><div class="sub">' + merged().length + ' sessions · ' + cloudQ().length + ' waiting to upload · storage: ' + esc(ui.persist || 'checking') + '</div>'
     + '<button class="btn w100" style="margin-top:10px" data-act="export">Export JSON backup</button>'
     + '<div class="hint">Your sessions are kept in your account. This phone holds a copy and anything not yet sent.</div></div>';
@@ -1093,7 +1117,7 @@ function viewSettings(){
     + '<input data-f="cfg" data-k="token" type="password" value="' + esc(c.token) + '" placeholder="github_pat_…" autocomplete="off">'
     + '<div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only. Never send it to anyone, including me.</div>'
     + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button><button class="btn" data-act="test">Test</button></div></div>'
-    + viewAccount()
+    + viewAccount() + coachCard()
     + '<div class="card"><h3>Programme</h3>'
     + '<label>Block goal</label><select data-f="cfg" data-k="phase">'
     + ['strength', 'maintain', 'gain', 'cut'].map(p => '<option value="' + p + '"' + (c.phase === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>'
@@ -1551,6 +1575,268 @@ function friendProgrammeCard(){
     + '<label class="row" style="min-height:48px"><input type="checkbox" data-f="cfgbool" data-k="wakeLock" style="width:24px;min-height:24px"' + (c.wakeLock !== false ? ' checked' : '') + '> Keep the screen on during a session</label></div>';
 }
 
+/* ================================================================ coach */
+/* The coach chat (release 2): free chat and the week review on one Edge
+   Function. Spec: projects/ledger-chat-spec.md; screens and copy:
+   projects/ledger-ux-chat.md. Shown only when signed in to an account (or on
+   a friend's account phone whose sign-in expired, to say so). Dan's GitHub
+   phone signed out sees nothing of it: no tab, no card, no button, no call. */
+const coachLive = () => cloud.signedIn() && !cloud.foreign();
+const coachTab = () => coachLive() || (mode() === 'account' && cloud.inUse() && !cloud.signedIn());
+const coachRows = () => Array.isArray(S.chat) ? S.chat : [];
+/* "Off" is checked again after a minute, and on every opening of the tab. */
+const coachOff = () => C.offNow(ui.coach.off, Date.now());
+const coachAccepted = () => (S.coachOk || 0) >= C.COPY_V;
+const limitToday = () => S.coachLimitDay === today();
+/* Sessions of this person not yet in the account (the coach can't see them). */
+const myHeld = () => { const me = cloud.userId(); return cloudQ().filter(q => q && q.date && (!q._owner || q._owner === me)).length; };
+/* Why an entry point is disabled, or ''. */
+function coachBlocked(){
+  if(!online()) return 'Needs internet.';
+  if(limitToday()) return 'You’ve used today’s messages. Ask tomorrow.';
+  if(ui.coach.noAccess) return 'The coach is invite-only for now.';
+  if(coachOff()) return 'The coach is off for now.';
+  return '';
+}
+/* This week's count against its target, as the Log tab counts it. */
+function weekDone(){
+  const p = P(), list = merged();
+  if(p){ const w = E.programmeWeek(p, list, today()); return { done:w.done, target:w.target }; }
+  if(friend()) return { done:0, target:0 };
+  const plan = E.weekPlan(list, today());
+  return { done: plan.filter(x => x.state === 'done').length, target: plan.length };
+}
+function mainLifts(){
+  const p = P(), out = new Set();
+  for(const d of p ? p.days : Object.values(E.TEMPLATES).filter(t => !t.legacy)) for(const e of d.ex) if(e.key) out.add(e.n);
+  return [...out];
+}
+/* Suggestion 3: a session is in progress and a target is below last time. */
+function lowerToday(){
+  const d = S.draft; if(!d) return false;
+  const aH = aHist();
+  return d.exercises.some(ex => {
+    const st = ex.sets.find(s => !s.warmup && s.target), prev = E.lastFor(ex.n, aH, d.date);
+    if(!st || st.target.kg == null || !prev) return false;
+    const top = Math.max(...E.working(prev.ex).map(s => s.kg ?? -1));
+    return top >= 0 && st.target.kg < top;
+  });
+}
+const coachSugg = () => C.suggestions({ list: merged(), today: today(), weekOf: E.weekOf, addDays: E.addDays, mainLifts: mainLifts(), lowerToday: lowerToday(), isLift: s => E.isLiftKey(s.key), week: weekDone() });
+function dayLabel(iso){
+  const d = E.localISO(new Date(iso));
+  return d === today() ? 'Today' : d === E.addDays(today(), -1) ? 'Yesterday' : E.niceDate(d);
+}
+
+/* Log: the week review card (UX 2), once the week's planned sessions are
+   all saved. No Monday card for last week (Builder, 2026-10-19). */
+function weekCardHTML(done, target, isDan){
+  if(!coachLive() || ui.coach.noAccess) return '';
+  const wk = E.weekOf(today());
+  const st = C.weekCard({ done, target, reviewed: !!C.reviewFor(coachRows(), wk), dismissed: S.coachDismiss === wk });
+  if(st === 'read') return '<button class="rowbtn" data-act="coachRead" data-week="' + wk + '"><span class="grow">Read your week review</span><span class="sub">›</span></button>';
+  if(st !== 'ask') return '';
+  const why = coachBlocked();
+  return '<div class="card"><h3>' + (isDan ? 'Week done: all four lifts ✓' : 'Week done: ' + done + ' of ' + target + ' ✓') + '</h3>'
+    + '<div class="sub">Ask the coach what went up, what stalled and what to do next week.</div>'
+    + '<button class="big primary" style="margin-top:10px" data-act="coachReview" data-week="' + wk + '"' + (why || ui.coach.pending ? ' disabled' : '') + '>How was my week?</button>'
+    + (why ? '<div class="hint">' + esc(why) + '</div>' : '')
+    + '<div class="center"><button class="textbtn plain" data-act="coachNotNow" data-week="' + wk + '">Not now</button></div></div>';
+}
+/* "Ask the coach about this week ›", any time there is a session this week. */
+function askWeekLink(done){
+  if(!coachLive() || !done || ui.coach.noAccess) return '';
+  return '<div class="center"><button class="textbtn plain" data-act="coachQ" data-q="' + esc(C.WEEK_SO_FAR) + '"' + (coachBlocked() ? ' disabled' : '') + '>Ask the coach about this week ›</button></div>';
+}
+/* History: one lesson from one session (lift sessions only). */
+function askSessionButton(s, k){
+  if(!coachTab() || !E.isLiftKey(s.key) || !coachLive() || ui.coach.noAccess) return '';
+  const held = cloudQ().some(q => q && !q.deleted && E.fileKey(q) === k);
+  const why = held ? 'Not uploaded yet. The coach can’t see this session.' : coachBlocked();
+  const q = 'What should I take from ' + String(s.name || '').split(' — ')[0] + ', ' + E.niceDate(s.date) + '?';
+  return '<button class="btn w100" style="margin-top:10px" data-act="coachQ" data-q="' + esc(q) + '" data-scope="' + esc(k) + '"' + (why || ui.coach.pending ? ' disabled' : '') + '>What should I take from this session?</button>'
+    + (why ? '<div class="hint">' + esc(why) + '</div>' : '');
+}
+
+function viewCoach(){
+  const c = ui.coach, rows = coachRows(), live = coachLive();
+  let h = '';
+  if(!online()) h += '<div class="banner warn">No internet. The coach needs a connection. Your log is safe and saves as usual.</div>';
+  if(!live){
+    h += '<div class="banner warn">Sign in again to use the coach.<div class="row"><button class="btn primary" data-act="tab" data-tab="settings">Sign in</button></div></div>';
+    return h + threadHTML(rows, false);
+  }
+  if(c.noAccess) return h + '<div class="card"><h3>Your coach</h3><div class="sub" style="margin-top:4px">' + esc(C.NO_ACCESS) + '</div></div>' + threadHTML(rows, false);
+  if(coachOff()) h += '<div class="banner info">The coach is off for now. Your training log works as usual.</div>';
+  const held = myHeld();
+  if(held) h += '<div class="banner warn">' + held + (held > 1 ? ' sessions aren’t uploaded yet, so the coach can’t see them.' : ' session isn’t uploaded yet, so the coach can’t see it.')
+    + '<div class="row"><button class="btn" data-act="retry">Retry now</button></div></div>';
+  if(!coachAccepted()) return h + firstRunCard();
+  const sugg = coachSugg();
+  if(!rows.length && !c.pending && !c.failed){
+    const none = !merged().some(s => E.isLiftKey(s.key));
+    h += '<h3 style="margin:8px 0 2px">Ask about your training.</h3><div class="sub" style="margin-bottom:12px">' + (none
+      ? 'Ask about your training. Once you’ve logged a few sessions, the coach can tell you how they’re going.'
+      : 'The coach reads your last 8 weeks and your programme. It can’t change anything.') + '</div>';
+    if(!limitToday() && !coachOff()) h += sugg.map(s => suggBtn(s, 'rowbtn')).join('');
+    return h + composer(false);
+  }
+  h += threadHTML(rows, true, sugg);
+  return h + composer(true);
+}
+function suggBtn(s, cls){
+  return '<button class="' + cls + '" data-act="coachQ" data-q="' + esc(s.q) + '"' + (s.kind === 'week_review' ? ' data-kind="week_review" data-week="' + esc(s.week) + '"' : '')
+    + (coachBlocked() || ui.coach.pending ? ' disabled' : '') + '>' + esc(s.q) + '</button>';
+}
+function firstRunCard(){
+  const w = ui.coach.waiting;
+  return '<div class="card"><h3>Your coach</h3><div class="sub" style="margin-top:4px">Ask about your training. The coach reads your log and answers in a few seconds.</div>'
+    + (w ? '<div class="sub" style="margin-top:8px">Your question: <b>' + esc(w.q) + '</b></div>' : '')
+    + '<div class="info" style="margin-top:10px"><b>Before you start:</b>'
+    + '<p>· To answer, Ledger sends your training log and notes (including anything you said hurts), your programme and your messages to Anthropic, the company that makes the AI (Claude).</p>'
+    + '<p>· ' + (friend() ? 'Your messages are saved in your account. Dan runs Ledger and can see the database, including your messages. Don’t write anything here you wouldn’t want stored.' : 'Your messages are saved in your account.') + '</p>'
+    + '<p>· You can delete your chat any time: Settings → Coach.</p>'
+    + '<p>· The coach is not a doctor or a physiotherapist. For pain, see one. It never changes your programme.</p></div>'
+    + '<button class="big primary" data-act="coachOk">OK, got it</button></div>';
+}
+function answerCard(r){
+  const f = C.formatAnswer(r.content, esc), meta = r.meta || {}, from = C.fromLine(meta.weeks, meta.sessions);
+  return '<div class="card ans" id="msg-' + esc(r.id) + '">'
+    + (r.unsynced ? '<div class="banner warn">Your last session hasn’t synced yet, so the coach can’t see it.</div>' : '')
+    + (r.safety ? '<div class="banner warn">' + esc(C.SAFETY.banner) + '</div>' : '')
+    + f.html
+    + (f.inLedger ? '<div class="info" style="margin-top:8px">' + f.inLedger + '</div>' : '')
+    + (meta.cut ? '<div class="hint">The answer was cut short.</div>' : '')
+    + (from ? '<div class="hint" style="border-top:1px solid var(--line);padding-top:6px">' + esc(from) + '</div>' : '')
+    + (r.safety ? '<div class="hint">' + esc(C.SAFETY.footer) + '</div>' : '')
+    + '</div>';
+}
+const meCard = (text, id) => '<div class="card me"' + (id ? ' id="msg-' + esc(id) + '"' : '') + '>' + esc(text) + '</div>';
+function threadHTML(rows, live, sugg){
+  const c = ui.coach;
+  let h = '';
+  if((S.chatTotal || 0) > rows.length && live && online()) h += '<div class="center"><button class="textbtn plain" data-act="coachMore"' + (c.loading ? ' disabled' : '') + '>Show earlier messages</button></div>';
+  const items = C.thread(rows, dayLabel);
+  const lastA = [...rows].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).find(r => r.role === 'assistant') || null;
+  h += '<div aria-live="polite">';
+  for(const it of items){
+    if(it.divider){ h += '<div class="sub cdiv">' + esc(it.divider) + '</div>'; continue; }
+    h += it.role === 'user' ? meCard(it.content, it.id) : answerCard(it);
+  }
+  if(c.pending) h += meCard(c.pending.q) + '<div class="card"><div class="sub" id="coachWait">' + esc(C.waitText(Date.now() - c.pending.t0)) + '</div></div>';
+  else if(c.failed){
+    const e = C.ERROR_COPY[c.failed.why] || C.ERROR_COPY.busy;
+    h += meCard(c.failed.q) + '<div class="card"><div class="banner ' + e.cls + '" style="margin:0">' + esc(e.text)
+      + (e.retry ? '<div class="row"><button class="btn" data-act="coachRetry"' + (online() ? '' : ' disabled') + '>Try again</button></div>' : '')
+      + (c.failed.why === 'signed_out' ? '<div class="row"><button class="btn primary" data-act="tab" data-tab="settings">Sign in</button></div>' : '') + '</div></div>';
+  }
+  h += '</div>';
+  /* Follow-ups under the latest answer only (none while waiting or failed). */
+  if(live && lastA && !c.pending && !c.failed && !limitToday() && !coachOff()){
+    const asked = rows.filter(r => r.role === 'user' && E.localISO(new Date(r.created_at)) === today()).map(r => r.content);
+    const fu = C.followUps(lastA, sugg || [], asked);
+    if(fu.length) h += '<div class="chips small" style="margin:-2px 0 12px">' + fu.map(q => '<button class="chip" data-act="coachQ" data-q="' + esc(q) + '"' + (coachBlocked() ? ' disabled' : '') + '>' + esc(q) + '</button>').join('') + '</div>';
+  }
+  return h;
+}
+function composer(thread){
+  const c = ui.coach;
+  if(limitToday()) return '<div class="banner info">' + esc(C.limitText(C.DAILY)) + '</div>';
+  if(coachOff()) return '';
+  const dis = !online() || !!c.pending || !c.text.trim();
+  return (thread ? '' : '<label for="coachText">Or type a question</label>')
+    + '<div class="row" style="align-items:flex-end;margin-top:' + (thread ? '4px' : '0') + '"><textarea id="coachText" data-f="coachText" rows="' + Math.min(4, Math.max(1, c.text.split('\n').length)) + '" maxlength="' + C.MAX_CHARS + '" placeholder="'
+    + (thread ? 'Ask a follow-up' : 'e.g. Why did my bench stall?') + '">' + esc(c.text) + '</textarea>'
+    + '<button class="btn primary" style="min-width:64px" id="coachSend" data-act="coachSend"' + (dis ? ' disabled' : '') + '>Send</button></div>'
+    + '<div class="hint" id="coachCount">' + countText(c.text) + '</div>'
+    + (C.leftText(c.remaining) ? '<div class="hint">' + esc(C.leftText(c.remaining)) + '</div>' : '');
+}
+const countText = t => t.length >= 900 ? t.length + ' of 1,000' : '';
+
+/* Sends one question. One tap = one question: every entry point that carries
+   a question sends it at once and opens the Coach tab at it. A week already
+   reviewed opens the stored review instead (free). Never queued offline. */
+async function coachAsk(q, opts = {}){
+  q = String(q || '').trim();
+  const c = ui.coach;
+  if(!q || c.pending) return;
+  const req = { q, kind: opts.kind === 'week_review' ? 'week_review' : 'chat', week: opts.week || null, scope: opts.scope ? { session: opts.scope } : null, typed: !!opts.typed };
+  ui.tab = 'coach'; ui.sheet = null;
+  if(!coachLive() || c.noAccess){ render(); return; }
+  if(req.kind === 'week_review'){
+    const r = C.reviewFor(coachRows(), req.week);
+    if(r){ c.scroll = r.id; render(); return; }
+  }
+  if(!coachAccepted()){ c.waiting = req; render(); return; }
+  if(q.length > C.MAX_CHARS){ c.failed = { ...req, why:'too_long' }; render(); return; }
+  if(limitToday()){ render(); return; }
+  if(!online()){ c.failed = { ...req, why:'offline' }; render(); return; }
+  c.failed = null; c.pending = { ...req, t0: Date.now() }; c.scroll = 'pending';
+  render();
+  try{
+    const r = await cloud.askCoach({ question: q, kind: req.kind, week: req.week, scope: req.scope });
+    const add = C.rowsFromAnswer(q, r, nowIso());
+    S.chat = C.mergeRows(coachRows(), add);
+    if(!r.stored) S.chatTotal = Math.max(S.chatTotal || 0, coachRows().length);
+    c.remaining = typeof r.remaining === 'number' ? r.remaining : c.remaining;
+    if(r.remaining === 0) S.coachLimitDay = today();
+    c.off = false; c.noAccess = false;
+    if(req.typed) c.text = '';
+    c.scroll = add[add.length - 1].id;
+    save();
+  }catch(e){
+    const k = C.errorKind(e);
+    if(k === 'limit'){ S.coachLimitDay = today(); save(); }
+    if(k === 'off') c.off = Date.now();
+    if(k === 'no_access') c.noAccess = true;
+    c.failed = k === 'limit' || k === 'off' || k === 'no_access' ? null : { ...req, why:k };
+  }
+  c.pending = null;
+  const a = document.activeElement; if(a && a.blur && a.id === 'coachText') a.blur();
+  render();
+}
+/* The account's copy of the thread, and the first-run flag. The server is
+   the truth (a chat deleted on another phone goes here too). */
+async function coachLoad(more){
+  const c = ui.coach;
+  if(!coachLive() || !online() || c.loading) return;
+  c.loading = true;
+  try{
+    if(!c.checked){
+      const v = await cloud.coachAccepted();
+      if(v >= C.COPY_V) S.coachOk = v;
+      else if(coachAccepted()) await cloud.acceptCoach(C.COPY_V);   // accepted here while offline
+      c.checked = true;
+    }
+    /* Invite-only: a person without coach_access sees a calm card, not a broken chat. */
+    try{ c.noAccess = !(await cloud.coachAccess()); }catch(e){ /* not known: the send says so */ }
+    const rows = coachRows();
+    const oldest = more && rows.length ? rows.reduce((a, r) => String(r.created_at) < a ? String(r.created_at) : a, String(rows[0].created_at)) : null;
+    const r = await cloud.chatHistory({ before: oldest });
+    S.chat = more ? C.mergeRows(rows, r.rows, 400) : C.mergeRows(r.rows, rows.filter(x => String(x.id).startsWith('local-')), 60);
+    if(!more && r.total != null) S.chatTotal = r.total;
+    save();
+  }catch(e){ if(C.errorKind(e) === 'off') c.off = Date.now(); }
+  c.loading = false;
+  if(ui.tab === 'coach' || ui.tab === 'log' || ui.tab === 'settings') softRender();
+}
+setInterval(() => { const el = document.getElementById('coachWait'); if(el && ui.coach.pending) el.textContent = C.waitText(Date.now() - ui.coach.pending.t0); }, 1000);
+
+/* Settings → Coach (UX 6). */
+function coachCard(){
+  if(!coachLive()) return '';
+  const c = ui.coach, n = Math.max(S.chatTotal || 0, coachRows().length);
+  let h = '<div class="card"><h3>Coach</h3>';
+  if(!n) return h + '<div class="sub">No messages yet.</div></div>';
+  h += '<div class="sub">' + n + ' message' + (n === 1 ? '' : 's') + '. Sent to Anthropic to answer; saved in your account.</div>';
+  if(c.delArm) h += '<div class="banner warn" style="margin-top:10px">Delete all your coach messages? They are removed from Ledger’s database and this phone. This can’t be undone. Your training log stays.'
+    + '<div class="row"><button class="btn danger" data-act="coachDelGo"' + (c.deleting || !online() ? ' disabled' : '') + '>' + (c.deleting ? 'Deleting…' : 'Delete') + '</button><button class="btn" data-act="coachDelNo">Cancel</button></div></div>';
+  else h += '<button class="btn danger w100" style="margin-top:10px" data-act="coachDel"' + (online() ? '' : ' disabled') + '>Delete my chat</button>';
+  if(!online()) h += '<div class="hint">Needs internet.</div>';
+  if(c.delErr) h += '<div class="hint" style="color:var(--bad)">Couldn’t delete. Nothing was removed. Try again.</div>';
+  return h + '</div>';
+}
+
 /* ---------------------------------------------------------------- actions */
 const ex_ = el => S.draft.exercises[+el.dataset.i];
 const set_ = el => ex_(el).sets[+el.dataset.j];
@@ -1584,7 +1870,17 @@ function afterConfirm(i, j){
   save(); render();
 }
 
-function goTab(t){ ui.tab = t; ui.sheet = null; window.scrollTo(0, 0); render(); }
+function goTab(t){
+  ui.tab = t; ui.sheet = null; window.scrollTo(0, 0);
+  /* The Coach tab opens at the top of the latest answer, then refreshes. */
+  if(t === 'coach'){
+    const last = [...coachRows()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).find(r => r.role === 'assistant');
+    if(last && !ui.coach.pending) ui.coach.scroll = last.id;
+    ui.coach.off = false;                                 // tried again on every opening
+    render(); coachLoad(); return;
+  }
+  render();
+}
 
 function backToFinish(){
   const f = ui.finishBack; ui.finishBack = null;
@@ -1599,6 +1895,28 @@ function endSession(){
 
 const ACT = {
   tab: el => goTab(el.dataset.tab),
+  /* ---- the coach chat */
+  coachQ: el => coachAsk(el.dataset.q, { kind: el.dataset.kind, week: el.dataset.week, scope: el.dataset.scope }),
+  coachReview: el => coachAsk('How was my week?', { kind:'week_review', week: el.dataset.week }),
+  coachRead: el => { const r = C.reviewFor(coachRows(), el.dataset.week); if(r) ui.coach.scroll = r.id; ui.tab = 'coach'; render(); },
+  coachNotNow: el => { S.coachDismiss = el.dataset.week; save(); render(); },
+  coachSend: () => coachAsk(ui.coach.text, { typed:true }),
+  coachRetry: () => { const f = ui.coach.failed; if(!f) return; ui.coach.failed = null; coachAsk(f.q, { kind:f.kind, week:f.week, scope:f.scope && f.scope.session, typed:f.typed }); },
+  coachMore: () => coachLoad(true),
+  coachOk: () => {
+    S.coachOk = C.COPY_V; save();
+    const w = ui.coach.waiting; ui.coach.waiting = null;
+    cloud.acceptCoach(C.COPY_V).then(() => { ui.coach.checked = true; }, () => {});   // retried on the next load
+    if(w) coachAsk(w.q, { kind:w.kind, week:w.week, scope:w.scope && w.scope.session, typed:w.typed }); else render();
+  },
+  coachDel: () => { ui.coach.delArm = true; ui.coach.delErr = false; render(); },
+  coachDelNo: () => { ui.coach.delArm = false; render(); },
+  coachDelGo: async () => {
+    const c = ui.coach; c.deleting = true; render();
+    try{ await cloud.deleteChat(); S.chat = []; S.chatTotal = 0; c.failed = null; c.delArm = false; save(); toast('Chat deleted.'); }
+    catch(e){ c.delErr = true; c.delArm = false; }
+    c.deleting = false; render();
+  },
   mtab: el => goTab(el.dataset.tab),
   menu: () => { ui.sheet = { type:'menu' }; renderSheet(); },
   closeSheet: () => { ui.sheet = null; render(); },
@@ -1907,9 +2225,13 @@ const ACT = {
     const res = E.finishSession(d, now, ui.sheet && ui.sheet.choice || undefined);
     if(res.blocked){ toast(res.blocked === 'empty' ? 'Nothing to save yet.' : 'Choose what happened to the unticked sets.'); return; }
     const plan = E.planSave(d, res.session, S.history, pend(), dir(), now);
+    const wkBefore = weekDone();
     for(const item of plan.items) queueItem(item);
     endSession(); save(); render();
-    toast('Saved' + (sync.cfgOk() || (mode() === 'account' && cloud.signedIn()) ? '' : ' on this phone'));
+    const wkAfter = weekDone();
+    /* The save that completes the week says so; the review card is next on Log. */
+    toast((coachLive() && C.weekDoneToast(wkBefore.done, wkAfter.done, wkAfter.target))
+      || 'Saved' + (sync.cfgOk() || (mode() === 'account' && cloud.signedIn()) ? '' : ' on this phone'));
     flushAll();
   },
 
@@ -2035,7 +2357,14 @@ const INPUT = {
   siEmail: el => { ui.si.email = el.value.trim(); const b = $('#siSend'); if(b) b.disabled = !/@.+\./.test(ui.si.email) || !online() || ui.si.until > Date.now(); },
   /* The code submits itself on the eighth digit (Supabase OTP length is 8); a pasted "4812 0736" works. */
   siCode: el => { const v = el.value.replace(/\D/g, '').slice(0, 8); if(el.value !== v) el.value = v; ui.si.code = v; if(v.length === 8) siVerify(); },
-  acCode: el => { ui.ac.code = el.value; }
+  acCode: el => { ui.ac.code = el.value; },
+  /* Without re-rendering, so the keyboard stays up. */
+  coachText: el => {
+    ui.coach.text = el.value;
+    el.rows = Math.min(4, Math.max(1, el.value.split('\n').length, Math.ceil(el.value.length / 34)));
+    const b = $('#coachSend'); if(b) b.disabled = !online() || !!ui.coach.pending || !el.value.trim();
+    const n = $('#coachCount'); if(n) n.textContent = countText(el.value);
+  }
 };
 const CHANGE = {
   findate: el => {
@@ -2061,7 +2390,11 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => { const f = e.target.dataset && e.target.dataset.f; if(f && INPUT[f]) INPUT[f](e.target); });
 document.addEventListener('change', e => { const f = e.target.dataset && e.target.dataset.f; if(f && CHANGE[f]) CHANGE[f](e.target); });
-document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.dataset && e.target.dataset.f === 'siEmail'){ e.preventDefault(); siSend(); } });
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && e.target.dataset && e.target.dataset.f === 'siEmail'){ e.preventDefault(); siSend(); }
+  /* The coach: Enter sends, Shift+Enter is a new line. */
+  if(e.key === 'Enter' && !e.shiftKey && e.target.dataset && e.target.dataset.f === 'coachText'){ e.preventDefault(); if(online() && ui.coach.text.trim()) coachAsk(ui.coach.text, { typed:true }); }
+});
 
 /* ---------------------------------------------------------------- boot */
 mode();
@@ -2078,8 +2411,11 @@ try{
 if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length || S.adoptPending) return pullGithub(); }).then(softRender);
 adoptGithubQueue();
 if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(() => { if(mode() === 'account' && !S.history.length) return cloud.pullHistory(); }).then(softRender);
-window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page) softRender(); });
-window.addEventListener('offline', () => { if(screen() || ui.page) softRender(); });
+window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page || coachTab()) softRender(); });
+window.addEventListener('offline', () => { if(screen() || ui.page || coachTab()) softRender(); });
+/* The coach's copy of the thread (and whether this week is reviewed), only
+   when signed in: a signed-out phone makes no call. */
+if(coachLive() && online()) coachLoad();
 /* Friends: a signed-in account phone with no programme on it asks the
    account first ("Loading your programme…"); one with a programme syncs it. */
 if(needsProgramme() && cloud.signedIn() && !S.onboard) loadProgramme();

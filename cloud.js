@@ -19,6 +19,8 @@
 
 export const SUPABASE_URL = 'https://widuygqbkpyerqhgbvos.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_Oy4Gzdmq89sQ0S3TX3H_Vg_76rZqYms';
+/** The coach call's own timeout (spec: 60 s; every other call aborts at 20 s). */
+export const COACH_TIMEOUT = 60000;
 
 /** The row key for a session: its file base name, as sync.js names it. @param {Obj} s */
 export const clientId = s => String(s.file || (s.date + '-' + s.key + '.json')).split('/').pop();
@@ -136,7 +138,9 @@ export function redactSecrets(raw) {
    phone: their programme (and whether it is held / whose it is), the coach
    flag, half-answered questions, a code waiting to be typed. Cleared on an
    explicit sign-out and whenever a different account takes the phone over. */
-export const PER_USER = ['programme', 'programmeDirty', 'programmeOwner', 'coach', 'onboard', 'signin'];
+export const PER_USER = ['programme', 'programmeDirty', 'programmeOwner', 'coach', 'onboard', 'signin',
+  /* the coach chat (release 2): the phone's copy of the thread, first-run OK, Log card state */
+  'chat', 'chatTotal', 'coachOk', 'coachDismiss', 'coachLimitDay'];
 /** @param {Obj} S */
 export function forgetUser(S) { for (const k of PER_USER) delete S[k]; return S; }
 /** Whose the cached programme is (pre-5-12 caches: the phone's owner). @param {Obj} S */
@@ -244,9 +248,14 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
       ...(opts.body != null ? { body: JSON.stringify(opts.body) } : {})
     };
     if (method === 'GET') init.cache = 'no-store';
-    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) init.signal = AbortSignal.timeout(20000);
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) init.signal = AbortSignal.timeout(opts.timeout || 20000);
     try { return await fetch(url + path, init); }
-    catch (e) { throw offlineError(e); }
+    catch (e) {
+      /* Our own timeout is not "no signal": the coach says "took too long". */
+      const x = offlineError(e);
+      if (e && /** @type {any} */ (e).name === 'TimeoutError') { x.offline = false; x.timeout = true; }
+      throw x;
+    }
   }
 
   /* --------------------------------------------------------------- auth */
@@ -637,7 +646,84 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     return S().programme || null;
   }
 
+  /* --------------------------------------------------------------- coach */
+  /* The coach chat (release 2). The question goes to the `coach` Edge
+     Function with the user's token; the function reads the log from the
+     account, so the account queue is flushed first. If that leaves the
+     user's sessions held, the question is still sent and the result says so
+     (unsynced), so the answer can warn the coach didn't see them. 60 s, not
+     the 20 s of other calls. Errors carry the function's code: limit (429),
+     off (503), signed_out (401), too_long (413), busy (502), timeout (504,
+     or our own abort: e.timeout), and e.offline for no signal. */
+  /** @param {{question:string, kind?:string, week?:string|null, scope?:Obj|null}} req */
+  async function askCoach(req) {
+    const uid = ready();
+    try { await flushQueue({ quiet: true }); } catch (e) { /* sent anyway */ }
+    const unsynced = S().cloudQueue.filter((/** @type {Obj} */ q) => ownerOf(q) === uid).length;
+    const body = { question: String(req.question || ''), kind: req.kind === 'week_review' ? 'week_review' : 'chat',
+      ...(req.week ? { week: req.week } : {}), ...(req.scope ? { scope: req.scope } : {}) };
+    const res = await authed('/functions/v1/coach', { method: 'POST', body, timeout: COACH_TIMEOUT });
+    const j = await bodyOf(res);
+    if (res.status !== 200 || !j || typeof j.answer !== 'string') {
+      const e = httpError(res.status, { error_code: (j && j.error) || (res.status === 200 ? 'server' : ''), msg: 'coach ' + res.status });
+      /** @type {any} */ (e).remaining = j && typeof j.remaining === 'number' ? j.remaining : null;
+      throw e;
+    }
+    return { ...j, unsynced };
+  }
+  /* The user's messages, newest first, 30 at a time (RLS: only their own). */
+  /** @param {{before?:string|null, limit?:number}} [o] */
+  async function chatHistory(o = {}) {
+    ready();
+    const lim = o.limit || 30;
+    const res = await authed('/rest/v1/chat_messages?select=id,role,kind,week,content,safety,meta,created_at&order=created_at.desc&limit=' + lim
+      + (o.before ? '&created_at=lt.' + encodeURIComponent(o.before) : ''), { headers: { 'Prefer': 'count=exact' } });
+    if (res.status !== 200 && res.status !== 206) throw httpError(res.status, await bodyOf(res));
+    const rows = await res.json();
+    const range = res.headers && typeof res.headers.get === 'function' ? String(res.headers.get('content-range') || '') : '';
+    const m = /\/(\d+)$/.exec(range);
+    return { rows: Array.isArray(rows) ? rows : [], total: m ? Number(m[1]) : null };
+  }
+  /* C6: every chat row of this user, at once. The usage counter is not
+     touched (no grant allows it). The user_id filter is a second guard. */
+  async function deleteChat() {
+    const uid = ready();
+    const res = await authed('/rest/v1/chat_messages?user_id=eq.' + encodeURIComponent(uid), { method: 'DELETE', headers: { 'Prefer': 'return=minimal' } });
+    if (res.status !== 200 && res.status !== 204) throw httpError(res.status, await bodyOf(res));
+    return true;
+  }
+  /* The coach's first-run "OK, got it" is kept in the account
+     (profiles.settings.coachChat = { ok: copy version, at }), so a second
+     phone doesn't ask again. Other settings keys are kept as they are. */
+  async function coachAccepted() {
+    const row = await getProfile(ready());
+    const c = row && row.settings && typeof row.settings === 'object' ? row.settings.coachChat : null;
+    return c && typeof c.ok === 'number' ? c.ok : 0;
+  }
+  /* One statement on the server (settings_merge: settings || patch), so it
+     can't drop a key another write (the programme) put there meanwhile. */
+  /** @param {number} version */
+  async function acceptCoach(version) {
+    ready();
+    const res = await authed('/rest/v1/rpc/settings_merge', {
+      method: 'POST', headers: { 'Prefer': 'return=minimal' },
+      body: { patch: { coachChat: { ok: version, at: new Date(now()).toISOString() } } }
+    });
+    if (res.status !== 200 && res.status !== 201 && res.status !== 204) throw httpError(res.status, await bodyOf(res));
+    return true;
+  }
+  /* Invite-only: true when this user has a coach_access row (RLS: only
+     their own row is visible). */
+  async function coachAccess() {
+    ready();
+    const res = await authed('/rest/v1/coach_access?select=user_id&limit=1');
+    if (res.status !== 200) throw httpError(res.status, await bodyOf(res));
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
   return {
+    askCoach, chatHistory, deleteChat, coachAccepted, acceptCoach, coachAccess,
     requestCode, verifyCode, signOut, signedIn, refresh, pushSession, pullSessions, pullHistory,
     pullProgramme, pushProgramme, setProgramme, syncProgramme,
     importHistory, enqueue, adoptItems, flushQueue, userId, inUse, foreign, ownerId: () => currentOwner(),
