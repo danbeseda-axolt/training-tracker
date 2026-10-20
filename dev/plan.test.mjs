@@ -444,7 +444,9 @@ test('the pre-session block asks for no seconds twice: a hold target is its dose
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 test('the page hides legacy templates on the Log tab, offers the Skill day, and flags old sessions in History', () => {
-  assert.match(html, /if\(k === next \|\| t\.legacy\) continue;/);
+  /* 5-16: the week rows come from weekPlan (never legacy), the rest from TEMPLATES without legacy ones. */
+  assert.match(html, /V\.weekRows\(plan, next\)/);
+  assert.match(html, /Object\.entries\(E\.TEMPLATES\)\.filter\(\(\[k, t\]\) => !t\.legacy && !plan\.some\(p => p\.key === k\)\)/);
   assert.match(html, /E\.SKILL_DAY/);
   assert.match(html, /E\.isLegacyKey\(s\.key\)/);
   assert.doesNotMatch(html, /floorFor/);

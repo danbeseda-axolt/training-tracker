@@ -1,6 +1,35 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-19 (v5, build 5-15: the coach chat, built against a fake model; the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+**As of:** 2026-10-20 (v5, build 5-16: a quieter Log tab; build 5-15: the coach chat, built against a fake model; the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+
+## What changed on 2026-10-20 (build 5-16): a quieter Log tab
+
+Dan, 2026-10-20: the home screen is cluttered. Spec:
+[ledger-ux-log-declutter.md](../projects/ledger-ux-log-declutter.md). View
+only: `deloadCheck`, `blockInfo`, `weekPlan` and the auto-deload on Start
+are unchanged; `logview.js` (pure, tested in `dev/logview.test.mjs`) picks
+which of their results the Log shows.
+
+- **Deload banner only when Start would start a deload** (the engine's
+  `fire`): **Time to deload.** (amber, the reasons in plain words, no code
+  pills), or in a scheduled deload week **Deload week.** (info), hidden once
+  the week's sessions are done. No banner for no signals, D5 alone, or a
+  single moderate signal. The old "Watch" banner is gone.
+- **Settings → Programme** (Dan) starts with the block line and a **Fatigue
+  check**: every code with its pill, and "Not enough for a deload." / "Deload
+  due…" / "Nothing to flag."
+- **Block / phase line off the Log.** A one-line note under Start only in
+  block weeks 1, 7, 13, 19, 20 and 21.
+- **Dan's week as rows:** Start on two lines ("Start Day 2" / "Heavy bench +
+  deadlift · Thu"), then **This week · N of 4 done** over the other block days
+  with a day pill, ✓ on done ones (Builder: done days stay as rows), "· check"
+  on an unverified one, never "missed". "Ask the coach about this week ›"
+  under the rows (hidden while the week-done card shows). Then **Other**:
+  Skill day and Custom, one line each. The "Not yet this week" sentence and
+  the Skill day sub-line are gone.
+- **Upload banner only after an upload failed** (or offline with something
+  held); while uploading, the header pill says so.
+- **Friends:** only the deload rule and the upload-banner rule change.
 
 ## What changed on 2026-10-19 (build 5-15): the coach chat (not live yet)
 
@@ -359,7 +388,10 @@ each day's finisher.
 
 `BLOCK` and `PHASES` in `engine.js` give block week and phase from the date
 (week 1 = 2026-10-05; phase 1 weeks 1–6, 2 weeks 7–12, 3 weeks 13–18, 4 weeks
-19–20). The Log tab shows "Block week N of 20 · phase …". A session started in
+19–20). Settings → Programme shows "Block week N of 20 · Base (weeks 1–6). Next
+deload: week 6, from 9 Nov."; the Log tab shows a one-line note under Start only
+in the weeks the kind of work changes (1, 7, 13, 19, 20, and 21 when the block is
+over). A session started in
 the block carries the optional `blockWeek` and `phase`.
 
 - **Week 1 is a calibration ramp.** The first block session of each main lift
@@ -751,8 +783,8 @@ here would have rolled it back. Never commit to the public repo by hand.
 
 ### 2. Hosting
 
-The app is static: `index.html`, six modules (`engine.js`, `sync.js`,
-`cloud.js`, `library.js`, `programme.js`, `coach.js`), a manifest, an icon and a service worker. No secrets in it (the
+The app is static: `index.html`, seven modules (`engine.js`, `sync.js`,
+`cloud.js`, `library.js`, `programme.js`, `coach.js`, `logview.js`), a manifest, an icon and a service worker. No secrets in it (the
 Supabase URL and publishable key in `cloud.js` are public by design), so the
 code is public while the data repo stays private.
 
@@ -803,7 +835,7 @@ finish sheet adds a newly logged pinch to.
 - **The rules** are in `engine.js`: pure functions, no page, no network.
 - **The screen** is `index.html`: CSS and one `<script type="module">`.
 - **Sync** is `sync.js`; **account mode** is `cloud.js`.
-- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the six
+- **After any change, bump `VERSION` in `sw.js` and the `?v=` on the seven
   imports in `index.html` together.** The service worker caches the modules at
   those exact URLs, so a page can never run with a module from another build.
 

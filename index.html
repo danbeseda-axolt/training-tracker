@@ -258,12 +258,13 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-15';
-import { makeSync } from './sync.js?v=5-15';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-15';
-import * as L from './library.js?v=5-15';
-import * as G from './programme.js?v=5-15';
-import * as C from './coach.js?v=5-15';
+import * as E from './engine.js?v=5-16';
+import { makeSync } from './sync.js?v=5-16';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-16';
+import * as L from './library.js?v=5-16';
+import * as G from './programme.js?v=5-16';
+import * as C from './coach.js?v=5-16';
+import * as V from './logview.js?v=5-16';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -321,7 +322,7 @@ let S = load();
 function setSync(cls, msg){ const el = $('#sync'); el.className = cls || ''; el.textContent = msg; }
 const sync = makeSync({
   fetch: (u, i) => fetch(u, i), getState: () => S, save,
-  onStatus: (c, m) => { setSync(c, m); if(c !== 'pending') softRender(); }
+  onStatus: (c, m) => { if(c !== 'pending') ui.syncBad.github = c === 'bad'; setSync(c, m); if(c !== 'pending') softRender(); }
 });
 /* Account mode (beta, opt-in): sessions also go to Supabase once signed in.
    GitHub stays the default and, when it is set up, the source of history. */
@@ -356,7 +357,7 @@ const cloud = makeCloud({
   fetch: (u, i) => fetch(u, i), getState: () => S, save,
   ownsHistory: () => mode() === 'account',
   checkProgramme: raw => checkProg(raw),
-  onStatus: (c, m) => { ui.cloudStatus = [c, m]; if(mode() === 'account') setSync(c, m); if(c !== 'pending') softRender(); }
+  onStatus: (c, m) => { ui.cloudStatus = [c, m]; if(c !== 'pending') ui.syncBad.account = c === 'bad'; if(mode() === 'account') setSync(c, m); if(c !== 'pending') softRender(); }
 });
 const cloudQ = () => S.cloudQueue || [];
 /* What the views read as pending. In 'github' mode only the GitHub queue:
@@ -470,7 +471,7 @@ if(S.draft){
 
 /* ---------------------------------------------------------------- ui state */
 const ui = { tab:'log', open:new Set(), info:new Set(), note:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
-  cloudStatus:null, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' },
+  cloudStatus:null, syncBad:{ github:false, account:false }, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' },
   /* friends: start page sign-in, programme load, build, pages */
   si:{ step:'email', email:'', code:'', busy:false, err:null, until:0 }, progLoad:null, building:null,
   page:null, pageFrom:null, pageBack:null, progOpen:new Set(), rirMore:false, libAll:false, libOpen:null, retakeArm:false, qPressed:null,
@@ -603,24 +604,25 @@ function queueBanner(){
      on the Account card only: GitHub is the source and is up to date. */
   const n = S.queue.length + S.bwQueue.length, c = accountOwns() || cloud.signedIn() ? cloudQ().length : 0;
   if(!n && !c) return '';
+  /* Only after an upload has failed (or with no signal): while it is just
+     uploading, the header pill says so (Log declutter, 5-16). */
+  if(!V.showQueueBanner({ github:n, account:c, githubBad:ui.syncBad.github, accountBad:ui.syncBad.account, online:online() })) return '';
   const parts = [];
   if(n) parts.push('<b>' + n + ' item' + (n > 1 ? 's' : '') + ' not yet on GitHub.</b>');
   if(c) parts.push('<b>' + c + ' session' + (c > 1 ? 's' : '') + ' not yet in your account.</b>' + (cloud.signedIn() ? '' : ' Sign in again in Settings to send ' + (c > 1 ? 'them' : 'it') + '.'));
   return '<div class="banner warn">' + parts.join(' ') + ' Held on this phone.<div class="row"><button class="btn" data-act="retry">Retry now</button></div></div>';
 }
+/* Shown exactly when Start would start a deload (the engine's fire); a
+   scheduled deload week is a calm info banner, gone once the week is done.
+   The codes and the mild signals are in Settings → Programme (V.deloadBanner). */
 function deloadBanner(aH){
-  const r = E.deloadCheck(aH, S.bw, S.settings, today(), P());
-  if(!r.codes.length) return '';
-  const list = r.codes.map(c => '<div class="hint">· ' + esc(c.t) + ' <span class="pill' + (c.sev === 'severe' ? ' bad' : c.sev === 'mod' ? ' warn' : '') + '">' + c.c + '</span></div>').join('');
-  /* Only the next session started is set up as a deload automatically; the
-     rest of the week has to be switched on by hand, so the banner says so. */
-  const sched = r.codes.find(c => c.c === 'BLOCK');
-  const head = sched
-    ? '<b>Deload week.</b> All four sessions start as deloads: ' + Math.round(E.DELOAD.loadPct*100) + '% of working load, half the accessory sets, RIR 3–4. The pre-session block is unchanged.'
-    : r.fire
-    ? '<b>Deload due.</b> The next session starts at ' + Math.round(E.DELOAD.loadPct*100) + '% of working load at the bottom of each rep range. The deload is a week: for the other sessions this week, use ⋯ → Deload session.'
-    : '<b>Watch.</b> Not enough to call a deload yet.';
-  return '<div class="banner ' + (r.fire ? 'bad' : 'warn') + '">' + head + list + '</div>';
+  const p = P(), r = E.deloadCheck(aH, S.bw, S.settings, today(), p);
+  const weekDone = p ? (w => w.done >= w.target)(E.programmeWeek(p, merged(), today())) : !E.nextTemplate(E.weekPlan(merged(), today()));
+  const b = V.deloadBanner(r, { weekDone });
+  if(!b) return '';
+  const copy = V.deloadCopy(Math.round(E.DELOAD.loadPct*100));
+  if(b.kind === 'week') return '<div class="banner info">' + copy.week + '</div>';
+  return '<div class="banner warn">' + copy.due + b.reasons.map(t => '<div class="hint">· ' + esc(t) + '</div>').join('') + '</div>';
 }
 
 /* ---------------------------------------------------------------- log view */
@@ -645,31 +647,41 @@ function viewLog(){
   return h;
 }
 
-function blockLine(){
-  const b = E.blockInfo(today());
-  if(!b) return 'The winter block starts ' + E.niceDate(E.BLOCK.start) + '.';
-  if(b.over) return 'The 20-week block is over.';
-  return 'Block week ' + b.week + ' of ' + E.BLOCK.weeks + ' · phase ' + b.phase + ' ' + b.phaseName
-    + (b.calibration ? ' · calibration: ramp each main lift to ONE top set at RIR 2' : '') + (b.deload ? ' · deload week' : '');
+/* Settings → Programme's first line (the block and phase left the Log). */
+const blockLine = () => V.blockSummary(E.blockInfo(today()), E.BLOCK, E.PHASES, E.addDays, E.niceDate);
+/* Settings → Programme → Fatigue check (Dan only): every code the engine
+   raised, with its pill, and whether it adds up to a deload. */
+function fatigueHTML(){
+  const f = V.fatigueCheck(E.deloadCheck(aHist(), S.bw, S.settings, today()));
+  return '<h4 style="margin:12px 0 4px;font-size:14.5px">Fatigue check</h4>'
+    + f.items.map(c => '<div class="hint" style="margin-top:2px">· ' + esc(c.t) + ' <span class="pill' + (c.sev === 'severe' ? ' bad' : c.sev === 'mod' ? ' warn' : '') + '">' + esc(c.c) + '</span></div>').join('')
+    + '<div class="hint">' + esc(f.verdict) + '</div>';
 }
+/* Dan's Log (declutter, 5-16): the week card, Start on two lines, a phase
+   note only in the weeks the kind of work changes, then the week as rows. */
 function pickerHTML(aH){
   const plan = E.weekPlan(merged(), today());
   const next = E.nextTemplate(plan);
   const deload = E.deloadCheck(aH, S.bw, S.settings, today()).fire;
-  let h = '<div class="sub center" style="margin-bottom:8px">' + esc(blockLine()) + '</div>';
-  h += weekCardHTML(plan.filter(p => p.state === 'done').length, plan.length, true);
-  if(next) h += '<button class="big primary" data-act="start" data-key="' + next + '">Start ' + esc(E.TEMPLATES[next].name.split(' — ')[0]) + ' · ' + esc(E.TEMPLATES[next].name.split(' — ')[1] || '') + (deload ? ' · deload' : '') + '</button>';
-  const open = plan.filter(p => p.state !== 'done');
-  h += '<div class="sub center" style="margin-bottom:12px">' + (open.length
-    ? 'Not yet this week: ' + open.map(p => esc(p.name.split(' — ')[0]) + ' (' + p.day + (p.state === 'unverified' ? ', unverified' : '') + ')').join(', ')
-    : 'All four lifts are logged this week.') + '</div>';
-  h += askWeekLink(plan.filter(p => p.state === 'done').length);
-  /* Legacy (Programme v2) templates are never offered: they exist for History. */
-  for(const [k, t] of Object.entries(E.TEMPLATES)){
-    if(k === next || t.legacy) continue;
-    const sub = k === 'skill' ? '<br><span class="sub">Compression · L-sit · handstand · flexibility. 30–40 min, no lifting.</span>' : '';
-    h += '<button class="rowbtn" data-act="start" data-key="' + k + '"><span class="grow"><b>' + esc(t.name) + '</b>' + sub + '</span><span class="pill">' + esc(t.day) + '</span></button>';
+  const done = plan.filter(p => p.state === 'done').length;
+  let h = weekCardHTML(done, plan.length, true);
+  if(next){
+    const parts = E.TEMPLATES[next].name.split(' — '), pd = plan.find(p => p.key === next);
+    h += '<button class="big primary" data-act="start" data-key="' + next + '">Start ' + esc(parts[0])
+      + '<span class="lines2">' + esc([parts[1], pd && pd.day].filter(Boolean).join(' · ')) + (deload ? ' · deload' : '') + '</span></button>';
+    const note = V.phaseNote(E.blockInfo(today()));
+    if(note) h += '<div class="sub center" style="margin:-2px 0 12px">' + esc(note) + '</div>';
   }
+  h += '<div class="sub" style="margin:8px 0 6px">' + esc(V.weekHeading(plan)) + '</div>';
+  for(const r of V.weekRows(plan, next))
+    h += '<button class="rowbtn" data-act="start" data-key="' + r.key + '"><span class="grow"><b>' + esc(r.name) + '</b></span><span class="pill' + (r.pill.cls ? ' ' + r.pill.cls : '') + '">' + esc(r.pill.text) + '</span></button>';
+  /* The coach link is about the week; hidden while the week card asks the better question. */
+  const wk = E.weekOf(today());
+  if(!coachLive() || !C.weekCard({ done, target: plan.length, reviewed: !!C.reviewFor(coachRows(), wk), dismissed: S.coachDismiss === wk })) h += askWeekLink(done);
+  /* Legacy (Programme v2) templates are never offered: they exist for History. */
+  const other = Object.entries(E.TEMPLATES).filter(([k, t]) => !t.legacy && !plan.some(p => p.key === k));
+  if(other.length) h += '<div class="sub" style="margin:10px 0 6px">Other</div>'
+    + other.map(([k, t]) => '<button class="rowbtn" data-act="start" data-key="' + k + '"><span class="grow"><b>' + esc(t.name) + '</b></span><span class="pill">' + esc(t.day) + '</span></button>').join('');
   return h;
 }
 
@@ -1119,6 +1131,7 @@ function viewSettings(){
     + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button><button class="btn" data-act="test">Test</button></div></div>'
     + viewAccount() + coachCard()
     + '<div class="card"><h3>Programme</h3>'
+    + '<div class="sub" style="margin-top:4px">' + esc(blockLine()) + '</div>' + fatigueHTML()
     + '<label>Block goal</label><select data-f="cfg" data-k="phase">'
     + ['strength', 'maintain', 'gain', 'cut'].map(p => '<option value="' + p + '"' + (c.phase === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>'
     + '<div class="hint">The winter block is <b>strength</b> (a small surplus): the bodyweight deload trigger is on. On <b>cut</b> it is off, or it fires every time you deliberately diet.</div>'

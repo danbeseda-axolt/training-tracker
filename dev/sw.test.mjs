@@ -12,14 +12,14 @@ const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const SHELL = JSON.parse(sw.match(/const SHELL\s*=\s*(\[[^\]]*\])/)[1].replace(/'/g, '"'));
 const bare = u => u.split('?')[0];
 
-test('VERSION is ledger-v5-15 and matches the ?v= on every module import', () => {
-  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-15');
+test('VERSION is ledger-v5-16 and matches the ?v= on every module import', () => {
+  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-16');
   const vs = [...html.matchAll(/from '\.\/[^'?]+\?v=([^']+)'/g)].map(m => m[1]);
-  assert.deepEqual(vs, ['5-15', '5-15', '5-15', '5-15', '5-15', '5-15']);
+  assert.deepEqual(vs, ['5-16', '5-16', '5-16', '5-16', '5-16', '5-16', '5-16']);
 });
 
-test('SHELL holds the page, the six modules, the manifest and the icon', () => {
-  for (const f of ['./', './index.html', './engine.js', './sync.js', './cloud.js', './library.js', './programme.js', './coach.js', './manifest.json', './icon.svg'])
+test('SHELL holds the page, the seven modules, the manifest and the icon', () => {
+  for (const f of ['./', './index.html', './engine.js', './sync.js', './cloud.js', './library.js', './programme.js', './coach.js', './logview.js', './manifest.json', './icon.svg'])
     assert.ok(SHELL.map(bare).includes(f), f);
 });
 
@@ -33,13 +33,13 @@ test('the module URLs index.html imports are exactly the ones SHELL caches', () 
   assert.deepEqual(scripts, ['<script type="module">'], 'one inline module script, no <script src>');
   assert.doesNotMatch(html, /<link[^>]+stylesheet/);
   const imports = [...html.matchAll(/from '(\.\/[^']+)'/g)].map(m => m[1]);
-  assert.equal(imports.length, 6);
+  assert.equal(imports.length, 7);
   for (const u of imports) assert.ok(SHELL.includes(u), u + ' is imported but not cached under that URL');
   const sync = readFileSync(path.join(ROOT, 'sync.js'), 'utf8');
   assert.doesNotMatch(sync, /^import /m, 'sync.js imports nothing, so it cannot load a second engine');
   const cloud = readFileSync(path.join(ROOT, 'cloud.js'), 'utf8');
   assert.doesNotMatch(cloud, /^import /m, 'cloud.js imports nothing either');
-  for (const f of ['library.js', 'programme.js', 'coach.js'])
+  for (const f of ['library.js', 'programme.js', 'coach.js', 'logview.js'])
     assert.doesNotMatch(readFileSync(path.join(ROOT, f), 'utf8'), /^import /m, f + ' imports nothing: the library is passed in');
 });
 
@@ -51,6 +51,6 @@ test('the worker never handles the GitHub API and falls back to index.html only 
 });
 
 test('the shell lists exactly the versioned module URLs the page imports, and nothing from training/ or the data repo', () => {
-  assert.deepEqual(SHELL, ['./', './index.html', './engine.js?v=5-15', './sync.js?v=5-15', './cloud.js?v=5-15', './library.js?v=5-15', './programme.js?v=5-15', './coach.js?v=5-15', './manifest.json', './icon.svg']);
+  assert.deepEqual(SHELL, ['./', './index.html', './engine.js?v=5-16', './sync.js?v=5-16', './cloud.js?v=5-16', './library.js?v=5-16', './programme.js?v=5-16', './coach.js?v=5-16', './logview.js?v=5-16', './manifest.json', './icon.svg']);
   for (const u of SHELL) assert.doesNotMatch(u, /training|log\//);
 });
