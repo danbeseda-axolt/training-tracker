@@ -272,13 +272,13 @@ test('copy: waiting by time, messages left, the limit, "From N weeks, M sessions
 
 /* The page is one inline module (no DOM in node), so this checks the wiring
    statically; the browser check covers the rendering. */
-test('signed out on a GitHub phone: the Coach tab starts hidden and only an account sign-in shows it; no call when signed out', async () => {
+test('signed out on a GitHub phone: the coach button starts hidden and only an account sign-in shows it; no call when signed out', async () => {
   const { readFileSync } = await import('node:fs');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /<button data-act="tab" data-tab="coach" hidden>Coach<\/button>/);
+  assert.match(html, /<button id="coachFab" data-act="tab" data-tab="coach" aria-label="Ask the coach" hidden>Coach<\/button>/);
   assert.match(html, /const coachLive = \(\) => cloud\.signedIn\(\) && !cloud\.foreign\(\);/);
   assert.match(html, /const coachTab = \(\) => coachLive\(\) \|\| \(mode\(\) === 'account' && cloud\.inUse\(\) && !cloud\.signedIn\(\)\);/);
-  assert.match(html, /\$\('#tabs \[data-tab="coach"\]'\)\.hidden = !coachTab\(\);/);
+  assert.match(html, /\$\('#coachFab'\)\.hidden = !coachTab\(\) \|\|/);
   assert.match(html, /if\(coachLive\(\) && online\(\)\) coachLoad\(\);/, 'the boot load is gated on a sign-in');
   for (const f of ['weekCardHTML', 'askWeekLink', 'askSessionButton', 'coachCard'])
     assert.match(html, new RegExp('function ' + f + '\\([^)]*\\)\\{\\n\\s+if\\(!(coachLive|coachTab)\\(\\)'), f + ' renders nothing unless signed in');

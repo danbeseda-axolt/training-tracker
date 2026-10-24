@@ -1,6 +1,27 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-24 (v5, build 5-18: look before you start, back button, exercise picker, welcome page, sign out; build 5-16: a quieter Log tab; build 5-15: the coach chat, built against a fake model; the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+**As of:** 2026-10-24 (v5, build 5-21: progress-first home, lift pages, no GitHub, 880 exercises; build 5-18: look before you start, back button, exercise picker, welcome page, sign out; build 5-16: a quieter Log tab; build 5-15: the coach chat, built against a fake model; the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+
+## What changed on 2026-10-24 (build 5-21): progress first, no GitHub
+
+From the UX research (projects/ledger-ux-research-2026-10-24.md) and Dan's
+answers: estimated max on the cards, GitHub dropped, a bigger exercise list.
+
+- **Home** is this week (N of 4, weekly streak, day dots) and a card per main
+  lift: estimated max, a sparkline, change since four weeks back. Start is
+  pinned above the tabs; other sessions are one tap away.
+- **Lift page**: estimated-max chart with gold dots on new bests, 1M/3M/1Y/All,
+  best kg at each rep count, recent sessions. Pure rules in `progress.js`.
+- **Session**: each set shows last session's matching set in grey; a PR badge
+  when a ticked set beats every earlier estimated max.
+- **Three tabs**: Home, History, You. Body and Exercises live under You; the
+  coach is a round button.
+- **No GitHub**: bodyweight and floor tests go to Supabase (`body_entries`);
+  the GitHub card shows only on a phone that already logs to GitHub.
+- **Exercises**: about 880 from free-exercise-db (public domain) in
+  `data/exercises.json`, loaded on first use; in the Add exercise search and
+  browsable under You with instructions.
+- **Colours** (5-20): the Broken Compass palette.
 
 ## What changed on 2026-10-24 (build 5-18): look before you start
 

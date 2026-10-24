@@ -15,6 +15,7 @@ const T0 = Date.UTC(2026, 9, 7, 12, 0, 0);
 function fakeSupabase({ user = USER, refreshDelay = 0, restStatus = 201, verifyStatus = 200, refreshStatus = 200, otpStatus = 200, rows = [], first401 = 0, delay = 0, refreshThrows = false } = {}) {
   const calls = [];
   const table = new Map(rows.map(r => [r.client_id, r]));
+  const bodyRows = new Map();
   let n401 = first401, nTok = 0;
   const fetch = async (url, init = {}) => {
     calls.push({ url, init });
@@ -43,9 +44,14 @@ function fakeSupabase({ user = USER, refreshDelay = 0, restStatus = 201, verifyS
       }
       return res(st, st < 300 ? undefined : { message: 'fail', code: 'XX000' });
     }
+    if (u.pathname === '/rest/v1/body_entries') {
+      if (method === 'GET') return res(200, [...bodyRows.values()].map(r => ({ body: r.body })));
+      for (const r of body) bodyRows.set(r.user_id + '|' + r.entry_date + '|' + r.entry_type, r);
+      return res(201);
+    }
     return res(404, { message: 'no route' });
   };
-  return { fetch, calls, table, rest: () => calls.filter(c => c.url.includes('/rest/v1/')), tok: () => calls.filter(c => c.url.includes('/auth/v1/token')) };
+  return { fetch, calls, table, bodyRows, rest: () => calls.filter(c => c.url.includes('/rest/v1/')), tok: () => calls.filter(c => c.url.includes('/auth/v1/token')) };
 }
 function setup(sb, state = {}, { clock = T0, owns = true } = {}) {
   const S = { settings: {}, queue: [], bwQueue: [], history: [], bw: [], cloudQueue: [], cloud: null, ...state };
@@ -705,4 +711,28 @@ test('QA-R3: a fresh phone before sign-in shows neutral copy, not "No GitHub tok
   assert.match(html, /if\(mode\(\) === null\) return '<div class="banner warn">Not saved anywhere yet\. Sign in under Settings → Account to keep your sessions\.<\/div>';/);
   assert.match(html, /GitHub is set up\. From now on sessions go to GitHub and your account keeps a copy\./);
   assert.doesNotMatch(html.replace(/function pullGithub\(\)\{[\s\S]*?\n\}/, ''), /sync\.pullHistory\(\)/, 'every GitHub pull runs the adoption step');
+});
+
+/* 5-21: bodyweight and floor benchmarks live in the account (body_entries). */
+test('pushBody upserts one row per date and type, the later copy winning, then pullBody reads them back', async () => {
+  const sb = fakeSupabase();
+  const { cloud } = setup(sb, { cloud: signedIn() });
+  const n = await cloud.pushBody([
+    { type: 'bw', date: '2026-10-20', kg: 81.2 },
+    { type: 'floor', date: '2026-10-20', hang: 40 },
+    { type: 'bw', date: '2026-10-20', kg: 81.0, qid: 'q1' },
+    { type: 'nonsense', date: '2026-10-21' }
+  ]);
+  assert.equal(n, 2);
+  const sent = JSON.parse(sb.rest().at(-1).init.body);
+  assert.equal(sent.find(r => r.entry_type === 'bw').body.kg, 81.0, 'the queued copy (later) wins');
+  assert.ok(!('qid' in sent.find(r => r.entry_type === 'bw').body), 'queue fields are not stored');
+  assert.ok(sent.every(r => r.user_id === USER));
+  const back = await cloud.pullBody();
+  assert.deepEqual(back.map(b => b.type).sort(), ['bw', 'floor']);
+});
+
+test('pushBody refuses without a user and for another account’s phone', async () => {
+  const { cloud } = setup(fakeSupabase(), { cloud: null });
+  await assert.rejects(cloud.pushBody([{ type: 'bw', date: '2026-10-20', kg: 80 }]));
 });

@@ -8,16 +8,19 @@
 <link rel="manifest" href="manifest.json">
 <style>
 :root{
-  --bg:#f7f7f8; --panel:#fff; --line:#e2e4e7; --text:#16181b; --dim:#63686e;
-  --accent:#2f6df6; --ok:#177a47; --on-ok:#fff; --warn:#7d5a00; --bad:#c0392b; --chip:#eef0f3;
+  /* Colours from the Broken Compass logo: teal, mustard, rose, red on light grey. */
+  --bg:#ebebe9; --panel:#fff; --line:#dddad5; --text:#1d1b1a; --dim:#635f5a;
+  --accent:#24766f; --on-accent:#fff; --ok:#1f6e67; --on-ok:#fff; --warn:#8a5a00; --bad:#c93330; --chip:#f1efeb;
+  --mustard:#d9962a; --rose:#c2647e; --teal:#2f8c85;
   --scrim:rgba(10,12,14,.45); --hdr:52px; --bar:84px; --nav:56px; --rir:100px; --next:64px;
   --rirH:0px; --nextH:0px;
   --safe-b:env(safe-area-inset-bottom); --safe-t:env(safe-area-inset-top);
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#111417; --panel:#191d21; --line:#2a2f35; --text:#e8eaed; --dim:#8b9198;
-    --accent:#5b8dff; --ok:#3fbd7a; --on-ok:#0d1f15; --warn:#d8a537; --bad:#e5705f; --chip:#22272c;
+    --bg:#141312; --panel:#1d1c1a; --line:#302d2a; --text:#ecebe8; --dim:#9b968f;
+    --accent:#3fa89f; --on-accent:#0a1f1d; --ok:#3fa89f; --on-ok:#0a1f1d; --warn:#e3a843; --bad:#e2625b; --chip:#272523;
+    --mustard:#e3a843; --rose:#d77d96; --teal:#3fa89f;
     --scrim:rgba(0,0,0,.6);
   }
 }
@@ -40,7 +43,7 @@ header{
 }
 header h1{font-size:17px; margin:0; flex:1; min-width:0; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 #datechip{font-size:12.5px; padding:3px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap}
-#datechip.amber{color:var(--warn); background:rgba(184,134,11,.15)}
+#datechip.amber{color:var(--warn); background:rgba(217,150,42,.15)}
 #sync{font-size:12px; padding:4px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis}
 #sync.ok{color:var(--ok)} #sync.pending{color:var(--warn)} #sync.bad{color:var(--bad)}
 .ib{width:44px; height:44px; min-width:44px; border:none; background:none; border-radius:10px; font-size:20px; line-height:1; color:var(--dim)}
@@ -66,7 +69,7 @@ label{display:block; font-size:13px; color:var(--dim); margin:12px 0 4px}
 input,select,textarea{width:100%; min-height:48px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text)}
 textarea{min-height:90px; resize:vertical}
 .btn{min-height:48px; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:15px}
-.btn.primary,.big.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+.btn.primary,.big.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:600}
 .btn.danger{color:var(--bad)}
 .btn[disabled],.big[disabled],.rowbtn[disabled]{opacity:.45; cursor:default}
 .w100{width:100%}
@@ -75,9 +78,9 @@ textarea{min-height:90px; resize:vertical}
 .pill{display:inline-block; font-size:12px; padding:2px 8px; border-radius:99px; background:var(--chip); color:var(--dim); margin-right:4px; white-space:nowrap}
 .pill.warn{color:var(--warn)} .pill.ok{color:var(--ok)} .pill.bad{color:var(--bad)}
 .banner{border-radius:12px; padding:10px 12px; font-size:14px; margin-bottom:10px}
-.banner.warn{background:rgba(184,134,11,.13); border:1px solid rgba(184,134,11,.35)}
-.banner.bad{background:rgba(192,57,43,.11); border:1px solid rgba(192,57,43,.32)}
-.banner.info{background:rgba(47,109,246,.09); border:1px solid rgba(47,109,246,.28)}
+.banner.warn{background:rgba(217,150,42,.13); border:1px solid rgba(217,150,42,.35)}
+.banner.bad{background:rgba(201,51,48,.11); border:1px solid rgba(201,51,48,.32)}
+.banner.info{background:rgba(47,140,133,.09); border:1px solid rgba(47,140,133,.28)}
 .banner .row{margin-top:8px}
 .banner .btn{flex:1}
 .hint{font-size:13px; color:var(--dim); margin-top:6px}
@@ -121,7 +124,7 @@ button.exnote{display:block; width:100%; min-height:44px; text-align:left; paddi
 #barT small{display:block; font-size:13px; font-weight:500; color:var(--dim); line-height:1.2}
 #barT.over{color:var(--ok)}
 #plus30{min-width:64px; min-height:56px; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:16px; font-weight:600}
-#finBtn{width:120px; min-height:48px; border-radius:12px; border:none; background:var(--accent); color:#fff; font-weight:650; font-size:16px; margin-left:auto}
+#finBtn{width:120px; min-height:48px; border-radius:12px; border:none; background:var(--accent); color:var(--on-accent); font-weight:650; font-size:16px; margin-left:auto}
 /* The next set's ✓, in thumb reach at the bottom of the screen. */
 #nextSet{display:flex; align-items:center; gap:10px; width:calc(100% - 24px); height:56px; margin:8px 12px 0; padding:0 14px; border:none; border-radius:12px; background:var(--ok); color:var(--on-ok); text-align:left; font-size:17px; font-weight:650; font-variant-numeric:tabular-nums; overflow:hidden}
 #nextSet.enter{background:var(--chip); color:var(--text); border:1px solid var(--line)}
@@ -131,11 +134,11 @@ button.exnote{display:block; width:100%; min-height:44px; text-align:left; paddi
 .shrest{font-size:22px; font-weight:700; color:var(--dim); font-variant-numeric:tabular-nums}
 .shrest.over{color:var(--ok)}
 #rirRow{border-bottom:1px solid var(--line); padding:6px 12px 10px}
-#rirRow.last{border-top:2px solid var(--accent); background:rgba(47,109,246,.07)}
+#rirRow.last{border-top:2px solid var(--accent); background:rgba(47,140,133,.07)}
 .rirlab{display:flex; align-items:center; font-size:14px; font-weight:600; min-height:32px}
 .chips{display:flex; gap:6px; flex-wrap:wrap}
 .chip{min-width:56px; min-height:48px; flex:1; border-radius:10px; border:1px solid var(--line); background:var(--chip); font-size:17px; font-weight:600; padding:0 8px}
-.chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.chip.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
 .chip.s48{min-width:48px}
 .chips.small .chip{flex:0 1 auto; font-size:15px; font-weight:500}
 
@@ -152,18 +155,18 @@ button.exnote{display:block; width:100%; min-height:44px; text-align:left; paddi
 .toggle.on{border-color:var(--warn); color:var(--warn); font-weight:650}
 .textbtn{min-height:48px; padding:0 12px; border:none; background:none; color:var(--bad); font-size:15px}
 .textbtn.plain{color:var(--accent)}
-.save56{display:block; width:100%; min-height:56px; margin-top:16px; border:none; border-radius:12px; background:var(--accent); color:#fff; font-size:17px; font-weight:650}
+.save56{display:block; width:100%; min-height:56px; margin-top:16px; border:none; border-radius:12px; background:var(--accent); color:var(--on-accent); font-size:17px; font-weight:650}
 .save56[disabled]{opacity:.4; cursor:default}
 .menu button{display:block; width:100%; min-height:56px; text-align:left; padding:0 14px; border:none; border-bottom:1px solid var(--line); background:none; font-size:16px}
 .menu button.danger{color:var(--bad); margin-top:16px; border-top:1px solid var(--line)}
 .fsec{border-top:1px solid var(--line); padding:12px 0}
 .fsec h4{margin:0 0 8px; font-size:14.5px}
-.fsec.hl{background:rgba(184,134,11,.08); border-radius:10px; padding:12px 8px}
+.fsec.hl{background:rgba(217,150,42,.08); border-radius:10px; padding:12px 8px}
 .sumline{font-size:14px; padding:3px 0; font-variant-numeric:tabular-nums; overflow-wrap:anywhere}
-.warnbox{background:rgba(184,134,11,.13); border:1px solid rgba(184,134,11,.35); border-radius:12px; padding:10px}
+.warnbox{background:rgba(217,150,42,.13); border:1px solid rgba(217,150,42,.35); border-radius:12px; padding:10px}
 .warnbox .row{margin-top:8px}
 .warnbox .btn{flex:1; font-size:14px; padding:8px}
-.warnbox .btn.on{background:var(--accent); color:#fff; border-color:var(--accent)}
+.warnbox .btn.on{background:var(--accent); color:var(--on-accent); border-color:var(--accent)}
 .pinch{font-size:13.5px; margin-top:8px; color:var(--bad)}
 
 /* ---- history */
@@ -187,14 +190,60 @@ body.friend{--rir:136px}
 .rowbtn.q:active{background:var(--chip)}
 .rowbtn .ck{font-size:20px; color:var(--accent); min-width:24px; text-align:right}
 .lines2{display:block; font-size:13px; font-weight:500; opacity:.85}
+/* ---- home and lift page (5-21) */
+.pbar.ontabs{bottom:calc(var(--nav) + var(--safe-b)); padding-bottom:8px; border-top:none; background:linear-gradient(to bottom, transparent, var(--bg) 30%)}
+body.pbarTabs main{padding-bottom:calc(var(--nav) + var(--safe-b) + 110px)}
+#coachFab{position:fixed; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(var(--nav) + var(--safe-b) + 92px); z-index:26; width:56px; height:56px; border-radius:99px; border:none; background:var(--rose); color:#fff; font-size:13px; font-weight:800; box-shadow:0 6px 18px rgba(0,0,0,.2)}
+body:not(.pbarTabs) #coachFab{bottom:calc(var(--nav) + var(--safe-b) + 16px)}
+.weekc .wrow{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+.weekc .streak{font-size:13px; font-weight:750; color:var(--warn)}
+.wdots{display:grid; grid-template-columns:repeat(7, 1fr); gap:6px; margin:10px 0 2px}
+.wdots i{height:30px; border-radius:9px; background:var(--chip); display:grid; place-items:center; font-style:normal; font-size:11.5px; font-weight:700; color:var(--dim)}
+.wdots i.d{background:var(--accent); color:var(--on-accent)}
+.wdots i.t{outline:2px solid var(--mustard); outline-offset:-2px}
+.liftc{display:grid; grid-template-columns:minmax(0,1fr) 96px; grid-template-rows:auto auto auto; column-gap:12px; width:100%; text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:8px; color:var(--text)}
+.liftc .ln1{font-weight:750; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.liftc .spark{grid-column:2; grid-row:1 / span 3; width:96px; height:44px; align-self:center}
+.liftc .lv{font-size:24px; font-weight:750; font-variant-numeric:tabular-nums}
+.liftc .lv small{font-size:12px; font-weight:500; color:var(--dim)}
+.lch{font-size:12.5px; font-weight:700; color:var(--dim)}
+.lch.up{color:var(--ok)}
+.prb{display:inline-block; margin-left:8px; font-size:11px; font-weight:800; color:#fff; background:var(--mustard); border-radius:6px; padding:1px 6px; vertical-align:3px}
+.spark .ln,.lchart .ln{fill:none; stroke:var(--teal); stroke-width:2.2; stroke-linejoin:round; stroke-linecap:round}
+.spark .fill,.lchart .fill{fill:var(--teal); fill-opacity:.13; stroke:none}
+.spark .dot,.lchart .dot{fill:var(--teal)}
+.spark .prdot,.lchart .prdot{fill:var(--mustard)}
+.lchart{width:100%; height:auto; display:block; margin-top:8px}
+.lchart .gl{stroke:var(--line); stroke-width:1}
+.lchart .ax{fill:var(--dim); font-size:10.5px}
+.bigv{font-size:34px; font-weight:800; font-variant-numeric:tabular-nums; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.bigv small{font-size:14px; font-weight:500; color:var(--dim)}
+.rng{margin-top:8px}
+.rect{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:14.5px; margin-top:6px}
+.rect th{text-align:left; font-size:12px; color:var(--dim); font-weight:600; padding:4px 6px}
+.rect td{padding:8px 6px; border-top:1px solid var(--line)}
+.rrow{display:grid; grid-template-columns:1fr auto 72px; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; font-size:14.5px}
+.rrow:first-of-type{border-top:none}
+.rrow b{text-align:right}
+.exdb{padding:0}
+.exdb .exline{padding:12px 14px}
+.exdb .exline .cs{font-size:12px; text-align:right; white-space:normal; max-width:45%}
+.exdb .info{padding:0 14px 12px; border-top:1px solid var(--line)}
+.exdb ol{margin:6px 0; padding-left:20px}
+.exdb li{margin:4px 0}
+.val small.lastv{display:block; font-size:11.5px; font-weight:500; color:var(--dim); line-height:1.2; margin-top:1px}
+.val .prb{vertical-align:2px}
 .welcome{display:flex; flex-direction:column; align-items:stretch; padding:28px 8px 12px; max-width:420px; margin:0 auto}
-.welcome .wlogo{align-self:center; border-radius:22px; box-shadow:0 6px 24px rgba(47,109,246,.25)}
+.welcome .wlogo{align-self:center; border-radius:22px; box-shadow:0 6px 24px rgba(47,140,133,.25)}
 .welcome h2{text-align:center; font-size:32px; margin:16px 0 4px; letter-spacing:-.5px}
 .welcome .wtag{text-align:center; font-size:17px; color:var(--dim); margin:0 0 22px}
+.wname{font-weight:800; letter-spacing:1px}
+.wname .c0{color:var(--mustard)} .wname .c1{color:var(--teal)} .wname .c2{color:var(--rose)} .wname .c3{color:var(--bad)}
+.wlist li:nth-child(2)::before{background:var(--mustard)} .wlist li:nth-child(3)::before{background:var(--rose)}
 .wlist{list-style:none; padding:0; margin:0 0 24px}
 .wlist li{position:relative; padding:12px 12px 12px 44px; margin-bottom:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; font-size:15px; color:var(--dim)}
 .wlist li b{color:var(--text)}
-.wlist li::before{content:'✓'; position:absolute; left:14px; top:11px; width:20px; height:20px; border-radius:99px; background:var(--accent); color:#fff; font-size:12px; font-weight:700; text-align:center; line-height:20px}
+.wlist li::before{content:'✓'; position:absolute; left:14px; top:11px; width:20px; height:20px; border-radius:99px; background:var(--accent); color:var(--on-accent); font-size:12px; font-weight:700; text-align:center; line-height:20px}
 .acbar{display:flex; align-items:center; gap:12px}
 .acbar b{word-break:break-all}
 .codein{text-align:center; font-size:22px; letter-spacing:8px; min-height:56px; font-variant-numeric:tabular-nums}
@@ -247,12 +296,11 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <main id="view"><div class="empty" id="bootmsg">Liftless did not start. This can happen on a weak signal just after an update. <a href="./">Reload</a></div></main>
 
 <nav id="tabs">
-  <button data-act="tab" data-tab="log" class="on">Log</button>
-  <button data-act="tab" data-tab="coach" hidden>Coach</button>
+  <button data-act="tab" data-tab="log" class="on">Home</button>
   <button data-act="tab" data-tab="history">History</button>
-  <button data-act="tab" data-tab="body">Body</button>
-  <button data-act="tab" data-tab="settings">Settings</button>
+  <button data-act="tab" data-tab="settings">You</button>
 </nav>
+<button id="coachFab" data-act="tab" data-tab="coach" aria-label="Ask the coach" hidden>Coach</button>
 
 <div id="bar" hidden>
   <div id="rirRow" hidden></div>
@@ -268,13 +316,14 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-19';
-import { makeSync } from './sync.js?v=5-19';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-19';
-import * as L from './library.js?v=5-19';
-import * as G from './programme.js?v=5-19';
-import * as C from './coach.js?v=5-19';
-import * as V from './logview.js?v=5-19';
+import * as E from './engine.js?v=5-21';
+import { makeSync } from './sync.js?v=5-21';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-21';
+import * as L from './library.js?v=5-21';
+import * as G from './programme.js?v=5-21';
+import * as C from './coach.js?v=5-21';
+import * as V from './logview.js?v=5-21';
+import * as PG from './progress.js?v=5-21';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -396,7 +445,33 @@ function adoptGithubQueue(){
 function flushAll(opts){
   adoptGithubQueue();
   const a = sync.flushQueue(opts);
-  return cloud.signedIn() ? Promise.all([a, cloud.flushQueue(opts)]) : a;
+  return cloud.signedIn() ? Promise.all([a, cloud.flushQueue(opts), bodySync()]) : a;
+}
+/* 5-21: bodyweight and floor benchmarks live in the account. Signed in, every
+   entry on the phone is sent in one upsert; on a phone without GitHub the
+   queue then moves into the local list (GitHub would never take it); the
+   account's entries are merged back in. A failure leaves everything on the
+   phone for the next save, sign-in or reconnect. */
+let bodyBusy = null;
+const sameBody = (a, b) => a.date === b.date && a.type === b.type;
+function bodySync(){
+  if(!cloud.signedIn() || cloud.foreign()) return Promise.resolve();
+  if(bodyBusy) return bodyBusy;
+  bodyBusy = (async () => {
+    try{
+      const q = S.bwQueue.slice();
+      await cloud.pushBody([...S.bw, ...q.map(({ qid, ...b }) => b)]);
+      if(!sync.cfgOk()){
+        for(const { qid, ...b } of q){ S.bw = S.bw.filter(x => !sameBody(x, b)); S.bw.push(b); }
+        S.bwQueue = S.bwQueue.filter(x => !q.includes(x));
+      }
+      for(const b of await cloud.pullBody())
+        if(!S.bw.some(x => sameBody(x, b)) && !S.bwQueue.some(x => sameBody(x, b))) S.bw.push(b);
+      S.bw.sort((a, c) => (a.date < c.date ? 1 : -1)); save();
+    }catch(e){ /* kept on the phone */ }
+    finally{ bodyBusy = null; }
+  })();
+  return bodyBusy;
 }
 /* Every session as stored (never the migrated in-memory copies), for S7's
    copy to the account. */
@@ -480,7 +555,7 @@ if(S.draft){
 }
 
 /* ---------------------------------------------------------------- ui state */
-const ui = { tab:'log', preview:null, open:new Set(), info:new Set(), note:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
+const ui = { tab:'log', preview:null, lift:null, liftRange:'3m', allSessions:false, open:new Set(), info:new Set(), note:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
   cloudStatus:null, syncBad:{ github:false, account:false }, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' },
   /* friends: start page sign-in, programme load, build, pages */
   si:{ step:'welcome', email:'', code:'', busy:false, err:null, until:0 }, progLoad:null, building:null,
@@ -558,31 +633,36 @@ function render(){
   const scr = screen();
   if(scr || ui.page){ renderFriend(scr); return; }
   document.body.classList.remove('pbarOn');
-  $('#backBtn').hidden = true; $('#sync').hidden = false;
+  $('#sync').hidden = false;
   document.body.classList.toggle('friend', friend());
-  $('#tabs [data-tab="body"]').hidden = friend();
-  /* The Coach tab only when signed in (or a friend's sign-in expired): Dan's
-     GitHub phone signed out keeps exactly its four tabs. */
-  $('#tabs [data-tab="coach"]').hidden = !coachTab();
+  /* Three tabs (Home, History, You). The coach is a round button, shown only
+     when signed in (or a friend's sign-in expired); Body lives under You. */
   if(ui.tab === 'coach' && !coachTab()) ui.tab = 'log';
+  if(ui.tab === 'body' && friend()) ui.tab = 'settings';
   const d = S.draft, ses = ui.tab === 'log' && !!d;
-  if(d) ui.preview = null;
+  if(d){ ui.preview = null; ui.lift = null; }
   const pv = ui.tab === 'log' && !d && ui.preview ? previewSession(ui.preview) : null;
   if(ui.preview && !pv) ui.preview = null;
-  $('#backBtn').hidden = !pv;
+  const lift = ui.tab === 'log' && !d && !pv && ui.lift ? ui.lift : null;
+  const home = ui.tab === 'log' && !d && !pv && !lift;
+  $('#backBtn').hidden = !(pv || lift || ui.tab === 'coach' || ui.tab === 'body' || ui.tab === 'lib');
   document.body.classList.toggle('pbarOn', !!pv);
-  document.title = d ? 'Liftless · ' + d.name : pv ? 'Liftless · ' + pv.name : 'Liftless';
-  $('#title').textContent = ses ? d.name : pv ? pv.name : 'Liftless';
+  document.body.classList.toggle('pbarTabs', home && !!homeNext());
+  $('#coachFab').hidden = !coachTab() || !(home || ui.tab === 'history');
+  const title = ses ? d.name : pv ? pv.name : lift ? lift : ui.tab === 'coach' ? 'Coach' : ui.tab === 'body' ? 'Body' : ui.tab === 'lib' ? 'Exercises' : 'Liftless';
+  document.title = title === 'Liftless' ? 'Liftless' : 'Liftless · ' + title;
+  $('#title').textContent = title;
   const chip = $('#datechip');
   chip.hidden = !ses;
   if(ses){ const isToday = d.date === today(); chip.textContent = isToday ? 'Today' : E.niceDate(d.date); chip.classList.toggle('amber', !isToday); }
   $('#menuBtn').hidden = !d;
   document.body.classList.toggle('ses', ses);
   document.body.classList.toggle('chips', ses && !!ui.rir);
-  $('#tabs').hidden = ses || !!pv;
+  $('#tabs').hidden = ses || !!pv || ui.tab === 'coach';
   $('#bar').hidden = !ses;
-  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  $('#view').innerHTML = pv ? viewPreview(pv) : ui.tab === 'log' ? viewLog() : ui.tab === 'coach' ? viewCoach() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : viewSettings();
+  const on = ui.tab === 'body' || ui.tab === 'lib' ? 'settings' : ui.tab;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === on));
+  $('#view').innerHTML = pv ? viewPreview(pv) : lift ? viewLift(lift) : ui.tab === 'log' ? viewLog() : ui.tab === 'coach' ? viewCoach() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : ui.tab === 'lib' ? viewExercises() : viewSettings();
   renderRir(); renderNext(); renderSheet(); paintBar();
   if(ui.scrollTo != null){
     const el = document.getElementById('ex-' + ui.scrollTo); ui.scrollTo = null;
@@ -670,7 +750,7 @@ function viewLog(){
   const aH = aHist();
   /* During a session the header pill carries sync state; the space goes to
      the exercise in hand. */
-  if(!S.draft) return noticeBanner() + tokenBanner() + queueBanner() + deloadBanner(aH) + (P() ? progPicker(aH) : pickerHTML(aH));
+  if(!S.draft) return viewHome(aH);
   const d = S.draft;
   let h = noticeBanner();
   if(isStale(d)) h += '<div class="banner warn"><b>Unfinished ' + esc(d.name) + ' from ' + esc(E.niceDate(d.date)) + '.</b> Finish it with what was done, or discard it.'
@@ -681,6 +761,130 @@ function viewLog(){
   const cur = currentIdx(d);
   d.exercises.forEach((ex, i) => { h += exCard(ex, i, cur, aH); });
   if(!d.exercises.length) h += '<div class="empty">No exercises yet. ⋯ → Add exercise.</div>';
+  return h;
+}
+
+/* ---------------------------------------------------------------- home (5-21)
+   Research 2026-10-24: one clear action, progress on the first screen, the
+   session list out of the way. Home = this week, a card per main lift, and
+   Start pinned above the tabs. The full list is one tap away. */
+function homeNext(){
+  if(S.draft) return null;
+  const p = P(), aH = aHist();
+  if(p){
+    const w = E.programmeWeek(p, merged(), today()), day = E.programmeDay(p, w.next);
+    if(!day) return null;
+    const dl = E.deloadCheck(aH, S.bw, S.settings, today(), p).fire;
+    return { key: w.next, title: w.done >= w.target ? 'Start another session' : 'Start today’s session', sub: day.name + ' · ' + day.ex.length + ' exercises' + (dl ? ' · deload' : '') };
+  }
+  const plan = E.weekPlan(merged(), today()), next = E.nextTemplate(plan);
+  if(!next) return null;
+  const parts = E.TEMPLATES[next].name.split(' — '), pd = plan.find(x => x.key === next);
+  const dl = E.deloadCheck(aH, S.bw, S.settings, today()).fire;
+  return { key: next, title: 'Start ' + parts[0], sub: [parts[1], pd && pd.day].filter(Boolean).join(' · ') + (dl ? ' · deload' : '') };
+}
+const liftDays = () => P() ? P().days : Object.values(E.TEMPLATES).filter(t => !t.legacy);
+function liftUnit(base){
+  for(const d of liftDays()) for(const e of d.ex) if(PG.baseName(e.n) === base) return e.load === 'bw+' ? 'kg added' : 'kg';
+  return 'kg';
+}
+function liftSeriesFor(base){ return PG.liftSeries(merged(), base, E.e1rm); }
+function sparkSVG(pts, w, h){
+  if(pts.length < 2) return '';
+  const ys = pts.map(p => p.v), lo = Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1, pad = 4;
+  const x = i => (pad + i * (w - 2 * pad) / (pts.length - 1)).toFixed(1), y = v => (h - pad - (v - lo) * (h - 2 * pad) / span).toFixed(1);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + x(i) + ' ' + y(p.v)).join(' ');
+  const last = pts[pts.length - 1];
+  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><path class="fill" d="' + d + ' L' + x(pts.length - 1) + ' ' + h + ' L' + x(0) + ' ' + h + ' Z"/>'
+    + '<path class="ln" d="' + d + '"/><circle class="' + (last.pr ? 'prdot' : 'dot') + '" cx="' + x(pts.length - 1) + '" cy="' + y(last.v) + '" r="3.4"/></svg>';
+}
+function weekStripHTML(){
+  const p = P(), list = merged().filter(s => !s.deleted && E.isLiftKey(s.key));
+  const wk = E.weekOf(today());
+  const done = p ? E.programmeWeek(p, merged(), today()) : null;
+  const plan = p ? null : E.weekPlan(merged(), today());
+  const n = p ? done.done : plan.filter(x => x.state === 'done').length, target = p ? done.target : plan.length;
+  const streak = PG.weekStreak(list.map(s => s.date), today(), E.weekOf, E.addDays);
+  const days = Array.from({ length:7 }, (_, i) => E.addDays(wk, i));
+  const had = new Set(list.map(s => s.date));
+  const dots = days.map((dt, i) => '<i class="' + (had.has(dt) ? 'd' : '') + (dt === today() ? ' t' : '') + '">' + 'MTWTFSS'[i] + '</i>').join('');
+  const lastWk = E.addDays(wk, -7), missedLast = !list.some(s => E.weekOf(s.date) === lastWk) && list.some(s => s.date < lastWk);
+  const line = n >= target ? 'Week done. Next week starts Monday.' : missedLast && !n ? 'Missed last week. One session today gets you going again.' : '';
+  return '<div class="card weekc"><div class="wrow"><b' + (n >= target ? ' style="color:var(--ok)"' : '') + '>' + n + ' of ' + target + ' this week' + (n >= target ? ' ✓' : '') + '</b>'
+    + (streak > 1 ? '<span class="streak">' + streak + '-week streak</span>' : '') + '</div>'
+    + '<div class="wdots" aria-hidden="true">' + dots + '</div>' + (line ? '<div class="sub">' + esc(line) + '</div>' : '') + '</div>';
+}
+function liftCardsHTML(){
+  const cache = new Map(), series = b => { if(!cache.has(b)) cache.set(b, liftSeriesFor(b)); return cache.get(b); };
+  const bases = PG.homeLifts(liftDays(), b => series(b).length);
+  if(!bases.length) return '<div class="card"><div class="sub">Your progress shows here after two sessions of a lift: one card per main lift, with its trend.</div></div>';
+  return '<div class="sub" style="margin:12px 2px 6px">Your lifts · estimated max</div>' + bases.map(b => {
+    const pts = series(b), st = PG.cardStats(pts, today(), E.addDays);
+    const ch = st.change > 0 ? '<span class="lch up">▲ ' + fmtKg(st.change) + ' since ' + esc(E.niceDate(st.since).slice(4)) + '</span>'
+      : st.change < 0 ? '<span class="lch">▼ ' + fmtKg(-st.change) + ' since ' + esc(E.niceDate(st.since).slice(4)) + '</span>' : '<span class="lch">Holding steady</span>';
+    return '<button class="liftc" data-act="lift" data-n="' + esc(b) + '"><span class="ln1">' + esc(b) + '</span>' + sparkSVG(pts.slice(-12), 96, 44)
+      + '<span class="lv">' + fmtKg(st.last) + ' <small>' + esc(liftUnit(b)) + '</small>' + (st.isBest && pts.length > 1 ? '<span class="prb">Best</span>' : '') + '</span>' + ch + '</button>';
+  }).join('');
+}
+const fmtKg = v => (Math.round(v * 10) / 10).toString();
+/* Every other session, one row each: the week's (with ✓ when done) and the extras. */
+function sessionListHTML(){
+  const p = P(), nx = homeNext(), row = (k, name, pill, cls) => '<button class="rowbtn" data-act="start" data-key="' + esc(k) + '"><span class="grow"><b>' + esc(name) + '</b></span>' + (pill ? '<span class="pill' + (cls ? ' ' + cls : '') + '">' + esc(pill) + '</span>' : '') + '</button>';
+  if(p) return p.days.filter(d => !nx || E.programmeKey(d) !== nx.key).map(d => row(E.programmeKey(d), d.name, d.ex.length + ' exercises', '')).join('');
+  const plan = E.weekPlan(merged(), today()), next = E.nextTemplate(plan);
+  const other = Object.entries(E.TEMPLATES).filter(([k, t]) => !t.legacy && !plan.some(x => x.key === k));
+  return V.weekRows(plan, next).map(r => row(r.key, r.name, r.pill.text, r.pill.cls)).join('')
+    + other.map(([k, t]) => row(k, t.name, t.day, '')).join('');
+}
+function viewHome(aH){
+  const p = P();
+  let h = noticeBanner() + tokenBanner() + queueBanner() + deloadBanner(aH);
+  const plan = p ? null : E.weekPlan(merged(), today()), w = p ? E.programmeWeek(p, merged(), today()) : null;
+  h += weekCardHTML(p ? w.done : plan.filter(x => x.state === 'done').length, p ? w.target : plan.length, !p);
+  h += weekStripHTML();
+  if(!p){ const note = V.phaseNote(E.blockInfo(today())); if(note) h += '<div class="sub center" style="margin:-2px 0 8px">' + esc(note) + '</div>'; }
+  if(p && !genDone()) h += '<div class="hint" style="margin:0 0 10px">First session: you choose the weights. Pick a weight you could lift 2–3 more times than the target. Tap ⓘ on an exercise to see what RIR means and watch the form.</div>';
+  h += liftCardsHTML();
+  h += '<div class="center" style="margin-top:6px"><button class="textbtn plain" data-act="allSessions">' + (ui.allSessions ? 'Hide other sessions' : 'Choose a different session') + '</button></div>';
+  if(ui.allSessions) h += sessionListHTML();
+  const nx = homeNext();
+  if(nx) h += '<div class="pbar ontabs"><button class="big primary" data-act="start" data-key="' + esc(nx.key) + '">' + esc(nx.title) + '<span class="lines2">' + esc(nx.sub) + '</span></button></div>';
+  return h;
+}
+
+/* ---------------------------------------------------------------- lift page */
+function liftChartSVG(pts){
+  const W = 340, H = 190, L = 36, R = 12, T = 12, B = 24;
+  if(pts.length < 2) return '<div class="sub" style="padding:24px 4px">Two sessions in this range are needed for a line.</div>';
+  const ys = pts.map(p => p.v), raw = Math.max(...ys) - Math.min(...ys) || 5;
+  const step = [1, 2, 2.5, 5, 10, 20, 25, 50].find(s => raw / s <= 4) || 100;
+  const lo = Math.floor(Math.min(...ys) / step) * step, hi = Math.ceil(Math.max(...ys) / step) * step || lo + step;
+  const t0 = Date.parse(pts[0].date), t1 = Date.parse(pts[pts.length - 1].date), span = t1 - t0 || 1;
+  const x = p => (L + (Date.parse(p.date) - t0) * (W - L - R) / span).toFixed(1), y = v => (T + (hi - v) * (H - T - B) / (hi - lo || 1)).toFixed(1);
+  let g = '';
+  for(let v = lo; v <= hi + 1e-9; v += step) g += '<line class="gl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="ax" x="' + (L - 6) + '" y="' + (+y(v) + 4) + '" text-anchor="end">' + fmtKg(v) + '</text>';
+  const lab = [pts[0], pts[pts.length - 1]];
+  g += lab.map((p, i) => '<text class="ax" x="' + x(p) + '" y="' + (H - 6) + '" text-anchor="' + (i ? 'end' : 'start') + '">' + esc(E.niceDate(p.date).slice(4)) + '</text>').join('');
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + x(p) + ' ' + y(p.v)).join(' ');
+  g += '<path class="fill" d="' + d + ' L' + x(pts[pts.length - 1]) + ' ' + y(lo) + ' L' + x(pts[0]) + ' ' + y(lo) + ' Z"/><path class="ln" d="' + d + '"/>';
+  g += pts.map(p => '<circle class="' + (p.pr ? 'prdot' : 'dot') + '" cx="' + x(p) + '" cy="' + y(p.v) + '" r="' + (p.pr ? 4.5 : 3) + '"><title>' + esc(E.niceDate(p.date)) + ': ' + fmtKg(p.v) + ' (' + fmtKg(p.kg) + ' × ' + p.reps + ')</title></circle>').join('');
+  return '<svg class="lchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Estimated max over time">' + g + '</svg>';
+}
+function viewLift(base){
+  const all = liftSeriesFor(base), unit = liftUnit(base);
+  const pts = PG.inRange(all, ui.liftRange, today(), E.addDays);
+  if(!all.length) return '<div class="empty">No sessions with ' + esc(base) + ' yet.</div>';
+  const last = all[all.length - 1], first = pts[0] || last, ch = Math.round((last.v - first.v) * 10) / 10;
+  let h = '<div class="card"><div class="sub">Estimated max · ' + esc(unit) + '</div><div class="bigv">' + fmtKg(last.v) + '<small> ' + esc(unit) + '</small>'
+    + (pts.length > 1 ? '<span class="lch ' + (ch > 0 ? 'up' : '') + '">' + (ch > 0 ? '▲ ' : ch < 0 ? '▼ ' : '') + fmtKg(Math.abs(ch)) + ' since ' + esc(E.niceDate(first.date).slice(4)) + '</span>' : '') + '</div>'
+    + liftChartSVG(pts)
+    + '<div class="chips small rng">' + [['1m', '1M'], ['3m', '3M'], ['1y', '1Y'], ['all', 'All']].map(([k, t]) => '<button class="chip' + (ui.liftRange === k ? ' on' : '') + '" data-act="liftRange" data-v="' + k + '">' + t + '</button>').join('') + '</div>'
+    + '<div class="hint">Gold dots are new bests. Estimated from your best set each session: kg × (1 + (reps + reps in reserve) ÷ 30).</div></div>';
+  const recs = PG.repRecords(merged(), base);
+  if(recs.length) h += '<div class="card"><h3>Best at each rep count</h3><table class="rect"><tr><th>Reps</th><th>Best</th><th>Date</th></tr>'
+    + recs.map(r => '<tr><td>' + r.reps + '</td><td>' + fmtKg(r.kg) + ' kg</td><td>' + esc(E.niceDate(r.date)) + '</td></tr>').join('') + '</table></div>';
+  h += '<div class="card"><h3>Recent sessions</h3>' + all.slice(-6).reverse().map(p => '<div class="rrow"><span>' + esc(E.niceDate(p.date)) + '</span><span>' + fmtKg(p.kg) + ' × ' + p.reps + '</span><b>' + fmtKg(p.v) + (p.pr ? ' <span class="prb">Best</span>' : '') + '</b></div>').join('') + '</div>';
+  h += '<div class="center"><a class="formlink" href="' + esc(formVideo(base)) + '" target="_blank" rel="noopener">▶ Watch form on YouTube</a></div>';
   return h;
 }
 
@@ -820,12 +1024,24 @@ function exCard(ex, i, cur, aH){
     h += '<input class="exnote" data-f="exnote" data-i="' + i + '" value="' + esc(ex.note || '') + '" placeholder="Note: cues, pain, variation, how it felt">';
   else if(ex.note)
     h += '<button class="exnote shown" data-act="noteOpen" data-i="' + i + '">✎ ' + esc(ex.note) + '</button>';
+  /* Each working set shows last session's matching set in grey, and a PR
+     badge when a ticked set beats every earlier estimated max of this lift. */
+  const prevEx = E.lastFor(ex.n, aH, S.draft.date), prevW = prevEx ? E.working(prevEx.ex) : [];
+  let bestV = 0;
+  if(ex.kind === 'weight' && E.loadOf(ex) !== 'bw'){
+    const before = PG.liftSeries(merged().filter(s => s.date < S.draft.date), PG.baseName(ex.n), E.e1rm);
+    bestV = before.length ? Math.max(...before.map(p => p.v)) : 0;
+  }
   let wn = 0;
   ex.sets.forEach((st, j) => {
     const done = st.state !== 'planned', legacy = st.state === 'legacy';
     const n = st.warmup ? 'W' : String(++wn);
+    const ps = st.warmup ? null : prevW[wn - 1];
+    const last = ps ? '<small class="lastv">last ' + esc(E.setText(ex, { ...ps, state:'done' })) + '</small>' : '';
+    const v = done && !st.warmup && st.kg > 0 && st.reps ? E.e1rm(st.kg, st.reps, st.rir ?? 0) : null;
+    const pr = bestV > 0 && v && v > bestV + 0.05 ? '<span class="prb">PR</span>' : '';
     h += '<div class="setrow' + (done ? ' done' : '') + (legacy ? ' legacy' : '') + (st.warmup ? ' warm' : '') + '"><span class="sn">' + n + '</span>'
-      + '<button class="val" data-act="sheet" data-i="' + i + '" data-j="' + j + '">' + esc(E.setText(ex, st)) + '</button>'
+      + '<button class="val" data-act="sheet" data-i="' + i + '" data-j="' + j + '">' + esc(E.setText(ex, st)) + pr + last + '</button>'
       + '<button class="tick" data-act="tick" data-i="' + i + '" data-j="' + j + '" aria-label="' + (legacy ? 'Saved set: tap to edit' : done ? 'Untick' : 'Done as shown') + '">✓</button></div>';
   });
   const foot = [];
@@ -913,8 +1129,22 @@ function exerciseCatalogue(){
   const p = P();
   for(const d of p ? p.days : Object.values(E.TEMPLATES).filter(t => !t.legacy)) for(const e of d.ex) add(e.n, 'In your programme', pick(e));
   for(const e of L.EXERCISES) add(e.n, (L.PATTERNS[e.pattern] || {}).label || 'Library', pick(e));
+  for(const e of EXDB || []) add(e.n, dbLabel(e), dbTpl(e));
   return [...out.values()];
 }
+/* 5-21: the open exercise database (data/exercises.json, ~880 exercises from
+   free-exercise-db, public domain). Loaded on first use; the service worker
+   keeps a copy for offline. */
+let EXDB = null, exdbLoading = null;
+function loadExDb(){
+  if(EXDB) return Promise.resolve(EXDB);
+  if(!exdbLoading) exdbLoading = fetch('data/exercises.json?v=1').then(r => r.json()).then(j => (EXDB = Array.isArray(j.exercises) ? j.exercises : []))
+    .catch(() => { exdbLoading = null; return []; });
+  return exdbLoading;
+}
+const ucFirst = s => s ? s[0].toUpperCase() + s.slice(1) : '';
+const dbLabel = e => [ucFirst(e.e === 'body only' ? 'bodyweight' : e.e), e.m].filter(Boolean).join(' · ');
+const dbTpl = e => ({ kind: e.c === 'stretching' || e.c === 'cardio' ? 'time' : 'weight', ...(e.e === 'body only' && e.c !== 'stretching' ? { load:'bw' } : {}), note: (e.i || []).slice(0, 2).join(' ') });
 function addExList(q){
   const all = exerciseCatalogue(), t = q.trim().toLowerCase();
   const hits = t ? all.filter(x => x.n.toLowerCase().includes(t)) : all;
@@ -1194,16 +1424,39 @@ function versionCard(){
       : '<div class="hint">Updates arrive when you reopen the app after a new build is published.</div>') + '</div>';
 }
 function viewSettings(){
-  return accountBar() + viewSettingsBody() + versionCard();
+  const body = friend() ? '' : '<button class="rowbtn" data-act="tab" data-tab="body"><span class="grow"><b>Body</b><br><span class="sub">Bodyweight and floor tests</span></span><span class="sub">›</span></button>';
+  const lib = '<button class="rowbtn" data-act="tab" data-tab="lib"><span class="grow"><b>Exercises</b><br><span class="sub">How to do nearly 900 exercises</span></span><span class="sub">›</span></button>';
+  return accountBar() + body + lib + viewSettingsBody() + versionCard();
+}
+/* You → Exercises: search the open database; tap a row for how to do it. */
+function exListHTML(){
+  const q = String(ui.libQ || '').trim().toLowerCase(), all = EXDB || [];
+  const hits = q ? all.filter(e => e.n.toLowerCase().includes(q) || e.m.toLowerCase().includes(q) || e.e.toLowerCase().includes(q)) : all;
+  const shown = hits.slice(0, 60);
+  return '<div class="sub" style="margin:8px 2px">' + (hits.length > shown.length ? 'Showing 60 of ' + hits.length + '. Type to narrow it down.' : hits.length + ' exercise' + (hits.length === 1 ? '' : 's')) + '</div>'
+    + shown.map(e => {
+      const open = ui.exOpen === e.n;
+      return '<div class="card exdb"><button class="exline" data-act="exOpen" data-n="' + esc(e.n) + '"><b>' + esc(e.n) + '</b><span class="cs">' + esc(dbLabel(e)) + '</span></button>'
+        + (open ? '<div class="info"><p>' + esc([ucFirst(e.l), ucFirst(e.c)].filter(Boolean).join(' · ')) + '</p><ol>' + (e.i || []).map(s => '<li>' + esc(s) + '</li>').join('') + '</ol>'
+          + '<p><a class="formlink" href="' + esc(formVideo(e.n)) + '" target="_blank" rel="noopener">▶ Watch form on YouTube</a></p></div>' : '') + '</div>';
+    }).join('');
+}
+function viewExercises(){
+  if(!EXDB){ loadExDb().then(() => { if(ui.tab === 'lib') render(); }); return '<div class="empty">Loading exercises…</div>'; }
+  return '<input type="search" id="libq" data-f="libq" value="' + esc(ui.libQ || '') + '" placeholder="Search: squat, chest, dumbbell…" autocomplete="off">'
+    + '<div id="exList">' + exListHTML() + '</div><p class="hint">From free-exercise-db (public domain).</p>';
 }
 function viewSettingsBody(){
   const c = S.settings;
   /* Friends: Account, Programme, Data. No GitHub, block goal, pinches or bands. */
-  if(friend() && P()) return viewAccount() + coachCard() + friendProgrammeCard()
+  /* 5-21: GitHub only on a phone that already logs to it; the Account card
+     only for signing in (signed in, the bar at the top of You is enough). */
+  const acct = !cloud.signedIn() || mode() === 'github' ? viewAccount() : '';
+  if(friend() && P()) return acct + coachCard() + friendProgrammeCard()
     + '<div class="card"><h3>Data</h3><div class="sub">' + merged().length + ' sessions · ' + cloudQ().length + ' waiting to upload · storage: ' + esc(ui.persist || 'checking') + '</div>'
     + '<button class="btn w100" style="margin-top:10px" data-act="export">Export JSON backup</button>'
     + '<div class="hint">Your sessions are kept in your account. This phone holds a copy and anything not yet sent.</div></div>';
-  return '<div class="card"><h3>GitHub</h3>'
+  return (mode() === 'github' ? '<div class="card"><h3>GitHub</h3>'
     + '<div class="sub">Each session is written as one JSON file into the repo below.</div>'
     + '<label>Owner</label><input data-f="cfg" data-k="owner" value="' + esc(c.owner) + '">'
     + '<label>Repo</label><input data-f="cfg" data-k="repo" value="' + esc(c.repo) + '">'
@@ -1212,8 +1465,8 @@ function viewSettingsBody(){
     + '<label>Fine-grained token</label>'
     + '<input data-f="cfg" data-k="token" type="password" value="' + esc(c.token) + '" placeholder="github_pat_…" autocomplete="off">'
     + '<div class="hint">Create at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>. Scope it to <b>only</b> this repo, permission <b>Contents: Read and write</b>, with an expiry. It is stored on this phone only. Never send it to anyone, including me.</div>'
-    + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button><button class="btn" data-act="test">Test</button></div></div>'
-    + viewAccount() + coachCard()
+    + '<div class="row" style="margin-top:12px"><button class="btn primary grow" data-act="savecfg">Save</button><button class="btn" data-act="test">Test</button></div></div>' : '')
+    + acct + coachCard()
     + '<div class="card"><h3>Programme</h3>'
     + '<div class="sub" style="margin-top:4px">' + esc(blockLine()) + '</div>' + fatigueHTML()
     + '<label>Block goal</label><select data-f="cfg" data-k="phase">'
@@ -1230,7 +1483,7 @@ function viewSettingsBody(){
     + '<div class="card"><h3>Data</h3>'
     + '<div class="sub">' + merged().length + ' sessions · ' + allBw().length + ' body entries · ' + (S.queue.length + S.bwQueue.length + cloudQ().length) + ' pending upload · storage: ' + esc(ui.persist || 'checking') + '</div>'
     + '<button class="btn w100" style="margin-top:10px" data-act="export">Export JSON backup</button>'
-    + '<div class="hint">The repo is the source of truth and every push is a git commit, so an edit never destroys what it replaced. This phone holds a cache and anything unsynced, which is the only thing a lost phone can lose.</div></div>';
+    + '<div class="hint">' + (mode() === 'github' ? 'The repo is the source of truth and every push is a git commit, so an edit never destroys what it replaced. This phone holds a cache and anything unsynced, which is the only thing a lost phone can lose.' : 'Sessions, bodyweight and floor tests are kept in your account. This phone holds a copy and anything not yet sent.') + '</div></div>';
 }
 
 /* Account (beta). Signed out: email → code → in. Signed in: the email, the
@@ -1322,7 +1575,7 @@ function viewStart(){
   if(s.step === 'welcome'){
     return '<div class="welcome">'
       + '<img class="wlogo" src="icon.svg" alt="" width="88" height="88">'
-      + '<h2>Liftless</h2>'
+      + '<h2 class="wname">' + [...'Liftless'].map((c, i) => '<span class="c' + (i % 4) + '">' + c + '</span>').join('') + '</h2>'
       + '<p class="wtag">Your training plan, ready when you walk into the gym.</p>'
       + '<ul class="wlist">'
       + '<li><b>A programme built for you.</b> Five quick questions, and it’s ready.</li>'
@@ -1420,6 +1673,7 @@ async function afterSignIn(who){
   else render();
   adoptGithubQueue();
   await cloud.flushQueue({ quiet:true });
+  await bodySync();
   if(mode() === 'account' && !S.history.length) await cloud.pullHistory();
   softRender();
 }
@@ -1988,7 +2242,7 @@ function afterConfirm(i, j){
 }
 
 function goTab(t){
-  ui.tab = t; ui.sheet = null; ui.preview = null; window.scrollTo(0, 0);
+  ui.tab = t; ui.sheet = null; ui.preview = null; ui.lift = null; window.scrollTo(0, 0);
   /* The Coach tab opens at the top of the latest answer, then refreshes. */
   if(t === 'coach'){
     const last = [...coachRows()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).find(r => r.role === 'assistant');
@@ -2042,6 +2296,10 @@ const ACT = {
   undo: () => { const f = ui.undo; ui.undo = null; $('#toast').hidden = true; if(f) f(); },
   noticeOk: () => { ui.notice = null; render(); },
 
+  lift: el => { ui.lift = el.dataset.n; ui.tab = 'log'; window.scrollTo(0, 0); render(); },
+  liftRange: el => { ui.liftRange = el.dataset.v; render(); },
+  exOpen: el => { ui.exOpen = ui.exOpen === el.dataset.n ? null : el.dataset.n; const l = document.getElementById('exList'); if(l) l.innerHTML = exListHTML(); },
+  allSessions: () => { ui.allSessions = !ui.allSessions; render(); },
   start: el => {
     if(S.draft) return;
     ui.preview = el.dataset.key; ui.page = null; ui.tab = 'log';
@@ -2058,6 +2316,8 @@ const ACT = {
   /* ---- friends: sign-in, questions, programme, library */
   back: () => {
     if(ui.preview){ ui.preview = null; window.scrollTo(0, 0); render(); return; }
+    if(ui.lift && ui.tab === 'log'){ ui.lift = null; window.scrollTo(0, 0); render(); return; }
+    if(!screen() && !ui.page && (ui.tab === 'coach' || ui.tab === 'body' || ui.tab === 'lib')){ goTab(ui.tab === 'coach' ? 'log' : 'settings'); return; }
     if(screen() === 'start' && ui.si.step === 'email'){ Object.assign(ui.si, { step:'welcome', err:null }); render(); return; }
     if(screen() === 'questions'){ qBack(); return; }
     if(ui.page === 'library' && ui.pageBack === 'programme'){ ui.page = 'programme'; ui.pageBack = null; }
@@ -2318,6 +2578,7 @@ const ACT = {
   maddex: () => {
     ui.sheet = { type:'addex', q:'' }; renderSheet();
     const t = $('[data-f="addq"]'); if(t) t.focus();
+    if(!EXDB) loadExDb().then(() => { const l = $('#addList'); if(l && ui.sheet && ui.sheet.type === 'addex') l.innerHTML = addExList(ui.sheet.q || ''); });
   },
   addpick: el => {
     const n = el.dataset.n; if(!n) return;
@@ -2398,14 +2659,14 @@ const ACT = {
     const v = num(($('[data-f="bwkg"]') || {}).value);
     if(v == null || v < 30 || v > 250){ toast('Enter a weight in kg first.'); return; }
     sync.enqueueBw({ type:'bw', date:today(), kg:v, loggedAt:nowIso() });
-    render(); toast('Logged ' + v + ' kg'); sync.flushQueue();
+    render(); toast('Logged ' + v + ' kg'); sync.flushQueue(); bodySync().then(softRender);
   },
   logmark: () => {
     const e = { type:'floor', date:today(), loggedAt:nowIso() };
     let any = false;
     FLOOR_MARKS.forEach(([k]) => { const v = num(($('[data-mark="' + k + '"]') || {}).value); if(v != null){ e[k] = v; any = true; } });
     if(!any){ toast('Nothing filled in.'); return; }
-    sync.enqueueBw(e); render(); sync.flushQueue();
+    sync.enqueueBw(e); render(); sync.flushQueue(); bodySync().then(softRender);
   },
   savecfg: () => { save(); mode(); setSync('', 'saved'); sync.flushQueue({ quiet:true }).then(render); },
 
@@ -2479,6 +2740,7 @@ const ACT = {
 
 const INPUT = {
   exnote: el => { S.draft.exercises[+el.dataset.i].note = el.value; save(); },
+  libq: el => { ui.libQ = el.value; ui.exOpen = null; const l = document.getElementById('exList'); if(l) l.innerHTML = exListHTML(); },
   addq: el => { if(ui.sheet && ui.sheet.type === 'addex'){ ui.sheet.q = el.value; $('#addList').innerHTML = addExList(el.value); } },
   shval: el => { if(ui.sheet) ui.sheet.v[el.dataset.k] = num(el.value); },
   notes: el => { S.draft.notes = el.value; save(); },
@@ -2540,8 +2802,8 @@ try{
 }catch(e){ ui.persist = 'best-effort'; }
 if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length || S.adoptPending) return pullGithub(); }).then(softRender);
 adoptGithubQueue();
-if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(() => { if(mode() === 'account' && !S.history.length) return cloud.pullHistory(); }).then(softRender);
-window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page || coachTab()) softRender(); });
+if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(() => { if(mode() === 'account' && !S.history.length) return cloud.pullHistory(); }).then(bodySync).then(softRender);
+window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }); bodySync().then(softRender); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page || coachTab()) softRender(); });
 window.addEventListener('offline', () => { if(screen() || ui.page || coachTab()) softRender(); });
 /* The coach's copy of the thread (and whether this week is reviewed), only
    when signed in: a signed-out phone makes no call. */

@@ -510,6 +510,34 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     return p;
   }
 
+  /* ------------------------------------------------------------- body (5-21)
+     Bodyweight and floor benchmarks, one row per user, date and type. The
+     whole set is sent in one upsert: it is small, and a second send only
+     updates. Never sent for another account's data. */
+  /** @param {Obj[]} entries {type:'bw'|'floor', date, ...} */
+  async function pushBody(entries) {
+    if (foreign()) throw foreignError();
+    const uid = userId();
+    if (!uid) throw httpError(0, { error_code: 'no_user', msg: 'no user id' });
+    const rows = (entries || []).filter(e => e && e.date && (e.type === 'bw' || e.type === 'floor'))
+      .map(e => { const { qid, _owner, ...body } = e; return { user_id: uid, entry_date: e.date, entry_type: e.type, body }; });
+    if (!rows.length) return 0;
+    /* One row per key: the last one given wins (the queue comes after history). */
+    const byKey = new Map(rows.map(r => [r.entry_date + '|' + r.entry_type, r]));
+    const res = await authed('/rest/v1/body_entries?on_conflict=user_id,entry_date,entry_type', {
+      method: 'POST', body: [...byKey.values()], headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' }
+    });
+    if (res.status !== 200 && res.status !== 201 && res.status !== 204) throw httpError(res.status, await bodyOf(res));
+    return byKey.size;
+  }
+  /** Every body entry this user owns, newest first. */
+  async function pullBody() {
+    const res = await authed('/rest/v1/body_entries?select=body&order=entry_date.desc');
+    if (res.status !== 200) throw httpError(res.status, await bodyOf(res));
+    const rows = await res.json();
+    return (Array.isArray(rows) ? rows : []).map(r => r && r.body).filter(b => b && b.date && b.type);
+  }
+
   /* S7: copies every local session to the account. Safe to run twice: each
      row is keyed by its file name, so a second run updates rather than adds. */
   /** @param {Obj[]} history raw session files (not migrated copies) */
@@ -724,7 +752,7 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
 
   return {
     askCoach, chatHistory, deleteChat, coachAccepted, acceptCoach, coachAccess,
-    requestCode, verifyCode, signOut, signedIn, refresh, pushSession, pullSessions, pullHistory,
+    requestCode, verifyCode, signOut, signedIn, refresh, pushSession, pullSessions, pullHistory, pushBody, pullBody,
     pullProgramme, pushProgramme, setProgramme, syncProgramme,
     importHistory, enqueue, adoptItems, flushQueue, userId, inUse, foreign, ownerId: () => currentOwner(),
     owner: () => S().cloudOwner || null,
