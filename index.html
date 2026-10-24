@@ -268,13 +268,13 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-18';
-import { makeSync } from './sync.js?v=5-18';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-18';
-import * as L from './library.js?v=5-18';
-import * as G from './programme.js?v=5-18';
-import * as C from './coach.js?v=5-18';
-import * as V from './logview.js?v=5-18';
+import * as E from './engine.js?v=5-19';
+import { makeSync } from './sync.js?v=5-19';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-19';
+import * as L from './library.js?v=5-19';
+import * as G from './programme.js?v=5-19';
+import * as C from './coach.js?v=5-19';
+import * as V from './logview.js?v=5-19';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -1183,8 +1183,18 @@ function accountBar(){
   return '<div class="card acbar"><div class="grow"><div class="sub">Signed in as</div><b>' + esc(cloud.email()) + '</b></div>'
     + '<button class="btn" data-act="acSignOut">Sign out</button></div>';
 }
+/* The build is read from this page's own module imports (engine.js?v=…), so it
+   can never disagree with what is actually running. The Android app carries
+   its own copy and only changes when a new .apk is installed. */
+const BUILD = ((document.querySelector('script[type="module"]') || {}).textContent || '').match(/engine\.js\?v=([\w-]+)/)?.[1] || '?';
+const WHERE = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? 'Android app' : 'website';
+function versionCard(){
+  return '<div class="card"><h3>Version</h3><div class="sub">Liftless build <b>' + esc(BUILD) + '</b> · ' + WHERE + '</div>'
+    + (WHERE === 'Android app' ? '<div class="hint">The app updates only when you install a newer .apk from the releases page.</div>'
+      : '<div class="hint">Updates arrive when you reopen the app after a new build is published.</div>') + '</div>';
+}
 function viewSettings(){
-  return accountBar() + viewSettingsBody();
+  return accountBar() + viewSettingsBody() + versionCard();
 }
 function viewSettingsBody(){
   const c = S.settings;
