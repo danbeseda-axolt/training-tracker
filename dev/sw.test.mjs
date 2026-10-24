@@ -12,10 +12,10 @@ const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const SHELL = JSON.parse(sw.match(/const SHELL\s*=\s*(\[[^\]]*\])/)[1].replace(/'/g, '"'));
 const bare = u => u.split('?')[0];
 
-test('VERSION is ledger-v5-16 and matches the ?v= on every module import', () => {
-  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-16');
+test('VERSION is ledger-v5-18 and matches the ?v= on every module import', () => {
+  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-18');
   const vs = [...html.matchAll(/from '\.\/[^'?]+\?v=([^']+)'/g)].map(m => m[1]);
-  assert.deepEqual(vs, ['5-16', '5-16', '5-16', '5-16', '5-16', '5-16', '5-16']);
+  assert.deepEqual(vs, ['5-18', '5-18', '5-18', '5-18', '5-18', '5-18', '5-18']);
 });
 
 test('SHELL holds the page, the seven modules, the manifest and the icon', () => {
@@ -51,6 +51,6 @@ test('the worker never handles the GitHub API and falls back to index.html only 
 });
 
 test('the shell lists exactly the versioned module URLs the page imports, and nothing from training/ or the data repo', () => {
-  assert.deepEqual(SHELL, ['./', './index.html', './engine.js?v=5-16', './sync.js?v=5-16', './cloud.js?v=5-16', './library.js?v=5-16', './programme.js?v=5-16', './coach.js?v=5-16', './logview.js?v=5-16', './manifest.json', './icon.svg']);
+  assert.deepEqual(SHELL, ['./', './index.html', './engine.js?v=5-18', './sync.js?v=5-18', './cloud.js?v=5-18', './library.js?v=5-18', './programme.js?v=5-18', './coach.js?v=5-18', './logview.js?v=5-18', './manifest.json', './icon.svg']);
   for (const u of SHELL) assert.doesNotMatch(u, /training|log\//);
 });

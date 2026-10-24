@@ -974,8 +974,11 @@ export function programmeExercise(tpl, history, date, deload) {
   return exerciseFrom(/** @type {Tpl} */ (c), history, date, !!deload, { deload: !!deload, info: null });
 }
 /** A one-off exercise added inside a session. @param {string} name */
-export function customExercise(name) {
-  return exerciseFrom({ n: name, kind: 'weight', sets: 3, inc: 2.5, rest: 120 }, [], '', false);
+/* Added mid-session. `tpl` carries a library entry's kind, load, reps and note;
+   with history the targets come from the last time it was done. */
+/** @param {string} name @param {Obj} [tpl] @param {Obj[]} [history] @param {string} [date] */
+export function customExercise(name, tpl = {}, history = [], date = '') {
+  return exerciseFrom({ kind: 'weight', sets: 3, inc: 2.5, rest: 120, ...tpl, n: name }, history, date, false);
 }
 
 /* ------------------------------------------------------------- finishing */

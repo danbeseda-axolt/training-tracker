@@ -1,5 +1,5 @@
 // @ts-check
-/* Ledger coach (release 2): the core of the `coach` Edge Function.
+/* Liftless coach (release 2): the core of the `coach` Edge Function.
    Spec: projects/ledger-chat-spec.md · Screens: projects/ledger-ux-chat.md.
 
    Pure apart from what is injected: the database (as the signed-in user), the
@@ -49,7 +49,7 @@ const SAFETY_MARK = /^\s*\[SAFETY\]\s*/i;
 /* ------------------------------------------------------------ system prompt */
 /* Frozen: the same bytes for every user and every day (no date, no names), so
    it caches across users. Cache breakpoint 1. */
-export const SYSTEM_PROMPT = `You are the strength coach inside Ledger, a training-log app. You read one person's training log and answer their questions about it. You are not a doctor and not a physiotherapist.
+export const SYSTEM_PROMPT = `You are the strength coach inside Liftless, a training-log app. You read one person's training log and answer their questions about it. You are not a doctor and not a physiotherapist.
 
 VOICE
 - Plain English for people who read English as a second language: short sentences, common words, no idioms, no slang. Weights in kg.
@@ -66,7 +66,7 @@ THE ENGINE DECIDES TARGETS
 - The app's engine sets every target weight, rep range and set count. Explain its rule codes (R0-R6, RN, RC, RP, R1b, R1v, B1, B2, hold) and flags (D1-D6, BLOCK, CADENCE) in plain words. Never override them with new numbers.
 - You may: explain a recommendation in the engine's terms; point to an engine flag and the in-app way to act on it; suggest a swap from the exercise library, which the person then does themselves; tell them to log the last set's RIR when rule RN holds a lift.
 - You never: change the programme, a session or settings (you can't); invent a target, weight, set count or percentage the engine didn't produce; prescribe a different programme, split or number of days; diagnose, name a likely injury, or say an exercise is safe for a pain.
-- When you suggest something the app can do, end with one line that starts "In Ledger:" followed by the path, taken only from this list (use the column for the app variant named in the context):
+- When you suggest something the app can do, end with one line that starts "In Liftless:" followed by the path, taken only from this list (use the column for the app variant named in the context):
   - Deload a session: start the session, then ⋯ → Deload session (both)
   - Skip an exercise today: ⋯ on the exercise → Delete exercise (both)
   - A different exercise today: ⋯ on the exercise → Swap for another exercise (both)
@@ -74,7 +74,7 @@ THE ENGINE DECIDES TARGETS
   - Change days, time, kit or pain answers: generated programme: Settings → Re-take the questions; coach plan: ask the trainer
   - Rate the last set: the "how many more good reps" row after the last set (generated) / the reps-left row after the last set (coach plan)
   - Fix a wrongly logged session: History → the session → Edit (both)
-  For anything else say: "Ledger can't do that yet."
+  For anything else say: "Liftless can't do that yet."
 
 SAFETY
 - If the question is about pain, an injury, or a worrying symptom (soreness that worries them, a tweak or pull, numbness, tingling, dizziness, feeling faint, a racing heart, chest pain or tightness, swelling, a sharp or one-sided pinch), start your answer with the line [SAFETY] and then: tell them to stop the exercise that hurts and see a physiotherapist (a doctor for chest pain, dizziness, a racing heart or numbness). Say you can't judge pain from a chat. Do not diagnose, do not guess a cause, do not prescribe a new exercise, load, stretch or workaround. At most, name the in-app way to skip the exercise today.
@@ -559,10 +559,10 @@ export function makeCoach({ db, model, now = () => new Date(), clock = () => Dat
         : week ? flareFacts(ctx.list.filter(s => E.weekOf(s.date) === week))
         : ctx.recentFacts.filter(f => [...f.areas].some(a => asked.has(a)));
       const byQuestion = painWords(q), byData = !byQuestion && facts.length > 0;
-      const why = byData ? '\n\n(Ledger: the log shows ' + facts.slice(0, 3).map(f => f.what + ' on ' + f.date).join('; ')
+      const why = byData ? '\n\n(Liftless: the log shows ' + facts.slice(0, 3).map(f => f.what + ' on ' + f.date).join('; ')
         + '. This is a safety answer: start with [SAFETY] and follow the safety rules for it.)' : '';
       const turn = (week
-        ? q + '\n\n(Ledger: this is the one-tap week review for the week starting ' + week + '. Use the week review format. Answer in ' + (czech ? 'Czech' : 'English') + '.)'
+        ? q + '\n\n(Liftless: this is the one-tap week review for the week starting ' + week + '. Use the week review format. Answer in ' + (czech ? 'Czech' : 'English') + '.)'
         : q) + why;
       const body = buildRequest({ context: ctx.text, history: historyTurns(hist), turn });
       const res = await callModel(body, deadline);
@@ -581,7 +581,10 @@ export function makeCoach({ db, model, now = () => new Date(), clock = () => Dat
       const meta = { src: 'fn', weeks: ctx.weeks, sessions: ctx.sessions, ...(cut ? { cut: true } : {}), ...(refusal ? { refusal: true } : {}), ...(scope ? { scope } : {}) };
       const u = m.usage || {};
       const rows = [
-        { role: 'user', kind, week, content: q, meta: { src: 'fn' } },
+        /* PostgREST refuses a bulk insert whose rows have different keys
+           (400, PGRST102), so the question carries every column the answer does. */
+        { role: 'user', kind, week, content: q, safety: false, meta: { src: 'fn' }, model: null,
+          input_tokens: null, output_tokens: null, cache_read_tokens: null, cache_write_tokens: null },
         { role: 'assistant', kind, week, content: text, safety, meta, model: typeof m.model === 'string' ? m.model : MODEL,
           input_tokens: u.input_tokens ?? null, output_tokens: u.output_tokens ?? null,
           cache_read_tokens: u.cache_read_input_tokens ?? null, cache_write_tokens: u.cache_creation_input_tokens ?? null }

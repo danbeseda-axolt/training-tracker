@@ -233,7 +233,7 @@ test('answers render as escaped text with bold, line breaks and bullets only; "I
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const f = C.formatAnswer('**Went up:** bench <script>x</script>\n- row 50 kg\n- squat\n\nIn Ledger: start the session, then ⋯ → Deload session\n\n(cut short)', esc);
   assert.equal(f.html, '<div><b>Went up:</b> bench &lt;script&gt;x&lt;/script&gt;</div><ul class="cl"><li>row 50 kg</li><li>squat</li></ul>', 'trailing blank lines dropped');
-  assert.equal(f.inLedger, '<b>In Ledger:</b> start the session, then ⋯ → Deload session');
+  assert.equal(f.inLedger, '<b>In Liftless:</b> start the session, then ⋯ → Deload session');
   assert.equal(C.formatAnswer('[link](javascript:x) **a** <img src=x onerror=1>', esc).html, '<div>[link](javascript:x) <b>a</b> &lt;img src=x onerror=1&gt;</div>');
 });
 

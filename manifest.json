@@ -1,6 +1,6 @@
 {
-  "name": "Ledger — training log",
-  "short_name": "Ledger",
+  "name": "Liftless — training log",
+  "short_name": "Liftless",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

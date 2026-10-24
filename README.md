@@ -1,6 +1,32 @@
 # Ledger — training tracker
 
-**As of:** 2026-10-20 (v5, build 5-16: a quieter Log tab; build 5-15: the coach chat, built against a fake model; the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+**As of:** 2026-10-24 (v5, build 5-18: look before you start, back button, exercise picker, welcome page, sign out; build 5-16: a quieter Log tab; build 5-15: the coach chat, built against a fake model; the winter strength plan, account mode beta, onboarding and generated programmes for friends)
+
+## What changed on 2026-10-24 (build 5-18): look before you start
+
+Dan, 2026-10-24: opening a session to check it before training started the
+clock; he wanted a Start button, a back button, and an exercise database when
+adding exercises.
+
+- **Tapping a session opens a read-only preview**: exercises, targets, notes,
+  form links. Nothing is saved until **Start session**. ‹ in the header goes
+  back to the Log.
+- **⋯ → Add exercise** opens a searchable list: exercises done before, the
+  programme's exercises, then the 57-exercise library. A picked library entry
+  keeps its kind (time, reps, weight), note and last-time targets. A name not
+  on the list is added as new (weight × reps), as before.
+- **Welcome page** for signed-out phones: logo, three lines on what the app does,
+  **Create an account** and **I already have an account**. Both lead to the same
+  email code (the first sign-in creates the account); the words differ, and ‹ goes
+  back to the welcome.
+- **Sign out** is the first card in Settings when signed in ("Signed in as …").
+  A friend who signs out lands on the welcome page.
+- **Coach fix:** the question and answer rows now have the same columns. Before,
+  PostgREST refused the pair (400, PGRST102), so no chat was ever stored: no
+  history for follow-ups and answers gone after a reload. Needs the function
+  redeployed.
+- `customExercise` takes an optional template and history; the coach
+  function's engine copy is updated to match (redeploy the function to pick it up).
 
 ## What changed on 2026-10-20 (build 5-16): a quieter Log tab
 

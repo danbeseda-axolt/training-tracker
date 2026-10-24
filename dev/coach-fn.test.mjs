@@ -69,6 +69,9 @@ function fakeWorld() {
       async storedReview(week) { calls.push('storedReview'); return msgs.find(r => r.user === uid && r.kind === 'week_review' && r.role === 'assistant' && r.week === week) || null; },
       async insert(rows) {
         calls.push('insert');
+        /* As PostgREST: a bulk insert whose rows have different keys is a 400. */
+        const keys = r => Object.keys(r).sort().join(',');
+        if (rows.some(r => keys(r) !== keys(rows[0]))) throw Object.assign(new Error('PGRST102'), { status: 400 });
         for (const r of rows) if (r.kind === 'week_review' && r.role === 'assistant' && msgs.some(x => x.user === uid && x.kind === 'week_review' && x.role === 'assistant' && x.week === r.week))
           throw Object.assign(new Error('conflict'), { code: 'conflict' });
         return rows.map(r => { const row = { ...r, user: uid, id: 'm' + (++nId), created_at: new Date(NOW.getTime() + nId).toISOString() }; msgs.push(row); return { id: row.id, role: row.role, created_at: row.created_at }; });
@@ -396,7 +399,7 @@ test('C2: recent flare-ups in a chat: no banner for an unrelated question; a ban
   const r2 = await coachFor(w.dbFor('b', { sessions: pinch }), back).handle({ question: 'Is my deadlift OK with my back?' });
   assert.equal(r2.body.safety, true);
   assert.equal(r2.body.banner, C.SAFETY.banner);
-  assert.match(back.bodies[0].messages.at(-1).content, /\(Ledger: the log shows flare-up: low-back pinch L on 2026-10-09\. This is a safety answer: start with \[SAFETY\]/, 'the model is told why');
+  assert.match(back.bodies[0].messages.at(-1).content, /\(Liftless: the log shows flare-up: low-back pinch L on 2026-10-09\. This is a safety answer: start with \[SAFETY\]/, 'the model is told why');
   const knee = await coachFor(w.dbFor('c', { sessions: pinch }), fakeModel()).handle({ question: 'Is my knee OK for squats?' });
   assert.equal(knee.body.safety, false, 'another area: no banner from code');
   /* A pain note names its area. */

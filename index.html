@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111417">
-<title>Ledger</title>
+<title>Liftless</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{
@@ -187,6 +187,16 @@ body.friend{--rir:136px}
 .rowbtn.q:active{background:var(--chip)}
 .rowbtn .ck{font-size:20px; color:var(--accent); min-width:24px; text-align:right}
 .lines2{display:block; font-size:13px; font-weight:500; opacity:.85}
+.welcome{display:flex; flex-direction:column; align-items:stretch; padding:28px 8px 12px; max-width:420px; margin:0 auto}
+.welcome .wlogo{align-self:center; border-radius:22px; box-shadow:0 6px 24px rgba(47,109,246,.25)}
+.welcome h2{text-align:center; font-size:32px; margin:16px 0 4px; letter-spacing:-.5px}
+.welcome .wtag{text-align:center; font-size:17px; color:var(--dim); margin:0 0 22px}
+.wlist{list-style:none; padding:0; margin:0 0 24px}
+.wlist li{position:relative; padding:12px 12px 12px 44px; margin-bottom:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; font-size:15px; color:var(--dim)}
+.wlist li b{color:var(--text)}
+.wlist li::before{content:'✓'; position:absolute; left:14px; top:11px; width:20px; height:20px; border-radius:99px; background:var(--accent); color:#fff; font-size:12px; font-weight:700; text-align:center; line-height:20px}
+.acbar{display:flex; align-items:center; gap:12px}
+.acbar b{word-break:break-all}
 .codein{text-align:center; font-size:22px; letter-spacing:8px; min-height:56px; font-variant-numeric:tabular-nums}
 .build{padding:40px 8px}
 .build .sub{font-size:15px; margin:8px 0}
@@ -228,13 +238,13 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 
 <header>
   <button class="ib" id="backBtn" data-act="back" aria-label="Back" hidden>‹</button>
-  <h1 id="title">Ledger</h1>
+  <h1 id="title">Liftless</h1>
   <span id="datechip" hidden></span>
   <span id="sync">–</span>
   <button class="ib" id="menuBtn" data-act="menu" aria-label="Menu" hidden>⋯</button>
 </header>
 
-<main id="view"><div class="empty" id="bootmsg">Ledger did not start. This can happen on a weak signal just after an update. <a href="./">Reload</a></div></main>
+<main id="view"><div class="empty" id="bootmsg">Liftless did not start. This can happen on a weak signal just after an update. <a href="./">Reload</a></div></main>
 
 <nav id="tabs">
   <button data-act="tab" data-tab="log" class="on">Log</button>
@@ -258,13 +268,13 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-16';
-import { makeSync } from './sync.js?v=5-16';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-16';
-import * as L from './library.js?v=5-16';
-import * as G from './programme.js?v=5-16';
-import * as C from './coach.js?v=5-16';
-import * as V from './logview.js?v=5-16';
+import * as E from './engine.js?v=5-18';
+import { makeSync } from './sync.js?v=5-18';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-18';
+import * as L from './library.js?v=5-18';
+import * as G from './programme.js?v=5-18';
+import * as C from './coach.js?v=5-18';
+import * as V from './logview.js?v=5-18';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -470,10 +480,10 @@ if(S.draft){
 }
 
 /* ---------------------------------------------------------------- ui state */
-const ui = { tab:'log', open:new Set(), info:new Set(), note:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
+const ui = { tab:'log', preview:null, open:new Set(), info:new Set(), note:new Set(), sheet:null, rir:null, hist:new Set(), scrollTo:null, persist:null, undo:null, toastT:0, notice:bootNotice, finishBack:null,
   cloudStatus:null, syncBad:{ github:false, account:false }, ac:{ email:'', code:'', sent:false, busy:false, msg:'', cls:'' },
   /* friends: start page sign-in, programme load, build, pages */
-  si:{ step:'email', email:'', code:'', busy:false, err:null, until:0 }, progLoad:null, building:null,
+  si:{ step:'welcome', email:'', code:'', busy:false, err:null, until:0 }, progLoad:null, building:null,
   page:null, pageFrom:null, pageBack:null, progOpen:new Set(), rirMore:false, libAll:false, libOpen:null, retakeArm:false, qPressed:null,
   /* the coach chat (release 2) */
   coach:{ pending:null, failed:null, waiting:null, text:'', off:false, remaining:null, loading:false, checked:false, scroll:null, delArm:false, deleting:false, delErr:false } };
@@ -556,18 +566,23 @@ function render(){
   $('#tabs [data-tab="coach"]').hidden = !coachTab();
   if(ui.tab === 'coach' && !coachTab()) ui.tab = 'log';
   const d = S.draft, ses = ui.tab === 'log' && !!d;
-  document.title = d ? 'Ledger · ' + d.name : 'Ledger';
-  $('#title').textContent = ses ? d.name : 'Ledger';
+  if(d) ui.preview = null;
+  const pv = ui.tab === 'log' && !d && ui.preview ? previewSession(ui.preview) : null;
+  if(ui.preview && !pv) ui.preview = null;
+  $('#backBtn').hidden = !pv;
+  document.body.classList.toggle('pbarOn', !!pv);
+  document.title = d ? 'Liftless · ' + d.name : pv ? 'Liftless · ' + pv.name : 'Liftless';
+  $('#title').textContent = ses ? d.name : pv ? pv.name : 'Liftless';
   const chip = $('#datechip');
   chip.hidden = !ses;
   if(ses){ const isToday = d.date === today(); chip.textContent = isToday ? 'Today' : E.niceDate(d.date); chip.classList.toggle('amber', !isToday); }
   $('#menuBtn').hidden = !d;
   document.body.classList.toggle('ses', ses);
   document.body.classList.toggle('chips', ses && !!ui.rir);
-  $('#tabs').hidden = ses;
+  $('#tabs').hidden = ses || !!pv;
   $('#bar').hidden = !ses;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  $('#view').innerHTML = ui.tab === 'log' ? viewLog() : ui.tab === 'coach' ? viewCoach() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : viewSettings();
+  $('#view').innerHTML = pv ? viewPreview(pv) : ui.tab === 'log' ? viewLog() : ui.tab === 'coach' ? viewCoach() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : viewSettings();
   renderRir(); renderNext(); renderSheet(); paintBar();
   if(ui.scrollTo != null){
     const el = document.getElementById('ex-' + ui.scrollTo); ui.scrollTo = null;
@@ -628,6 +643,28 @@ function deloadBanner(aH){
 /* ---------------------------------------------------------------- log view */
 const isStale = d => E.isStaleDraft(d, Date.now());
 const currentIdx = d => { const i = d.exercises.findIndex(ex => ex.sets.some(s => !s.warmup && s.state === 'planned')); return i < 0 ? null : i; };
+
+/* Tapping a session opens this read-only look first: Dan often checks what is
+   coming before the gym, and starting the clock then made a stale draft.
+   Nothing is saved until "Start session". */
+function sessionDraft(key){
+  const aH = aHist(), prog = P();
+  const deload = E.isLiftKey(key) && E.deloadCheck(aH, S.bw, S.settings, today(), prog).fire;
+  return E.newSession(key, aH, today(), nowIso(), deload, prog);
+}
+function previewSession(key){
+  try{ return sessionDraft(key); }catch(e){ return null; }
+}
+function viewPreview(d){
+  let h = d.deload ? '<div class="banner info">Deload session: lighter than usual.</div>' : '';
+  h += '<div class="sub" style="margin:0 2px 10px">' + d.exercises.length + ' exercises · nothing starts until you tap Start.</div>';
+  d.exercises.forEach(ex => {
+    h += '<div class="card"><h3>' + esc(ex.n) + '</h3><div class="tline">' + esc(targetLine(ex)) + '</div>'
+      + (ex.tplNote ? '<div class="sub">' + esc(ex.tplNote) + '</div>' : '')
+      + '<div style="margin-top:6px"><a class="formlink" href="' + esc(formVideo(ex.n)) + '" target="_blank" rel="noopener">▶ Watch form on YouTube</a></div></div>';
+  });
+  return h + '<div class="pbar"><button class="big primary" data-act="begin">Start session<span class="lines2">' + esc(d.name) + '</span></button></div>';
+}
 
 function viewLog(){
   const aH = aHist();
@@ -860,8 +897,36 @@ function renderSheet(){
   else if(s.type === 'routines') body = routinesSheet();
   else if(s.type === 'swap') body = swapSheet(s);
   else if(s.type === 'finish'){ body = finishSheet(s); full = true; }
+  else if(s.type === 'addex'){ body = addExSheet(s); full = true; }
   el.innerHTML = '<div class="scrim" data-act="closeSheet"></div><div class="panel' + (full ? ' full' : '') + '">' + (full ? '' : '<div class="grab"></div>') + body + '</div>';
   if(s.type === 'set') paintBar();
+}
+
+/* ---- add exercise: what you have done before first, then the programme's
+   exercises, then the library. Typing a name nobody has adds it as new. */
+const TPL_KEYS = ['kind', 'load', 'inc', 'rep', 'rir', 'rest', 'bar', 'note', 'seed', 'hold', 'dist'];
+function exerciseCatalogue(){
+  const out = new Map();
+  const add = (n, src, tpl) => { const k = n.toLowerCase(); if(!out.has(k)) out.set(k, { n, src, tpl }); else if(tpl && !out.get(k).tpl) out.get(k).tpl = tpl; };
+  const pick = e => { const t = {}; for(const k of TPL_KEYS) if(e[k] != null) t[k] = e[k]; return t; };
+  for(const h of S.history) if(!h.deleted) for(const e of h.exercises || []) if(e && e.n) add(e.n, 'Done before', null);
+  const p = P();
+  for(const d of p ? p.days : Object.values(E.TEMPLATES).filter(t => !t.legacy)) for(const e of d.ex) add(e.n, 'In your programme', pick(e));
+  for(const e of L.EXERCISES) add(e.n, (L.PATTERNS[e.pattern] || {}).label || 'Library', pick(e));
+  return [...out.values()];
+}
+function addExList(q){
+  const all = exerciseCatalogue(), t = q.trim().toLowerCase();
+  const hits = t ? all.filter(x => x.n.toLowerCase().includes(t)) : all;
+  let h = hits.slice(0, 60).map(x => '<button class="rowbtn" data-act="addpick" data-n="' + esc(x.n) + '"><span class="grow"><b>' + esc(x.n) + '</b><br><span class="sub">' + esc(x.src) + '</span></span></button>').join('');
+  if(t && !all.some(x => x.n.toLowerCase() === t))
+    h = '<button class="rowbtn" data-act="addpick" data-n="' + esc(q.trim()) + '"><span class="grow"><b>+ Add “' + esc(q.trim()) + '”</b><br><span class="sub">New exercise, logged as weight × reps</span></span></button>' + h;
+  return h || '<div class="empty">No exercises match.</div>';
+}
+function addExSheet(s){
+  return '<div class="sh-h"><span class="grow">Add exercise</span><button class="ib" data-act="closeSheet" aria-label="Close">×</button></div>'
+    + '<input type="search" data-f="addq" value="' + esc(s.q || '') + '" placeholder="Search, or type a new name" autocomplete="off">'
+    + '<div id="addList" style="margin-top:10px">' + addExList(s.q || '') + '</div>';
 }
 
 function stepRow(label, key, val, step){
@@ -972,7 +1037,7 @@ function finishSheet(s){
   /* Each opens the reps-left chips for that exercise's last set; one tap on a
      chip rates it and comes straight back here. */
   if(noRir.length) h += '<div class="hint">' + (genSession(d)
-      ? 'These have no answer for “how many more reps” on the last set, so Ledger can’t choose next time’s weight. Tap to answer:'
+      ? 'These have no answer for “how many more reps” on the last set, so Liftless can’t choose next time’s weight. Tap to answer:'
       : 'No RIR on the set that drives progression (the last set, or the top set on a heavy lift), so these cannot progress. Tap to rate:') + '</div><div class="chips small" style="margin-top:6px">'
     + noRir.map(i => '<button class="chip" data-act="rateLast" data-i="' + i + '">' + esc(d.exercises[i].n) + '</button>').join('') + '</div>';
   h += '</div>';
@@ -1112,7 +1177,16 @@ function viewBody(){
 }
 
 /* ---------------------------------------------------------------- settings */
+/* Who is signed in, and the way out, first thing in Settings. */
+function accountBar(){
+  if(!cloud.signedIn()) return '';
+  return '<div class="card acbar"><div class="grow"><div class="sub">Signed in as</div><b>' + esc(cloud.email()) + '</b></div>'
+    + '<button class="btn" data-act="acSignOut">Sign out</button></div>';
+}
 function viewSettings(){
+  return accountBar() + viewSettingsBody();
+}
+function viewSettingsBody(){
   const c = S.settings;
   /* Friends: Account, Programme, Data. No GitHub, block goal, pinches or bands. */
   if(friend() && P()) return viewAccount() + coachCard() + friendProgrammeCard()
@@ -1205,11 +1279,12 @@ function renderFriend(scr){
   $('#tabs').hidden = true; $('#bar').hidden = true; $('#datechip').hidden = true;
   /* Before sign-in there is nothing to sync and nothing in a menu. */
   $('#sync').hidden = !!scr; $('#menuBtn').hidden = true;
-  const back = scr === 'questions' ? (S.onboard && (S.onboard.step > 0 || S.onboard.retake))
+  const back = scr === 'start' ? ui.si.step === 'email'
+    : scr === 'questions' ? (S.onboard && (S.onboard.step > 0 || S.onboard.retake))
     : !scr && ui.page && !(ui.page === 'programme' && ui.pageFrom === 'build');
   $('#backBtn').hidden = !back;
-  const title = !scr && ui.page === 'programme' ? 'Your programme' : !scr && ui.page === 'library' ? 'Exercises' : 'Ledger';
-  $('#title').textContent = title; document.title = title === 'Ledger' ? 'Ledger' : 'Ledger · ' + title;
+  const title = !scr && ui.page === 'programme' ? 'Your programme' : !scr && ui.page === 'library' ? 'Exercises' : 'Liftless';
+  $('#title').textContent = title; document.title = title === 'Liftless' ? 'Liftless' : 'Liftless · ' + title;
   const bar = !scr && ui.page === 'programme' && ui.pageFrom === 'build' && !d;
   document.body.classList.toggle('pbarOn', bar);
   $('#view').innerHTML = scr === 'start' ? viewStart() : scr === 'questions' ? viewQuestion() : scr === 'building' ? viewBuilding()
@@ -1232,14 +1307,33 @@ function viewStart(){
       + '<button class="btn w100" style="margin-top:12px" id="siResend" data-act="siResend" disabled>Send a new code</button>'
       + '<div class="center"><button class="textbtn plain" data-act="siChange">Wrong email? Change it</button></div></div>';
   }
-  const ok = /@.+\./.test(s.email || '');
-  return '<div class="card"><h3>Your training plan, ready when you walk into the gym.</h3>'
-    + '<div class="sub" style="margin-top:6px">Answer 5 quick questions. Ledger builds your programme and tells you what to lift each session.</div>'
+  /* Welcome: what the app does, then two doors. Both use the same email code
+     (Supabase creates the account on first sign-in); only the words differ. */
+  if(s.step === 'welcome'){
+    return '<div class="welcome">'
+      + '<img class="wlogo" src="icon.svg" alt="" width="88" height="88">'
+      + '<h2>Liftless</h2>'
+      + '<p class="wtag">Your training plan, ready when you walk into the gym.</p>'
+      + '<ul class="wlist">'
+      + '<li><b>A programme built for you.</b> Five quick questions, and it’s ready.</li>'
+      + '<li><b>Every session planned.</b> Exercises, sets and weights. You just lift.</li>'
+      + '<li><b>See you’re on track.</b> Your week at a glance, progress set by set.</li>'
+      + '</ul>'
+      + '<button class="big primary" data-act="siStart" data-mode="signup">Create an account</button>'
+      + '<button class="big" data-act="siStart" data-mode="login">I already have an account</button>'
+      + '<p class="hint center">No password: we email you a sign-in code.</p>'
+      + '</div>';
+  }
+  const ok = /@.+\./.test(s.email || ''), login = s.mode === 'login';
+  return '<div class="card"><h3>' + (login ? 'Welcome back' : 'Create your account') + '</h3>'
+    + '<div class="sub" style="margin-top:6px">' + (login ? 'Enter the email you signed up with. We’ll send you a code to sign in.'
+        : 'Enter your email. We’ll send you a code, then ask 5 quick questions to build your programme.') + '</div>'
     + (off ? '<div class="banner warn" style="margin-top:10px">You’re offline. Connect to the internet to sign in.</div>' : '') + err
     + '<label>Email</label><input type="email" data-f="siEmail" value="' + esc(s.email) + '" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" autofocus' + (s.busy ? ' disabled' : '') + '>'
-    + '<button class="big primary" style="margin-top:12px" id="siSend" data-act="siSend"' + (!ok || s.busy || off || s.until > Date.now() ? ' disabled' : '') + '>' + (s.busy ? 'Sending…' : 'Send me a code') + '</button>'
-    + '<div class="hint">We email you an 8-digit code. No password.</div>'
-    + '<div class="hint" style="margin-top:14px">Your training is stored on Ledger’s server. Dan runs it and can see the database. Ask him to delete your data at any time.</div></div>';
+    + '<button class="big primary" style="margin-top:12px" id="siSend" data-act="siSend"' + (!ok || s.busy || off || s.until > Date.now() ? ' disabled' : '') + '>' + (s.busy ? 'Sending…' : login ? 'Send my sign-in code' : 'Send me a code') + '</button>'
+    + '<div class="hint">We email you an 8-digit code. No password.' + (login ? ' New here? The same code creates your account.' : '') + '</div>'
+    + '<div class="center"><button class="textbtn plain" data-act="siStart" data-mode="' + (login ? 'signup' : 'login') + '">' + (login ? 'New to Liftless? Create an account' : 'Already have an account? Sign in') + '</button></div>'
+    + '<div class="hint" style="margin-top:14px">Your training is stored on Liftless’s server. Dan runs it and can see the database. Ask him to delete your data at any time.</div></div>';
 }
 /* Countdowns without re-rendering (a re-render would drop the keyboard). */
 function tickSignin(){
@@ -1309,7 +1403,7 @@ async function siVerify(){
    where it was; an account phone loads the programme, or asks the questions. */
 async function afterSignIn(who){
   claimStorage(S, sync.cfgOk()); delete S.signin; save();
-  ui.si = { step:'email', email:'', code:'', busy:false, err:null, until:0 };
+  ui.si = { step:'welcome', email:'', code:'', busy:false, err:null, until:0 };
   if(mode() === 'account') setSync('ok', 'signed in');
   toast('Signed in');
   if(mode() === 'account' && !who.foreign) await loadProgramme();
@@ -1336,7 +1430,7 @@ async function loadProgramme(){
 }
 function viewLoading(){
   const out = '<div class="center" style="margin-top:8px"><button class="textbtn plain" data-act="qSignOut">Sign out</button></div>';
-  if(ui.progLoad === 'invalid') return '<div class="banner bad">Your saved programme doesn’t fit your answers or the exercise list any more, so Ledger won’t run it. Set it up again: it takes a minute, and your history stays.'
+  if(ui.progLoad === 'invalid') return '<div class="banner bad">Your saved programme doesn’t fit your answers or the exercise list any more, so Liftless won’t run it. Set it up again: it takes a minute, and your history stays.'
     + '<div class="row"><button class="btn primary" data-act="setUpAgain">Set up again</button></div></div>' + out;
   if(ui.progLoad === 'error') return '<div class="banner bad">Couldn’t load your programme. Check your connection and try again.<div class="row"><button class="btn primary" data-act="progRetry">Try again</button></div></div>' + out;
   return '<div class="empty">Loading your programme…</div>';
@@ -1706,8 +1800,8 @@ function firstRunCard(){
   return '<div class="card"><h3>Your coach</h3><div class="sub" style="margin-top:4px">Ask about your training. The coach reads your log and answers in a few seconds.</div>'
     + (w ? '<div class="sub" style="margin-top:8px">Your question: <b>' + esc(w.q) + '</b></div>' : '')
     + '<div class="info" style="margin-top:10px"><b>Before you start:</b>'
-    + '<p>· To answer, Ledger sends your training log and notes (including anything you said hurts), your programme and your messages to Anthropic, the company that makes the AI (Claude).</p>'
-    + '<p>· ' + (friend() ? 'Your messages are saved in your account. Dan runs Ledger and can see the database, including your messages. Don’t write anything here you wouldn’t want stored.' : 'Your messages are saved in your account.') + '</p>'
+    + '<p>· To answer, Liftless sends your training log and notes (including anything you said hurts), your programme and your messages to Anthropic, the company that makes the AI (Claude).</p>'
+    + '<p>· ' + (friend() ? 'Your messages are saved in your account. Dan runs Liftless and can see the database, including your messages. Don’t write anything here you wouldn’t want stored.' : 'Your messages are saved in your account.') + '</p>'
     + '<p>· You can delete your chat any time: Settings → Coach.</p>'
     + '<p>· The coach is not a doctor or a physiotherapist. For pain, see one. It never changes your programme.</p></div>'
     + '<button class="big primary" data-act="coachOk">OK, got it</button></div>';
@@ -1842,7 +1936,7 @@ function coachCard(){
   let h = '<div class="card"><h3>Coach</h3>';
   if(!n) return h + '<div class="sub">No messages yet.</div></div>';
   h += '<div class="sub">' + n + ' message' + (n === 1 ? '' : 's') + '. Sent to Anthropic to answer; saved in your account.</div>';
-  if(c.delArm) h += '<div class="banner warn" style="margin-top:10px">Delete all your coach messages? They are removed from Ledger’s database and this phone. This can’t be undone. Your training log stays.'
+  if(c.delArm) h += '<div class="banner warn" style="margin-top:10px">Delete all your coach messages? They are removed from Liftless’s database and this phone. This can’t be undone. Your training log stays.'
     + '<div class="row"><button class="btn danger" data-act="coachDelGo"' + (c.deleting || !online() ? ' disabled' : '') + '>' + (c.deleting ? 'Deleting…' : 'Delete') + '</button><button class="btn" data-act="coachDelNo">Cancel</button></div></div>';
   else h += '<button class="btn danger w100" style="margin-top:10px" data-act="coachDel"' + (online() ? '' : ' disabled') + '>Delete my chat</button>';
   if(!online()) h += '<div class="hint">Needs internet.</div>';
@@ -1884,7 +1978,7 @@ function afterConfirm(i, j){
 }
 
 function goTab(t){
-  ui.tab = t; ui.sheet = null; window.scrollTo(0, 0);
+  ui.tab = t; ui.sheet = null; ui.preview = null; window.scrollTo(0, 0);
   /* The Coach tab opens at the top of the latest answer, then refreshes. */
   if(t === 'coach'){
     const last = [...coachRows()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).find(r => r.role === 'assistant');
@@ -1940,17 +2034,21 @@ const ACT = {
 
   start: el => {
     if(S.draft) return;
-    const key = el.dataset.key, aH = aHist(), prog = P();
-    const deload = E.isLiftKey(key) && E.deloadCheck(aH, S.bw, S.settings, today(), prog).fire;
-    const d = E.newSession(key, aH, today(), nowIso(), deload, prog);
+    ui.preview = el.dataset.key; ui.page = null; ui.tab = 'log';
+    window.scrollTo(0, 0); render();
+  },
+  begin: () => {
+    if(S.draft || !ui.preview) return;
+    const d = sessionDraft(ui.preview);
     d.id = newId();
-    S.draft = d; ui.open.clear(); ui.info.clear(); ui.note.clear(); ui.rir = null;
-    ui.page = null; ui.tab = 'log';
+    S.draft = d; ui.preview = null; ui.open.clear(); ui.info.clear(); ui.note.clear(); ui.rir = null;
     save(); window.scrollTo(0, 0); render();
   },
 
   /* ---- friends: sign-in, questions, programme, library */
   back: () => {
+    if(ui.preview){ ui.preview = null; window.scrollTo(0, 0); render(); return; }
+    if(screen() === 'start' && ui.si.step === 'email'){ Object.assign(ui.si, { step:'welcome', err:null }); render(); return; }
     if(screen() === 'questions'){ qBack(); return; }
     if(ui.page === 'library' && ui.pageBack === 'programme'){ ui.page = 'programme'; ui.pageBack = null; }
     else if(ui.page){ ui.page = null; ui.tab = ui.pageFrom === 'build' ? 'log' : 'settings'; }
@@ -1965,12 +2063,13 @@ const ACT = {
   trainLater: () => { ui.page = null; ui.pageFrom = null; ui.tab = 'log'; render(); toast('Your programme is ready. Start it from here when you’re at the gym.'); },
   siSend: () => siSend(),
   siResend: () => siSend(true),
+  siStart: el => { Object.assign(ui.si, { step:'email', mode:el.dataset.mode, err:null }); window.scrollTo(0, 0); render(); const t = $('[data-f="siEmail"]'); if(t) t.focus(); },
   siChange: () => { Object.assign(ui.si, { step:'email', code:'', err:null }); delete S.signin; save(); render(); },
   progRetry: () => loadProgramme(),
   /* Sign-out from the questions or a failed load: cloud.signOut forgets the
      programme, answers and coach flag; signed out with no programme, the
      phone shows the start page (G.entryScreen). Sessions stay. */
-  qSignOut: () => { cloud.signOut(); ui.progLoad = null; ui.building = null; ui.page = null; ui.si = { step:'email', email:'', code:'', busy:false, err:null, until:0 }; save(); render(); },
+  qSignOut: () => { cloud.signOut(); ui.progLoad = null; ui.building = null; ui.page = null; ui.si = { step:'welcome', email:'', code:'', busy:false, err:null, until:0 }; save(); render(); },
   /* Set up again after a programme failed its checks: the old answers that
      still read are filled in, and its swaps are kept where they now fit. */
   setUpAgain: () => {
@@ -2207,9 +2306,13 @@ const ACT = {
     toast('Added ' + add.length + ' exercise' + (add.length > 1 ? 's' : ''));
   },
   maddex: () => {
-    const n = prompt('Exercise name', '');
-    if(!n || !n.trim()) return;
-    S.draft.exercises.push(E.customExercise(n.trim()));
+    ui.sheet = { type:'addex', q:'' }; renderSheet();
+    const t = $('[data-f="addq"]'); if(t) t.focus();
+  },
+  addpick: el => {
+    const n = el.dataset.n; if(!n) return;
+    const hit = exerciseCatalogue().find(x => x.n.toLowerCase() === n.toLowerCase());
+    S.draft.exercises.push(E.customExercise(hit ? hit.n : n, (hit && hit.tpl) || {}, aHist(), S.draft.date));
     const i = S.draft.exercises.length - 1;
     ui.open.add(i); ui.sheet = null; ui.scrollTo = i; ui.tab = 'log'; save(); render();
   },
@@ -2343,7 +2446,10 @@ const ACT = {
        next account here must never see it); an unsent change is said aloud. */
     const progLine = !prog ? '' : S.programmeDirty ? ' Your latest programme change hasn’t been saved to your account yet and will be lost.' : ' Your programme stays in your account and comes back when you sign in.';
     if(!confirm('Sign out of your account? ' + (prog ? 'Your sessions stay' : 'Everything stays') + ' on this phone' + (held ? ', including ' + held + ' session' + (held > 1 ? 's' : '') + ' not yet sent' : '') + '.' + progLine)) return;
-    cloud.signOut(); ui.cloudStatus = null; acSay(prog ? 'Signed out. Your sessions are still on this phone.' : 'Signed out. Nothing on this phone was removed.', ''); render();
+    const em = cloud.email();
+    cloud.signOut(); ui.cloudStatus = null; ui.page = null; ui.tab = 'log';
+    ui.si = { step:'welcome', email: em || '', code:'', busy:false, err:null, until:0 };
+    acSay(prog ? 'Signed out. Your sessions are still on this phone.' : 'Signed out. Nothing on this phone was removed.', ''); render();
   },
   test: async () => {
     save();
@@ -2363,6 +2469,7 @@ const ACT = {
 
 const INPUT = {
   exnote: el => { S.draft.exercises[+el.dataset.i].note = el.value; save(); },
+  addq: el => { if(ui.sheet && ui.sheet.type === 'addex'){ ui.sheet.q = el.value; $('#addList').innerHTML = addExList(el.value); } },
   shval: el => { if(ui.sheet) ui.sheet.v[el.dataset.k] = num(el.value); },
   notes: el => { S.draft.notes = el.value; save(); },
   acEmail: el => { ui.ac.email = el.value; },

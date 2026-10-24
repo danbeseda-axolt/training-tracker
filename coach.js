@@ -75,7 +75,7 @@ export function formatAnswer(text, esc) {
   for (const raw of lines) {
     const l = raw.trim();
     if (l === CUT_MARK) continue;
-    const m = /^(\*\*)?In Ledger:(\*\*)?\s*(.*)$/i.exec(l);
+    const m = /^(\*\*)?In (?:Liftless|Ledger):(\*\*)?\s*(.*)$/i.exec(l);
     if (m) { inLedger = m[3]; continue; }
     body.push(l);
   }
@@ -89,7 +89,7 @@ export function formatAnswer(text, esc) {
     html += l ? '<div>' + inline(l) + '</div>' : '<div class="gap"></div>';
   }
   if (list) html += '</ul>';
-  return { html, inLedger: inLedger ? '<b>In Ledger:</b> ' + inline(inLedger) : '' };
+  return { html, inLedger: inLedger ? '<b>In Liftless:</b> ' + inline(inLedger) : '' };
 }
 /** "From 8 weeks, 27 sessions." @param {number|null|undefined} weeks @param {number|null|undefined} sessions */
 export function fromLine(weeks, sessions) {
