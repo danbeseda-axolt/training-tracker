@@ -140,7 +140,9 @@ export function redactSecrets(raw) {
    explicit sign-out and whenever a different account takes the phone over. */
 export const PER_USER = ['programme', 'programmeDirty', 'programmeOwner', 'coach', 'onboard', 'signin',
   /* the coach chat (release 2): the phone's copy of the thread, first-run OK, Log card state */
-  'chat', 'chatTotal', 'coachOk', 'coachDismiss', 'coachLimitDay'];
+  'chat', 'chatTotal', 'coachOk', 'coachDismiss', 'coachLimitDay',
+  /* health from the phone (5-22): personal, so it leaves with the person */
+  'health'];
 /** @param {Obj} S */
 export function forgetUser(S) { for (const k of PER_USER) delete S[k]; return S; }
 /** Whose the cached programme is (pre-5-12 caches: the phone's owner). @param {Obj} S */
@@ -538,6 +540,31 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     return (Array.isArray(rows) ? rows : []).map(r => r && r.body).filter(b => b && b.date && b.type);
   }
 
+  /* ------------------------------------------------------------ health (5-22)
+     Daily rows from Health Connect: one upsert per sync, keyed by day. */
+  /** @param {Obj[]} rows {day, sleep_min, resting_hr, hrv_ms, steps, weight_kg} @param {string} [source] */
+  async function pushHealth(rows, source = 'health-connect') {
+    if (foreign()) throw foreignError();
+    const uid = userId();
+    if (!uid) throw httpError(0, { error_code: 'no_user', msg: 'no user id' });
+    const body = (rows || []).filter(r => r && /^\d{4}-\d{2}-\d{2}$/.test(r.day)).map(r => ({
+      user_id: uid, day: r.day, sleep_min: r.sleep_min ?? null, resting_hr: r.resting_hr ?? null, hrv_ms: r.hrv_ms ?? null,
+      steps: r.steps ?? null, weight_kg: r.weight_kg ?? null, source }));
+    if (!body.length) return 0;
+    const res = await authed('/rest/v1/health_daily?on_conflict=user_id,day', {
+      method: 'POST', body, headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' }
+    });
+    if (res.status !== 200 && res.status !== 201 && res.status !== 204) throw httpError(res.status, await bodyOf(res));
+    return body.length;
+  }
+  /** @param {string} since YYYY-MM-DD */
+  async function pullHealth(since) {
+    const res = await authed('/rest/v1/health_daily?select=day,sleep_min,resting_hr,hrv_ms,steps,weight_kg&day=gte.' + encodeURIComponent(since) + '&order=day.asc');
+    if (res.status !== 200) throw httpError(res.status, await bodyOf(res));
+    const rows = await res.json();
+    return (Array.isArray(rows) ? rows : []).map(r => ({ ...r, resting_hr: r.resting_hr == null ? null : Number(r.resting_hr), hrv_ms: r.hrv_ms == null ? null : Number(r.hrv_ms), weight_kg: r.weight_kg == null ? null : Number(r.weight_kg) }));
+  }
+
   /* S7: copies every local session to the account. Safe to run twice: each
      row is keyed by its file name, so a second run updates rather than adds. */
   /** @param {Obj[]} history raw session files (not migrated copies) */
@@ -752,7 +779,7 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
 
   return {
     askCoach, chatHistory, deleteChat, coachAccepted, acceptCoach, coachAccess,
-    requestCode, verifyCode, signOut, signedIn, refresh, pushSession, pullSessions, pullHistory, pushBody, pullBody,
+    requestCode, verifyCode, signOut, signedIn, refresh, pushSession, pullSessions, pullHistory, pushBody, pullBody, pushHealth, pullHealth,
     pullProgramme, pushProgramme, setProgramme, syncProgramme,
     importHistory, enqueue, adoptItems, flushQueue, userId, inUse, foreign, ownerId: () => currentOwner(),
     owner: () => S().cloudOwner || null,

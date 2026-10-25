@@ -15,7 +15,7 @@ const T0 = Date.UTC(2026, 9, 7, 12, 0, 0);
 function fakeSupabase({ user = USER, refreshDelay = 0, restStatus = 201, verifyStatus = 200, refreshStatus = 200, otpStatus = 200, rows = [], first401 = 0, delay = 0, refreshThrows = false } = {}) {
   const calls = [];
   const table = new Map(rows.map(r => [r.client_id, r]));
-  const bodyRows = new Map();
+  const bodyRows = new Map(), healthRows = new Map();
   let n401 = first401, nTok = 0;
   const fetch = async (url, init = {}) => {
     calls.push({ url, init });
@@ -44,6 +44,11 @@ function fakeSupabase({ user = USER, refreshDelay = 0, restStatus = 201, verifyS
       }
       return res(st, st < 300 ? undefined : { message: 'fail', code: 'XX000' });
     }
+    if (u.pathname === '/rest/v1/health_daily') {
+      if (method === 'GET') return res(200, [...healthRows.values()]);
+      for (const r of body) healthRows.set(r.user_id + '|' + r.day, r);
+      return res(201);
+    }
     if (u.pathname === '/rest/v1/body_entries') {
       if (method === 'GET') return res(200, [...bodyRows.values()].map(r => ({ body: r.body })));
       for (const r of body) bodyRows.set(r.user_id + '|' + r.entry_date + '|' + r.entry_type, r);
@@ -51,7 +56,7 @@ function fakeSupabase({ user = USER, refreshDelay = 0, restStatus = 201, verifyS
     }
     return res(404, { message: 'no route' });
   };
-  return { fetch, calls, table, bodyRows, rest: () => calls.filter(c => c.url.includes('/rest/v1/')), tok: () => calls.filter(c => c.url.includes('/auth/v1/token')) };
+  return { fetch, calls, table, bodyRows, healthRows, rest: () => calls.filter(c => c.url.includes('/rest/v1/')), tok: () => calls.filter(c => c.url.includes('/auth/v1/token')) };
 }
 function setup(sb, state = {}, { clock = T0, owns = true } = {}) {
   const S = { settings: {}, queue: [], bwQueue: [], history: [], bw: [], cloudQueue: [], cloud: null, ...state };
@@ -735,4 +740,18 @@ test('pushBody upserts one row per date and type, the later copy winning, then p
 test('pushBody refuses without a user and for another account’s phone', async () => {
   const { cloud } = setup(fakeSupabase(), { cloud: null });
   await assert.rejects(cloud.pushBody([{ type: 'bw', date: '2026-10-20', kg: 80 }]));
+});
+
+/* 5-22: daily health rows from Health Connect (health_daily). */
+test('pushHealth upserts one row per day for this user, dropping bad dates; pullHealth reads numbers back', async () => {
+  const sb = fakeSupabase();
+  const { cloud } = setup(sb, { cloud: signedIn() });
+  const n = await cloud.pushHealth([{ day: '2026-10-24', sleep_min: 400, resting_hr: 57, hrv_ms: 41, steps: 8000, weight_kg: 81.9 }, { day: 'bad', sleep_min: 1 }]);
+  assert.equal(n, 1);
+  const sent = JSON.parse(sb.rest().at(-1).init.body);
+  assert.equal(sent[0].user_id, USER);
+  assert.equal(sent[0].source, 'health-connect');
+  assert.ok(sb.rest().at(-1).url.includes('on_conflict=user_id,day'));
+  const back = await cloud.pullHealth('2026-10-01');
+  assert.equal(back[0].resting_hr, 57);
 });

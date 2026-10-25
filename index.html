@@ -231,6 +231,15 @@ body:not(.pbarTabs) #coachFab{bottom:calc(var(--nav) + var(--safe-b) + 16px)}
 .exdb .info{padding:0 14px 12px; border-top:1px solid var(--line)}
 .exdb ol{margin:6px 0; padding-left:20px}
 .exdb li{margin:4px 0}
+.howl{margin:6px 0; padding-left:20px; color:var(--dim)}
+.howl li{margin:4px 0}
+.howl b{color:var(--text)}
+.rules{display:grid; gap:8px; margin:8px 0}
+.rule{display:grid; grid-template-columns:auto auto 1fr; gap:4px 8px; align-items:baseline}
+.rule .sub{grid-column:1 / -1}
+.recov .rv{display:flex; gap:14px; flex-wrap:wrap; font-size:14px; color:var(--dim)}
+.recov .rv b{color:var(--text); font-size:16px; font-variant-numeric:tabular-nums}
+.recov.warnc{border-color:var(--mustard)}
 .val small.lastv{display:block; font-size:11.5px; font-weight:500; color:var(--dim); line-height:1.2; margin-top:1px}
 .val .prb{vertical-align:2px}
 .welcome{display:flex; flex-direction:column; align-items:stretch; padding:28px 8px 12px; max-width:420px; margin:0 auto}
@@ -316,14 +325,15 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-21';
-import { makeSync } from './sync.js?v=5-21';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-21';
-import * as L from './library.js?v=5-21';
-import * as G from './programme.js?v=5-21';
-import * as C from './coach.js?v=5-21';
-import * as V from './logview.js?v=5-21';
-import * as PG from './progress.js?v=5-21';
+import * as E from './engine.js?v=5-22';
+import { makeSync } from './sync.js?v=5-22';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-22';
+import * as L from './library.js?v=5-22';
+import * as G from './programme.js?v=5-22';
+import * as C from './coach.js?v=5-22';
+import * as V from './logview.js?v=5-22';
+import * as PG from './progress.js?v=5-22';
+import * as HL from './health.js?v=5-22';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -645,11 +655,11 @@ function render(){
   if(ui.preview && !pv) ui.preview = null;
   const lift = ui.tab === 'log' && !d && !pv && ui.lift ? ui.lift : null;
   const home = ui.tab === 'log' && !d && !pv && !lift;
-  $('#backBtn').hidden = !(pv || lift || ui.tab === 'coach' || ui.tab === 'body' || ui.tab === 'lib');
+  $('#backBtn').hidden = !(pv || lift || ui.tab === 'coach' || ui.tab === 'body' || ui.tab === 'lib' || ui.tab === 'how');
   document.body.classList.toggle('pbarOn', !!pv);
   document.body.classList.toggle('pbarTabs', home && !!homeNext());
   $('#coachFab').hidden = !coachTab() || !(home || ui.tab === 'history');
-  const title = ses ? d.name : pv ? pv.name : lift ? lift : ui.tab === 'coach' ? 'Coach' : ui.tab === 'body' ? 'Body' : ui.tab === 'lib' ? 'Exercises' : 'Liftless';
+  const title = ses ? d.name : pv ? pv.name : lift ? lift : ui.tab === 'coach' ? 'Coach' : ui.tab === 'body' ? 'Body' : ui.tab === 'lib' ? 'Exercises' : ui.tab === 'how' ? 'How it works' : 'Liftless';
   document.title = title === 'Liftless' ? 'Liftless' : 'Liftless · ' + title;
   $('#title').textContent = title;
   const chip = $('#datechip');
@@ -660,9 +670,9 @@ function render(){
   document.body.classList.toggle('chips', ses && !!ui.rir);
   $('#tabs').hidden = ses || !!pv || ui.tab === 'coach';
   $('#bar').hidden = !ses;
-  const on = ui.tab === 'body' || ui.tab === 'lib' ? 'settings' : ui.tab;
+  const on = ['body', 'lib', 'how'].includes(ui.tab) ? 'settings' : ui.tab;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === on));
-  $('#view').innerHTML = pv ? viewPreview(pv) : lift ? viewLift(lift) : ui.tab === 'log' ? viewLog() : ui.tab === 'coach' ? viewCoach() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : ui.tab === 'lib' ? viewExercises() : viewSettings();
+  $('#view').innerHTML = pv ? viewPreview(pv) : lift ? viewLift(lift) : ui.tab === 'log' ? viewLog() : ui.tab === 'coach' ? viewCoach() : ui.tab === 'history' ? viewHistory() : ui.tab === 'body' ? viewBody() : ui.tab === 'lib' ? viewExercises() : ui.tab === 'how' ? viewHow() : viewSettings();
   renderRir(); renderNext(); renderSheet(); paintBar();
   if(ui.scrollTo != null){
     const el = document.getElementById('ex-' + ui.scrollTo); ui.scrollTo = null;
@@ -842,6 +852,7 @@ function viewHome(aH){
   const plan = p ? null : E.weekPlan(merged(), today()), w = p ? E.programmeWeek(p, merged(), today()) : null;
   h += weekCardHTML(p ? w.done : plan.filter(x => x.state === 'done').length, p ? w.target : plan.length, !p);
   h += weekStripHTML();
+  h += recoveryLineHTML();
   if(!p){ const note = V.phaseNote(E.blockInfo(today())); if(note) h += '<div class="sub center" style="margin:-2px 0 8px">' + esc(note) + '</div>'; }
   if(p && !genDone()) h += '<div class="hint" style="margin:0 0 10px">First session: you choose the weights. Pick a weight you could lift 2–3 more times than the target. Tap ⓘ on an exercise to see what RIR means and watch the form.</div>';
   h += liftCardsHTML();
@@ -1423,10 +1434,121 @@ function versionCard(){
     + (WHERE === 'Android app' ? '<div class="hint">The app updates only when you install a newer .apk from the releases page.</div>'
       : '<div class="hint">Updates arrive when you reopen the app after a new build is published.</div>') + '</div>';
 }
+/* ---------------------------------------------------------------- health (5-22)
+   Health Connect on Android (Google Health / Fitbit write there), read by the
+   Capacitor plugin inside the Android app. Daily rows are kept on the phone
+   and in the account; the website shows what the account holds. */
+const HEALTH_TYPES = ['sleep', 'restingHeartRate', 'heartRateVariability', 'steps', 'weight'];
+const healthPlugin = () => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Health) || null;
+const tzName = () => { try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Prague'; }catch(e){ return 'Europe/Prague'; } };
+const hState = () => (S.health ||= { connected:false, lastSync:null, rows:[] });
+function mergeHealth(rows){
+  const st = hState(), by = new Map(st.rows.map(r => [r.day, r]));
+  for(const r of rows) by.set(r.day, { ...(by.get(r.day) || {}), ...Object.fromEntries(Object.entries(r).filter(([, v]) => v != null)) });
+  const cut = E.addDays(today(), -60);
+  st.rows = [...by.values()].filter(r => r.day >= cut).sort((a, b) => a.day.localeCompare(b.day));
+}
+let healthBusy = null;
+function healthSync(force){
+  if(healthBusy) return healthBusy;
+  /* The promise is stored before it can settle: a sync with nothing to do
+     finishes at once, and clearing the guard inside it would leave the guard
+     stuck on a settled promise. */
+  const p = (async () => {
+    const st = hState(), hp = healthPlugin();
+    try{
+      if(hp && st.connected && (force || !st.lastSync || Date.now() - Date.parse(st.lastSync) > 30 * 60e3)){
+        const days = st.lastSync ? 4 : 30, end = new Date(), start = new Date(Date.now() - days * 864e5);
+        const q = t => hp.readSamples({ dataType:t, startDate:start.toISOString(), endDate:end.toISOString(), limit:2000 }).then(r => r.samples || [], () => []);
+        const [sleep, restingHeartRate, heartRateVariability, weight] = await Promise.all([q('sleep'), q('restingHeartRate'), q('heartRateVariability'), q('weight')]);
+        const steps = await hp.queryAggregated({ dataType:'steps', startDate:start.toISOString(), endDate:end.toISOString(), bucket:'day', aggregation:'sum' }).then(r => r.samples || [], () => []);
+        const rows = HL.dailyRows({ sleep, restingHeartRate, heartRateVariability, steps, weight }, tzName());
+        mergeHealth(rows); st.lastSync = new Date().toISOString(); st.err = null; save();
+        if(cloud.signedIn() && !cloud.foreign() && rows.length) await cloud.pushHealth(rows).catch(() => {});
+      } else if(!hp && cloud.signedIn() && !cloud.foreign()){
+        mergeHealth(await cloud.pullHealth(E.addDays(today(), -40))); save();
+      }
+    }catch(e){ st.err = 'Could not read health data. Open Health Connect and check Liftless has access.'; }
+  })();
+  healthBusy = p;
+  p.finally(() => { if(healthBusy === p) healthBusy = null; });
+  return p;
+}
+async function healthConnect(){
+  const hp = healthPlugin(), st = hState();
+  if(!hp) return;
+  try{
+    const a = await hp.isAvailable();
+    if(!a || !a.available){ st.err = 'Health Connect is not available on this phone' + (a && a.reason ? ' (' + a.reason + ')' : '') + '. On Android 13 or older, install Health Connect from the Play Store.'; render(); return; }
+    await hp.requestAuthorization({ read: HEALTH_TYPES });
+    const ok = await hp.checkAuthorization({ read: HEALTH_TYPES });
+    st.connected = !!(ok && ok.readAuthorized && ok.readAuthorized.length);
+    st.err = st.connected ? null : 'No access was given. Tap Connect again and allow sleep and heart rate.';
+    save(); render();
+    if(st.connected){ await healthSync(true); render(); toast('Health connected'); }
+  }catch(e){ st.err = 'Could not open Health Connect. Try again.'; render(); }
+}
+function healthCard(){
+  const hp = healthPlugin(), st = hState(), rec = HL.recovery(st.rows, today(), E.addDays);
+  let h = '<div class="card"><h3>Health</h3>';
+  if(!hp && !st.rows.length) return h + '<div class="sub">Sleep and resting heart rate from your watch (Fitbit / Google Health) come in through the Liftless Android app. iPhone is not supported yet.</div></div>';
+  if(hp && !st.connected) h += '<div class="sub">Read sleep, resting heart rate, HRV, steps and weight from Health Connect. Liftless only reads; it never writes to your health data. The coach uses it to tell you when to go easier.</div>'
+    + '<button class="btn primary w100" style="margin-top:10px" data-act="healthConnect">Connect Health Connect</button>';
+  if(st.rows.length) h += '<div class="sub" style="margin-top:6px">Last night <b>' + HL.hm(rec.lastNight) + '</b> · resting HR <b>' + (rec.rhr7 ?? '—') + '</b>' + (rec.rhrUsual != null ? ' (usual ' + rec.rhrUsual + ')' : '') + (rec.hrv7 != null ? ' · HRV <b>' + rec.hrv7 + ' ms</b>' : '') + '</div>';
+  if(hp && st.connected) h += '<div class="row" style="margin-top:10px"><span class="grow sub">' + (st.lastSync ? 'Synced ' + esc(new Date(st.lastSync).toLocaleString()) : 'Not synced yet') + '</span><button class="btn" data-act="healthSync">Sync now</button></div>'
+    + '<button class="textbtn plain" data-act="healthSettings">Manage access in Health Connect</button>';
+  if(st.err) h += '<div class="hint" style="color:var(--bad)">' + esc(st.err) + '</div>';
+  return h + '<div class="hint"><a class="formlink" href="privacy.html" target="_blank" rel="noopener">How Liftless uses health data</a></div></div>';
+}
+/* Home: one line under the week, only with data; advice only on a pattern. */
+function recoveryLineHTML(){
+  const st = hState();
+  if(!st.rows.length) return '';
+  const r = HL.recovery(st.rows, today(), E.addDays);
+  const say = r.flags.includes('short-sleep') ? 'Two short nights. Keep more reps in reserve today, no extra sets.'
+    : r.flags.includes('rhr-high') ? 'Resting heart rate is up on your usual. Take it a bit easier today.'
+    : r.flags.includes('hrv-low') ? 'HRV is down on your usual. Fine to train; skip anything extra.' : '';
+  return '<div class="card recov' + (say ? ' warnc' : '') + '"><div class="rv"><span>Sleep <b>' + HL.hm(r.lastNight) + '</b></span><span>Resting HR <b>' + (r.rhr7 ?? '—') + '</b>' + (r.rhrUsual != null ? ' <small>usual ' + r.rhrUsual + '</small>' : '') + '</span>'
+    + (r.hrv7 != null ? '<span>HRV <b>' + r.hrv7 + '</b> <small>ms</small></span>' : '') + '</div>' + (say ? '<div class="sub" style="margin-top:6px">' + esc(say) + '</div>' : '') + '</div>';
+}
+
+/* You → How your programme works (5-22): the plan, then the rules the engine
+   uses after every session, in plain words. Wording follows engine.js. */
+function viewHow(){
+  const p = P(), b = E.blockInfo(today());
+  let h = '<div class="card"><h3>Your plan</h3>';
+  if(p){
+    const a = p.answers || {};
+    h += '<p class="sub">Built from your five answers: ' + esc([a.days ? a.days + ' days a week' : '', a.place ? 'training at ' + a.place : '', a.level ? 'experience: ' + a.level : '', a.minutes ? a.minutes + ' minutes a session' : ''].filter(Boolean).join(', ')) + '.</p>'
+      + '<p class="sub">Each day has slots by movement (squat, hinge, push, pull, single-leg, core and arms). For each slot the app picks an exercise from the library that fits your equipment, your experience and anything that hurts. Main lifts come first with more sets and fewer reps; accessories come last with more reps.</p>'
+      + '<p class="sub">You can swap any exercise for another in the same slot: Your programme → Swap.</p>';
+  } else {
+    h += '<p class="sub">A 20-week strength block, four days a week, that started ' + esc(E.niceDate(E.BLOCK.start)) + '.' + (b ? ' You are in week <b>' + b.week + '</b>' + (b.phaseName ? ', phase <b>' + esc(b.phaseName) + '</b>' : '') + '.' : '') + '</p>'
+      + '<ul class="howl">' + E.PHASES.map(ph => '<li><b>' + esc(ph.name) + '</b> (weeks ' + ph.from + '–' + ph.to + ')' + ({ Base:': learn the weights, steady sets.', Build:': one heavy top set, then two lighter back-off sets.', Intensify:': heavier and fewer reps (3×3).', Test:': find your new best, then a short rest.' }[ph.name] || '') + '</li>').join('') + '</ul>'
+      + '<p class="sub">Deload weeks are 6, 12 and 18: every lift at ' + Math.round(E.DELOAD.loadPct * 100) + '% of the working weight, fewer accessory sets. They should feel easy.</p>';
+  }
+  h += '</div><div class="card"><h3>How the weights move</h3>'
+    + '<p class="sub">After every session the app looks at each lift: your reps against the range, and how many good reps you had left on the last set (RIR, reps in reserve). The first rule that fits decides the next target.</p>'
+    + '<div class="rules">' + [
+      ['R1', 'Up', 'You reached the top of the rep range with reps to spare: add weight next time.'],
+      ['R3', 'Same', 'Inside the range: same weight, add a rep to your weakest set.'],
+      ['R2', 'Hold', 'Top of the range but nothing left in the tank: same weight until it feels easier.'],
+      ['R4', 'Same', 'Two or more sets fell short of the range: same weight again.'],
+      ['R5', 'Down 10%', 'Stalled twice in a row: drop 10% and build back up.'],
+      ['RN', 'Same', 'No RIR on the last set: the app can’t tell how hard it was, so it keeps the weight. Rate the last set to move on.'],
+      ['R0', 'Same', 'The session was cut short: repeat it.'],
+      ['R6', 'Lighter', 'Deload: lighter on purpose so you recover.']
+    ].map(([c, w, t]) => '<div class="rule"><span class="pill">' + c + '</span><b>' + esc(w) + '</b><span class="sub">' + esc(t) + '</span></div>').join('') + '</div>'
+    + '<p class="sub">The coach uses these same rules. It tells you what to push, what to hold and when to rest, but the numbers always come from here.</p></div>'
+    + '<div class="card"><h3>When it says deload</h3><p class="sub">Apart from the planned weeks, a deload is suggested when several signs line up: estimated maxes dropping, many weeks since the last deload, or (with health data) poor sleep and a raised resting heart rate. You can always start a session as a deload from ⋯ in the session.</p></div>';
+  return h;
+}
+
 function viewSettings(){
   const body = friend() ? '' : '<button class="rowbtn" data-act="tab" data-tab="body"><span class="grow"><b>Body</b><br><span class="sub">Bodyweight and floor tests</span></span><span class="sub">›</span></button>';
   const lib = '<button class="rowbtn" data-act="tab" data-tab="lib"><span class="grow"><b>Exercises</b><br><span class="sub">How to do nearly 900 exercises</span></span><span class="sub">›</span></button>';
-  return accountBar() + body + lib + viewSettingsBody() + versionCard();
+  const how = '<button class="rowbtn" data-act="tab" data-tab="how"><span class="grow"><b>How your programme works</b><br><span class="sub">The plan and how the weights move</span></span><span class="sub">›</span></button>';
+  return accountBar() + healthCard() + how + body + lib + viewSettingsBody() + versionCard();
 }
 /* You → Exercises: search the open database; tap a row for how to do it. */
 function exListHTML(){
@@ -2299,6 +2421,9 @@ const ACT = {
   lift: el => { ui.lift = el.dataset.n; ui.tab = 'log'; window.scrollTo(0, 0); render(); },
   liftRange: el => { ui.liftRange = el.dataset.v; render(); },
   exOpen: el => { ui.exOpen = ui.exOpen === el.dataset.n ? null : el.dataset.n; const l = document.getElementById('exList'); if(l) l.innerHTML = exListHTML(); },
+  healthConnect: () => healthConnect(),
+  healthSync: () => { healthSync(true).then(render); },
+  healthSettings: () => { const hp = healthPlugin(); if(hp && hp.openHealthConnectSettings) hp.openHealthConnectSettings().catch(() => {}); },
   allSessions: () => { ui.allSessions = !ui.allSessions; render(); },
   start: el => {
     if(S.draft) return;
@@ -2317,7 +2442,7 @@ const ACT = {
   back: () => {
     if(ui.preview){ ui.preview = null; window.scrollTo(0, 0); render(); return; }
     if(ui.lift && ui.tab === 'log'){ ui.lift = null; window.scrollTo(0, 0); render(); return; }
-    if(!screen() && !ui.page && (ui.tab === 'coach' || ui.tab === 'body' || ui.tab === 'lib')){ goTab(ui.tab === 'coach' ? 'log' : 'settings'); return; }
+    if(!screen() && !ui.page && (ui.tab === 'coach' || ui.tab === 'body' || ui.tab === 'lib' || ui.tab === 'how')){ goTab(ui.tab === 'coach' ? 'log' : 'settings'); return; }
     if(screen() === 'start' && ui.si.step === 'email'){ Object.assign(ui.si, { step:'welcome', err:null }); render(); return; }
     if(screen() === 'questions'){ qBack(); return; }
     if(ui.page === 'library' && ui.pageBack === 'programme'){ ui.page = 'programme'; ui.pageBack = null; }
@@ -2803,6 +2928,8 @@ try{
 if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length || S.adoptPending) return pullGithub(); }).then(softRender);
 adoptGithubQueue();
 if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(() => { if(mode() === 'account' && !S.history.length) return cloud.pullHistory(); }).then(bodySync).then(softRender);
+healthSync().then(softRender);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') healthSync().then(softRender); });
 window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }); bodySync().then(softRender); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page || coachTab()) softRender(); });
 window.addEventListener('offline', () => { if(screen() || ui.page || coachTab()) softRender(); });
 /* The coach's copy of the thread (and whether this week is reviewed), only

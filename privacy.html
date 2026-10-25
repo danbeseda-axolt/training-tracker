@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liftless · Health data</title>
+<style>
+  :root{ --bg:#ebebe9; --panel:#fff; --text:#1d1b1a; --dim:#635f5a; --teal:#24766f; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#141312; --panel:#1d1c1a; --text:#ecebe8; --dim:#9b968f; --teal:#3fa89f; } }
+  body{ margin:0; background:var(--bg); color:var(--text); font:16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; padding:24px 16px 48px; }
+  main{ max-width:640px; margin:0 auto; background:var(--panel); border-radius:14px; padding:20px 22px; }
+  h1{ color:var(--teal); font-size:26px; margin:0 0 4px; }
+  h2{ font-size:18px; margin:22px 0 6px; }
+  p, li{ color:var(--dim); }
+  b{ color:var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Liftless and your health data</h1>
+  <p>As of 25 October 2026.</p>
+
+  <h2>What Liftless reads</h2>
+  <p>With your permission, the Liftless Android app reads these from Health Connect: <b>sleep</b>, <b>resting heart rate</b>, <b>heart rate variability (HRV)</b>, <b>steps</b> and <b>weight</b>. It reads the last 30 days the first time, then the last few days each time you open the app.</p>
+  <p>Liftless <b>never writes</b> to your health data and reads nothing else.</p>
+
+  <h2>What it is used for</h2>
+  <ul>
+    <li>A short recovery line on Home: last night's sleep and your resting heart rate against your usual level.</li>
+    <li>The in-app coach, which uses it to tell you when to take a session easier.</li>
+  </ul>
+  <p>It is not used for advertising, never sold, and never shared with anyone else.</p>
+
+  <h2>Where it is stored</h2>
+  <p>One summary per day (minutes asleep, resting heart rate, HRV, steps, weight) is stored on your phone and in your Liftless account on Supabase (servers in the EU, Frankfurt). Only you can read your rows. When you ask the coach a question, that summary for recent days is sent to the AI model (Anthropic's Claude) to write the answer.</p>
+  <p>Dan, who runs Liftless, can see the database. Signing out removes the health data from the phone.</p>
+
+  <h2>Stopping and deleting</h2>
+  <p>Remove the access at any time in Health Connect → App permissions → Liftless. To delete what is stored in your account, ask Dan and it will be deleted.</p>
+</main>
+</body>
+</html>

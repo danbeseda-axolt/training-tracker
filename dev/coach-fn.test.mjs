@@ -155,6 +155,25 @@ test('the coach plan reads Dan-style data without a programme object, and says w
   assert.match(t, /\(none logged\)/);
 });
 
+/* 2026-10-25: Dan finished all four days on Saturday; the review said "no next
+   session to compute". A finished week points at next week's first session. */
+test('coach plan, week done: the next session is next week’s Day 1, said as next week', () => {
+  const day = (date, key) => ({ date, key, name: key, schemaVersion: 5, savedAt: date + 'T18:00:00Z', file: date + '-' + key + '.json', exercises: [] });
+  const sessions = [day('2026-10-19', 'd1'), day('2026-10-20', 'd2'), day('2026-10-23', 'd3'), day('2026-10-24', 'd4')];
+  const t = F.buildContext({ profile: { programme_key: 'coach', settings: {} }, sessions, today: '2026-10-25', nowIso: '2026-10-25T14:00:00Z' }).text;
+  assert.match(t, /This week \(from 2026-10-19\): 4 of 4/);
+  assert.match(t, /Next session \(this week is done; next week, from Monday 2026-10-26\): «Day 1/);
+  assert.doesNotMatch(t, /none to compute/);
+});
+
+test('the prompt coaches: push, hold or back off, effort cues, recovery; the engine still owns the numbers', () => {
+  assert.match(F.SYSTEM_PROMPT, /You are a coach, not a reporter/);
+  assert.match(F.SYSTEM_PROMPT, /Push: .*Hold: .*Back off:/s);
+  assert.match(F.SYSTEM_PROMPT, /Never give a cue as a fix for pain/);
+  assert.match(F.SYSTEM_PROMPT, /invent a target, weight, set count or percentage that is not in the context/);
+  assert.match(F.SYSTEM_PROMPT, /\*\*Recovery:\*\*/);
+});
+
 test('no programme yet, or an unreadable one: the context says so instead of failing', () => {
   assert.match(F.buildContext({ profile: null, sessions: [], today: '2026-10-19', nowIso: NOW.toISOString() }).text, /none set up yet/);
   assert.match(F.buildContext({ profile: { programme_key: 'x', settings: { programme: { id: '!' } } }, sessions: [], today: '2026-10-19', nowIso: NOW.toISOString() }).text, /unreadable/);
@@ -609,4 +628,20 @@ test('HTTP: preflight, no token, no key, the kill switch, a bad body, an expired
 test('Prague day: the cap day and "today" turn over at Prague midnight, not UTC', () => {
   assert.equal(F.pragueDay(new Date('2026-10-19T21:59:00Z')), '2026-10-19');
   assert.equal(F.pragueDay(new Date('2026-10-19T22:01:00Z')), '2026-10-20');
+});
+
+/* 5-22: health from the phone reaches the coach as numbers it may quote. */
+test('health rows become context lines with the usual level and flags; none connected says so', () => {
+  const health = [];
+  for (let i = 34; i >= 0; i--) health.push({ day: E.addDays('2026-10-25', -i), sleep_min: i < 3 && i !== 1 ? 330 : 450, resting_hr: i < 7 ? 60 : 54, hrv_ms: 45, steps: 8000, weight_kg: 82 });
+  const t = F.buildContext({ profile: { programme_key: 'coach', settings: {} }, sessions: [], today: '2026-10-25', nowIso: '2026-10-25T14:00:00Z', health }).text;
+  assert.match(t, /Health from the phone, last 7 days: Sun 25 Oct: sleep 5 h 30, resting HR 60, HRV 45 ms/);
+  assert.match(t, /resting HR 7-day average 60 \(usual 54\)/);
+  assert.match(t, /Recovery flags: short-sleep, rhr-high\./);
+  assert.match(F.buildContext({ profile: null, sessions: [], today: '2026-10-25', nowIso: '2026-10-25T14:00:00Z' }).text, /Health from the phone: not connected\./);
+});
+
+test('the function’s health module is a byte-for-byte copy of tracker/health.js', async () => {
+  const { readFileSync } = await import('node:fs');
+  assert.ok(readFileSync(new URL('../supabase/functions/_shared/health.js', import.meta.url)).equals(readFileSync(new URL('../health.js', import.meta.url))), 'copy tracker/health.js to tracker/supabase/functions/_shared/health.js');
 });

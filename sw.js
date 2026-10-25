@@ -1,11 +1,11 @@
 /* Ledger service worker: app shell only. Never touches the GitHub API or
    Supabase: only same-origin GETs are handled, so both always hit the network.
 
-   The modules are imported with a version query (engine.js?v=5-21), and the
+   The modules are imported with a version query (engine.js?v=5-22), and the
    same URLs are listed here, so a page can never run with a module from a
    different build. Bump VERSION and the ?v= in index.html together. */
-const VERSION = 'ledger-v5-21';
-const SHELL = ['./', './index.html', './engine.js?v=5-21', './sync.js?v=5-21', './cloud.js?v=5-21', './library.js?v=5-21', './programme.js?v=5-21', './coach.js?v=5-21', './logview.js?v=5-21', './progress.js?v=5-21', './manifest.json', './icon.svg'];
+const VERSION = 'ledger-v5-22';
+const SHELL = ['./', './index.html', './engine.js?v=5-22', './sync.js?v=5-22', './cloud.js?v=5-22', './library.js?v=5-22', './programme.js?v=5-22', './coach.js?v=5-22', './logview.js?v=5-22', './progress.js?v=5-22', './health.js?v=5-22', './manifest.json', './icon.svg', './privacy.html'];
 const NET_TIMEOUT = 3000;
 
 self.addEventListener('install', e => {
