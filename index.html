@@ -348,15 +348,15 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-26';
-import { makeSync } from './sync.js?v=5-26';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-26';
-import * as L from './library.js?v=5-26';
-import * as G from './programme.js?v=5-26';
-import * as C from './coach.js?v=5-26';
-import * as V from './logview.js?v=5-26';
-import * as PG from './progress.js?v=5-26';
-import * as HL from './health.js?v=5-26';
+import * as E from './engine.js?v=5-27';
+import { makeSync } from './sync.js?v=5-27';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets, mergeRemoteHistory } from './cloud.js?v=5-27';
+import * as L from './library.js?v=5-27';
+import * as G from './programme.js?v=5-27';
+import * as C from './coach.js?v=5-27';
+import * as V from './logview.js?v=5-27';
+import * as PG from './progress.js?v=5-27';
+import * as HL from './health.js?v=5-27';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -443,7 +443,7 @@ function pullGithub(){
     save();
     if(items.length) sync.flushQueue();
     return ok;
-  });
+  }).then(ok => refreshFromAccount().then(() => ok));   // a GitHub pull replaces history: the account's sessions go back in
 }
 const cloud = makeCloud({
   fetch: (u, i) => fetch(u, i), getState: () => S, save,
@@ -474,6 +474,21 @@ function adoptGithubQueue(){
      kept, and only items already placed leave the GitHub queue. */
   const placed = new Set(cloud.adoptItems(S.queue.slice()));
   S.queue = S.queue.filter(q => !placed.has(q)); save();
+}
+/* 5-27: the account's sessions merged into this phone's history whenever
+   signed in (launch, return to the app, reconnect, pull, sign-in). Before,
+   only an empty phone pulled, so sessions saved elsewhere never showed. */
+let refreshing = null;
+function refreshFromAccount(){
+  if(!cloud.signedIn() || cloud.foreign()) return Promise.resolve(null);
+  if(refreshing) return refreshing;
+  const p = cloud.pullSessions().then(rows => {
+    const r = mergeRemoteHistory(S.history, rows);
+    if(r.added || r.updated){ S.history = r.list; save(); }
+    return r;
+  }, () => null);
+  refreshing = p; p.finally(() => { if(refreshing === p) refreshing = null; });
+  return p;
 }
 function flushAll(opts){
   adoptGithubQueue();
@@ -1865,7 +1880,7 @@ async function afterSignIn(who){
   adoptGithubQueue();
   await cloud.flushQueue({ quiet:true });
   await bodySync();
-  if(mode() === 'account' && !S.history.length) await cloud.pullHistory();
+  await refreshFromAccount();
   softRender();
 }
 /* "Loading your programme…". A failure never falls through to the questions:
@@ -2529,7 +2544,7 @@ const ACT = {
   menu: () => { ui.sheet = { type:'menu' }; renderSheet(); },
   closeSheet: () => { ui.sheet = null; render(); },
   retry: () => flushAll(),
-  pull: () => (mode() === 'account' && cloud.signedIn() ? cloud.pullHistory() : pullGithub()).then(render),
+  pull: () => (mode() === 'account' && cloud.signedIn() ? refreshFromAccount() : pullGithub().then(refreshFromAccount)).then(render),
   undo: () => { const f = ui.undo; ui.undo = null; $('#toast').hidden = true; if(f) f(); },
   noticeOk: () => { ui.notice = null; render(); },
 
@@ -2984,7 +2999,7 @@ const ACT = {
       render();
       adoptGithubQueue();
       await cloud.flushQueue({ quiet:true });
-      if(mode() === 'account' && !S.history.length) await cloud.pullHistory();
+      await refreshFromAccount();
     }catch(e){ ui.ac.busy = false; acSay(explain(e), 'bad'); }
     softRender();
   },
@@ -3109,10 +3124,10 @@ try{
 }catch(e){ ui.persist = 'best-effort'; }
 if(sync.cfgOk()) sync.flushQueue({ quiet:true }).then(() => { if(!S.history.length || S.adoptPending) return pullGithub(); }).then(softRender);
 adoptGithubQueue();
-if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(() => { if(mode() === 'account' && !S.history.length) return cloud.pullHistory(); }).then(bodySync).then(softRender);
+if(cloud.signedIn()) cloud.flushQueue({ quiet:true }).then(refreshFromAccount).then(bodySync).then(softRender);
 healthSync().then(softRender);
-document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') healthSync().then(softRender); });
-window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }); bodySync().then(softRender); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page || coachTab()) softRender(); });
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ healthSync().then(softRender); refreshFromAccount().then(softRender); } });
+window.addEventListener('online', () => { sync.flushQueue({ quiet:true }); if(cloud.signedIn()){ cloud.flushQueue({ quiet:true }).then(refreshFromAccount).then(softRender); bodySync().then(softRender); if(S.programmeDirty) cloud.pushProgramme().then(softRender, () => {}); } if(screen() || ui.page || coachTab()) softRender(); });
 window.addEventListener('offline', () => { if(screen() || ui.page || coachTab()) softRender(); });
 /* The coach's copy of the thread (and whether this week is reviewed), only
    when signed in: a signed-out phone makes no call. */

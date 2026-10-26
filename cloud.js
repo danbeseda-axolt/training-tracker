@@ -798,3 +798,24 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     lastError: () => lastError
   };
 }
+
+/* 5-27: history from the account, merged in on every launch while signed in.
+   Before, the app pulled only when the phone's history was empty, so a phone
+   or browser that already held sessions never showed ones saved elsewhere
+   (Dan, 2026-10-26: Saturday's and Monday's sessions "vanished" on one
+   install). The newer copy of a session wins (savedAt); a session only on the
+   phone is kept; nothing is deleted here. Returns the merged list, newest first. */
+/** @param {Obj[]} local @param {Obj[]} remote @returns {{list:Obj[], added:number, updated:number}} */
+export function mergeRemoteHistory(local, remote) {
+  const at = (/** @type {Obj} */ s) => String(s && s.savedAt || '');
+  const by = new Map((local || []).filter(s => s && s.date).map(s => [clientId(s), s]));
+  let added = 0, updated = 0;
+  for (const r of remote || []) {
+    if (!r || !r.date || r.deleted) continue;
+    const k = clientId(r), l = by.get(k);
+    if (!l) { by.set(k, r); added++; }
+    else if (at(r) > at(l)) { by.set(k, r); updated++; }
+  }
+  const list = [...by.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : at(b).localeCompare(at(a))));
+  return { list, added, updated };
+}

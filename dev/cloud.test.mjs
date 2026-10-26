@@ -755,3 +755,17 @@ test('pushHealth upserts one row per day for this user, dropping bad dates; pull
   const back = await cloud.pullHealth('2026-10-01');
   assert.equal(back[0].resting_hr, 57);
 });
+
+/* 5-27: a phone that already holds sessions still gets the ones saved elsewhere. */
+test('mergeRemoteHistory: adds sessions saved elsewhere, takes the newer copy, keeps phone-only ones, never deletes', async () => {
+  const { mergeRemoteHistory } = await import('../cloud.js');
+  const s = (date, key, savedAt, more = {}) => ({ date, key, savedAt, file: 'training/log/' + date + '-' + key + '.json', exercises: [], ...more });
+  const local = [s('2026-10-23', 'd3', '2026-10-23T17:25:00Z'), s('2026-10-20', 'd2', '2026-10-20T16:00:00Z', { notes: 'old' }), s('2026-09-01', 'x', '2026-09-01T10:00:00Z')];
+  const remote = [s('2026-10-26', 'd1', '2026-10-26T07:07:00Z'), s('2026-10-24', 'd4', '2026-10-24T17:40:00Z'), s('2026-10-23', 'd3', '2026-10-23T17:25:00Z'),
+    s('2026-10-20', 'd2', '2026-10-21T09:00:00Z', { notes: 'edited' }), s('2026-10-19', 'd1', '2026-10-19T08:00:00Z', { deleted: true })];
+  const r = mergeRemoteHistory(local, remote);
+  assert.deepEqual(r.list.map(x => x.date + '-' + x.key), ['2026-10-26-d1', '2026-10-24-d4', '2026-10-23-d3', '2026-10-20-d2', '2026-09-01-x']);
+  assert.equal(r.list.find(x => x.key === 'd2').notes, 'edited');
+  assert.deepEqual([r.added, r.updated], [2, 1]);
+  assert.equal(mergeRemoteHistory([], []).list.length, 0);
+});
