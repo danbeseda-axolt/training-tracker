@@ -106,7 +106,7 @@ test('the function’s engine is a byte-for-byte copy of tracker/engine.js', () 
 });
 
 test('no service-role key, no Anthropic key and no personal data in the function code', () => {
-  for (const f of ['coach/coach-core.js', 'coach/index.ts']) {
+  for (const f of ['coach/coach-core.js', 'coach/import-core.js', 'coach/index.ts']) {
     const src = readFileSync(path.join(FN, f), 'utf8');
     assert.doesNotMatch(src, /service_role|SERVICE_ROLE/, f);
     assert.doesNotMatch(src, /sk-ant-/, f);
@@ -115,7 +115,7 @@ test('no service-role key, no Anthropic key and no personal data in the function
   const core = readFileSync(path.join(FN, 'coach', 'coach-core.js'), 'utf8');
   assert.match(core, /env\('ANTHROPIC_API_KEY'\)/, 'the key is read from the secret only');
   assert.doesNotMatch(F.SYSTEM_PROMPT, /\bDan\b|beseda/i, 'the prompt names no one and no one’s history');
-  assert.deepEqual(readdirSync(path.join(FN, 'coach')).sort(), ['coach-core.js', 'index.ts']);
+  assert.deepEqual(readdirSync(path.join(FN, 'coach')).sort(), ['coach-core.js', 'import-core.js', 'index.ts']);
 });
 
 /* ------------------------------------------------------------ the context */

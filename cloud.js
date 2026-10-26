@@ -726,6 +726,17 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
     }
     return { ...j, unsynced };
   }
+  /* 5-25: read an existing plan (text, photo or a public Google Doc/Sheet)
+     into a programme. Returns {programme, warnings, unmatched}; saves nothing. */
+  /** @param {{text?:string, image?:{media_type:string, data:string}, link?:string, library?:string[]}} req */
+  async function importPlan(req) {
+    ready();
+    const body = { kind: 'import', ...(req.text ? { text: req.text } : {}), ...(req.image ? { image: req.image } : {}), ...(req.link ? { link: req.link } : {}), library: req.library || [] };
+    const res = await authed('/functions/v1/coach', { method: 'POST', body, timeout: COACH_TIMEOUT });
+    const j = await bodyOf(res);
+    if (res.status !== 200 || !j) throw httpError(res.status, { error_code: (j && j.error) || 'server', msg: 'import ' + res.status });
+    return j;
+  }
   /* The user's messages, newest first, 30 at a time (RLS: only their own). */
   /** @param {{before?:string|null, limit?:number}} [o] */
   async function chatHistory(o = {}) {
@@ -778,7 +789,7 @@ export function makeCloud({ fetch, getState, save, onStatus, now = () => Date.no
   }
 
   return {
-    askCoach, chatHistory, deleteChat, coachAccepted, acceptCoach, coachAccess,
+    askCoach, importPlan, chatHistory, deleteChat, coachAccepted, acceptCoach, coachAccess,
     requestCode, verifyCode, signOut, signedIn, refresh, pushSession, pullSessions, pullHistory, pushBody, pullBody, pushHealth, pullHealth,
     pullProgramme, pushProgramme, setProgramme, syncProgramme,
     importHistory, enqueue, adoptItems, flushQueue, userId, inUse, foreign, ownerId: () => currentOwner(),

@@ -59,3 +59,13 @@ test('advice: lighter on a pattern with the numbers; a single short night is onl
   assert.equal(H.advice(mk([450, 450, 450]), '2026-10-26', E.addDays), null);
   assert.equal(H.advice([], '2026-10-26', E.addDays), null);
 });
+
+test('restingFromHourly: lowest hourly average inside the night, on the wake day; 01-06 local when no sleep; short naps and junk ignored', () => {
+  const hour = (iso, v) => ({ startDate: iso, value: v });
+  const sleep = [{ value: 420, startDate: '2026-10-24T21:00:00Z', endDate: '2026-10-25T04:30:00Z' }, { value: 40, startDate: '2026-10-25T13:00:00Z', endDate: '2026-10-25T13:40:00Z' }];
+  const hourly = [hour('2026-10-24T20:00:00Z', 70), hour('2026-10-24T22:00:00Z', 58), hour('2026-10-25T01:00:00Z', 52), hour('2026-10-25T03:00:00Z', 55), hour('2026-10-25T13:00:00Z', 40),
+    hour('2026-10-25T23:30:00Z', 61), hour('2026-10-26T01:00:00Z', 54), hour('2026-10-26T03:00:00Z', 57), hour('2026-10-26T02:00:00Z', 900)];
+  const r = H.restingFromHourly(hourly, sleep, TZ);
+  assert.deepEqual(r.map(x => [x.startDate.slice(0, 10), x.value]), [['2026-10-25', 52], ['2026-10-26', 54]]);
+  assert.deepEqual(H.restingFromHourly([], sleep, TZ), []);
+});

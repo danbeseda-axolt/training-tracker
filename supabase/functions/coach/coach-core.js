@@ -21,6 +21,7 @@
 
 import * as E from '../_shared/engine.js';
 import * as H from '../_shared/health.js';
+import * as I from './import-core.js';
 
 /** @typedef {Record<string, any>} Obj */
 
@@ -495,6 +496,11 @@ export function makePgDb({ fetch, url, key, jwt }) {
   };
   const enc = encodeURIComponent;
   return {
+    async importTake() {
+      const r = await call('rpc/import_take', { method: 'POST', body: '{}' });
+      const row = Array.isArray(r) ? r[0] : r;
+      return { ok: !!(row && row.ok), reason: row && row.reason || null };
+    },
     async take() {
       const r = await call('rpc/chat_take', { method: 'POST', body: '{}' });
       const row = Array.isArray(r) ? r[0] : r;
@@ -663,6 +669,53 @@ export const CORS = {
  * @param {Request} req
  * @param {{env: (k:string)=>string|undefined, fetch: typeof fetch, now?: () => Date, clock?: () => number, sleep?: (ms:number)=>Promise<void>, model?: Obj, log?: (m:string)=>void}} deps
  */
+/* 'I already have a plan' (5-25): read pasted text, a photo or a public
+   Google Doc/Sheet into a programme for the person to check. Any signed-in
+   person (5 a day, import_take); nothing is stored here. */
+/** @param {Obj} input {kind:'import', text?, image?:{media_type, data}, link?, library?:string[]} @param {{db:Obj, model:Obj, fetch:Function, now?:()=>Date, log?:Function}} d */
+export async function handleImport(input, d) {
+  const log = d.log || (() => {});
+  const text = typeof input.text === 'string' ? input.text.trim() : '';
+  const img = input.image && typeof input.image === 'object' ? input.image : null;
+  const link = typeof input.link === 'string' ? input.link.trim() : '';
+  if (!text && !img && !link) return reply(400, { error: 'bad_request' });
+  if (text.length > I.LIMITS.textChars) return reply(413, { error: 'too_long', max: I.LIMITS.textChars });
+  if (img && (!I.IMAGE_TYPES.includes(img.media_type) || typeof img.data !== 'string' || img.data.length > I.LIMITS.imageB64 || !/^[A-Za-z0-9+/=]+$/.test(img.data))) return reply(400, { error: 'bad_image' });
+  let target = null;
+  if (link) { target = I.exportUrl(link); if (!target) return reply(400, { error: 'bad_link' }); }
+  const cap = await d.db.importTake();
+  if (!cap.ok) return reply(429, { error: 'limit', reason: cap.reason || 'limit_user' });
+
+  /** @type {Obj[]} */
+  const content = [];
+  const library = (Array.isArray(input.library) ? input.library : []).map(n => clean(n, 60)).filter(Boolean).slice(0, 200);
+  content.push({ type: 'text', text: 'LIBRARY: ' + (library.length ? library.join('; ') : '(none)') });
+  if (target) {
+    let body = '';
+    try {
+      const res = await d.fetch(target.url, { redirect: 'follow', signal: AbortSignal.timeout(10000) });
+      if (!res.ok || !I.allowedFinalHost(res.url || target.url)) return reply(422, { error: 'link_private' });
+      const ct = res.headers.get('content-type') || '';
+      if (/text\/html/i.test(ct)) return reply(422, { error: 'link_private' });   // a sign-in page, not the export
+      body = (await res.text()).slice(0, I.LIMITS.linkBytes);
+    } catch (e) { return reply(422, { error: 'link_failed' }); }
+    content.push({ type: 'text', text: 'PLAN (' + (target.kind === 'sheet' ? 'spreadsheet as CSV' : 'document') + '):\n' + body.slice(0, 60000) });
+  }
+  if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.media_type, data: img.data } });
+  if (text) content.push({ type: 'text', text: 'PLAN (pasted):\n' + text });
+
+  let r;
+  try {
+    r = await d.model.create({ model: MODEL, max_tokens: 4000, system: I.IMPORT_PROMPT, tools: [I.IMPORT_TOOL], tool_choice: { type: 'tool', name: 'programme' }, messages: [{ role: 'user', content }] }, { timeoutMs: MODEL_TIMEOUT_MS });
+  } catch (e) { return reply(504, { error: 'timeout' }); }
+  if (!r || r.status !== 200) { log('import model ' + (r && r.status)); return reply(r && (r.status === 401 || r.status === 403) ? 503 : 502, { error: r && (r.status === 401 || r.status === 403) ? 'off' : 'busy' }); }
+  const use = (r.body && Array.isArray(r.body.content) ? r.body.content : []).find((/** @type {Obj} */ c) => c.type === 'tool_use' && c.name === 'programme');
+  if (!use) return reply(502, { error: 'busy' });
+  const t = (d.now ? d.now() : new Date());
+  const out = I.buildProgramme(use.input || {}, library, { id: 'imp-' + t.getTime().toString(36), createdAt: t.toISOString() });
+  return reply(200, { programme: out.programme, warnings: out.warnings, unmatched: out.unmatched.slice(0, 40) });
+}
+
 export async function handleHttp(req, deps) {
   const out = (/** @type {number} */ status, /** @type {Obj|null} */ body) => new Response(body ? JSON.stringify(body) : null, { status, headers: { ...CORS, ...(body ? { 'Content-Type': 'application/json' } : {}) } });
   if (req.method === 'OPTIONS') return out(204, null);
@@ -678,6 +731,10 @@ export async function handleHttp(req, deps) {
   try { input = await req.json(); } catch (e) { return out(400, { error: 'bad_request' }); }
   const db = makePgDb({ fetch: deps.fetch, url: env('SUPABASE_URL') || '', key: env('SUPABASE_ANON_KEY') || PUBLISHABLE_KEY, jwt: m[1] });
   const model = deps.model || (fake ? makeFakeModel() : makeAnthropic({ fetch: deps.fetch, apiKey: /** @type {string} */ (key) }));
+  if (input && input.kind === 'import') {
+    const r = await handleImport(input, { db, model, fetch: deps.fetch, now: deps.now, log: deps.log });
+    return out(r.status, r.body);
+  }
   const coach = makeCoach({ db, model, now: deps.now, clock: deps.clock, sleep: deps.sleep, log: deps.log });
   const r = await coach.handle(input);
   return out(r.status, r.body);

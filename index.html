@@ -350,15 +350,15 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-23';
-import { makeSync } from './sync.js?v=5-23';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-23';
-import * as L from './library.js?v=5-23';
-import * as G from './programme.js?v=5-23';
-import * as C from './coach.js?v=5-23';
-import * as V from './logview.js?v=5-23';
-import * as PG from './progress.js?v=5-23';
-import * as HL from './health.js?v=5-23';
+import * as E from './engine.js?v=5-25';
+import { makeSync } from './sync.js?v=5-25';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-25';
+import * as L from './library.js?v=5-25';
+import * as G from './programme.js?v=5-25';
+import * as C from './coach.js?v=5-25';
+import * as V from './logview.js?v=5-25';
+import * as PG from './progress.js?v=5-25';
+import * as HL from './health.js?v=5-25';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -569,7 +569,7 @@ const genDone = () => merged().filter(s => s.programmeId).length;
 const online = () => navigator.onLine !== false;
 const rirLine = n => 'RIR ' + n + ': stop each set when you could still do ' + n + ' more good rep' + (n === 1 ? '' : 's') + '.';
 function equipText(a){
-  if(!a) return '';
+  if(!a || !a.place) return 'Your own plan';
   const kit = [a.has && a.has.bar ? 'pull-up bar' : '', a.has && a.has.bands ? 'bands' : ''].filter(Boolean);
   return G.PLACE_TEXT[a.place] + (a.place !== 'gym' && kit.length ? ' + ' + kit.join(' + ') : '');
 }
@@ -1482,7 +1482,7 @@ function versionCard(){
    Health Connect on Android (Google Health / Fitbit write there), read by the
    Capacitor plugin inside the Android app. Daily rows are kept on the phone
    and in the account; the website shows what the account holds. */
-const HEALTH_TYPES = ['sleep', 'restingHeartRate', 'heartRateVariability', 'steps', 'weight'];
+const HEALTH_TYPES = ['sleep', 'restingHeartRate', 'heartRateVariability', 'heartRate', 'steps', 'weight'];
 const healthPlugin = () => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Health) || null;
 const tzName = () => { try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Prague'; }catch(e){ return 'Europe/Prague'; } };
 const hState = () => (S.health ||= { connected:false, lastSync:null, rows:[] });
@@ -1506,11 +1506,19 @@ function healthSync(force){
         const q = t => hp.readSamples({ dataType:t, startDate:start.toISOString(), endDate:end.toISOString(), limit:2000 }).then(r => r.samples || [], () => []);
         const [sleep, restingHeartRate, heartRateVariability, weight] = await Promise.all([q('sleep'), q('restingHeartRate'), q('heartRateVariability'), q('weight')]);
         const steps = await hp.queryAggregated({ dataType:'steps', startDate:start.toISOString(), endDate:end.toISOString(), bucket:'day', aggregation:'sum' }).then(r => r.samples || [], () => []);
-        const rows = HL.dailyRows({ sleep, restingHeartRate, heartRateVariability, steps, weight }, tzName());
+        /* No resting-HR records (Google Health may not write them): the overnight
+           low of hourly average heart rate instead, marked as such. */
+        let rhr = restingHeartRate, derived = false, hourlyN = 0;
+        if(!rhr.length){
+          const hourly = await hp.queryAggregated({ dataType:'heartRate', startDate:start.toISOString(), endDate:end.toISOString(), bucket:'hour', aggregation:'average' }).then(r => r.samples || [], () => []);
+          hourlyN = hourly.length; rhr = HL.restingFromHourly(hourly, sleep, tzName()); derived = rhr.length > 0;
+        }
+        const rows = HL.dailyRows({ sleep, restingHeartRate: rhr, heartRateVariability, steps, weight }, tzName());
+        st.rhrDerived = derived;
         /* What each type returned, and what Health Connect granted: shown on the
            Health card so a missing type can be traced to the source app or to access. */
         const granted = await hp.checkAuthorization({ read: HEALTH_TYPES }).then(a => a && a.readAuthorized || [], () => null);
-        st.diag = { at: new Date().toISOString(), granted, counts: { sleep: sleep.length, restingHeartRate: restingHeartRate.length, heartRateVariability: heartRateVariability.length, steps: steps.length, weight: weight.length } };
+        st.diag = { at: new Date().toISOString(), granted, counts: { sleep: sleep.length, restingHeartRate: restingHeartRate.length, heartRateVariability: heartRateVariability.length, heartRate: hourlyN, steps: steps.length, weight: weight.length } };
         mergeHealth(rows); st.lastSync = new Date().toISOString(); st.err = null; save();
         if(cloud.signedIn() && !cloud.foreign() && rows.length) await cloud.pushHealth(rows).catch(() => {});
       } else if(!hp && cloud.signedIn() && !cloud.foreign()){
@@ -1546,17 +1554,19 @@ function healthCard(){
   if(hp && st.connected) h += '<div class="row" style="margin-top:10px"><span class="grow sub">' + (st.lastSync ? 'Synced ' + esc(new Date(st.lastSync).toLocaleString()) : 'Not synced yet') + '</span><button class="btn" data-act="healthSync">Sync now</button></div>'
     + '<button class="textbtn plain" data-act="healthSettings">Manage access in Health Connect</button>';
   if(hp && st.connected && st.diag){
-    const names = { sleep:'Sleep', restingHeartRate:'Resting heart rate', heartRateVariability:'HRV', steps:'Steps', weight:'Weight' };
-    const g = st.diag.granted;
-    h += '<div class="hdiag">' + HEALTH_TYPES.map(t => {
+    const names = { sleep:'Sleep', restingHeartRate:'Resting heart rate', heartRateVariability:'HRV', heartRate:'Heart rate (hourly)', steps:'Steps', weight:'Weight' };
+    const g = st.diag.granted, shown = HEALTH_TYPES.filter(t => !(t === 'heartRate' && st.diag.counts.restingHeartRate));
+    h += '<div class="hdiag">' + shown.map(t => {
       const n = st.diag.counts[t] || 0, allowed = !g || g.includes(t);
       const state = n ? '<span class="ok">✓ ' + n + '</span>' : !allowed ? '<span class="bad">no access</span>' : '<span class="warn">nothing received</span>';
       return '<div><span>' + names[t] + '</span>' + state + '</div>';
     }).join('') + '</div>';
-    const noAccess = HEALTH_TYPES.filter(t => g && !g.includes(t)), none = HEALTH_TYPES.filter(t => (!g || g.includes(t)) && !st.diag.counts[t]);
-    if(noAccess.length) h += '<div class="hint">No access to ' + esc(noAccess.map(t => names[t].toLowerCase()).join(', ') + '. Tap Manage access below and allow them.') + '</div>';
+    const noAccess = shown.filter(t => g && !g.includes(t)), none = shown.filter(t => (!g || g.includes(t)) && !st.diag.counts[t]);
+    if(noAccess.length) h += '<div class="hint">No access to ' + esc(noAccess.map(t => names[t].toLowerCase()).join(', ') + '.') + '</div>'
+      + '<button class="btn w100" style="margin-top:6px" data-act="healthConnect">Allow ' + esc(noAccess.map(t => names[t].toLowerCase().replace(' (hourly)', '')).join(', ')) + '</button>';
     if(none.length) h += '<div class="hint">Nothing received for ' + esc(none.map(t => names[t].toLowerCase()).join(', ')) + '. In the Google Health app: Settings → Health Connect, turn sharing on for them, then tap Sync now.</div>';
   }
+  if(st.rhrDerived) h += '<div class="hint">Resting heart rate here is your overnight low (lowest hourly average while asleep), because Google Health sends no resting-heart-rate record. It reads a few beats off your watch; the trend is what counts.</div>';
   if(st.err) h += '<div class="hint" style="color:var(--bad)">' + esc(st.err) + '</div>';
   return h + '<div class="hint"><a class="formlink" href="privacy.html" target="_blank" rel="noopener">How Liftless uses health data</a></div></div>';
 }
@@ -1569,7 +1579,7 @@ function recoveryLineHTML(){
     : r.flags.includes('rhr-high') ? 'Resting heart rate is up on your usual. Take it a bit easier today.'
     : r.flags.includes('hrv-low') ? 'HRV is down on your usual. Fine to train; skip anything extra.' : '';
   return '<div class="card recov' + (say ? ' warnc' : '') + '"><div class="rv">' + (r.lastNight != null ? '<span>Sleep <b>' + HL.hm(r.lastNight) + '</b>' + (r.sleepAvg7 != null ? ' <small>7-day ' + HL.hm(r.sleepAvg7) + '</small>' : '') + '</span>' : '')
-    + (r.rhr7 != null ? '<span>Resting HR <b>' + r.rhr7 + '</b>' + (r.rhrUsual != null ? ' <small>usual ' + r.rhrUsual + '</small>' : '') + '</span>' : '')
+    + (r.rhr7 != null ? '<span>' + (hState().rhrDerived ? 'Overnight HR' : 'Resting HR') + ' <b>' + r.rhr7 + '</b>' + (r.rhrUsual != null ? ' <small>usual ' + r.rhrUsual + '</small>' : '') + '</span>' : '')
     + (r.hrv7 != null ? '<span>HRV <b>' + r.hrv7 + '</b> <small>ms</small></span>' : '') + '</div>' + (say ? '<div class="sub" style="margin-top:6px">' + esc(say) + '</div>' : '') + '</div>';
 }
 
@@ -1726,7 +1736,7 @@ function renderFriend(scr){
   /* Before sign-in there is nothing to sync and nothing in a menu. */
   $('#sync').hidden = !!scr; $('#menuBtn').hidden = true;
   const back = scr === 'start' ? ui.si.step === 'email'
-    : scr === 'questions' ? (S.onboard && (S.onboard.step > 0 || S.onboard.retake))
+    : scr === 'questions' ? (S.onboard && (S.onboard.step > 0 || S.onboard.retake || !!S.onboard.path))
     : !scr && ui.page && !(ui.page === 'programme' && ui.pageFrom === 'build');
   $('#backBtn').hidden = !back;
   const title = !scr && ui.page === 'programme' ? 'Your programme' : !scr && ui.page === 'library' ? 'Exercises' : 'Liftless';
@@ -1761,7 +1771,7 @@ function viewStart(){
       + '<h2 class="wname">' + [...'Liftless'].map((c, i) => '<span class="c' + (i % 4) + '">' + c + '</span>').join('') + '</h2>'
       + '<p class="wtag">Your training plan, ready when you walk into the gym.</p>'
       + '<ul class="wlist">'
-      + '<li><b>A programme built for you.</b> Five quick questions, and it’s ready.</li>'
+      + '<li><b>Your plan, or one built for you.</b> Bring the plan you already follow, or answer five quick questions.</li>'
       + '<li><b>Every session planned.</b> Exercises, sets and weights. You just lift.</li>'
       + '<li><b>See you’re on track.</b> Your week at a glance, progress set by set.</li>'
       + '</ul>'
@@ -1889,8 +1899,52 @@ function qRow(v, l1, l2, on, sel){
   return '<button class="rowbtn q' + (on ? ' on' : '') + (sel ? ' sel' : '') + '" data-act="qAns" data-s="' + (S.onboard ? S.onboard.step : 0) + '" data-v="' + esc(v) + '"><span class="grow"><b>' + esc(l1) + '</b>'
     + (l2 ? '<br><span class="sub">' + esc(l2) + '</span>' : '') + '</span>' + (on ? '<span class="pill ok">Your answer</span>' : '') + '</button>';
 }
+/* 5-25: before the questions, two equal doors (research 2026-10-26: Ghisa,
+   Arvo, SayLift): build a plan from five questions, or bring the one you have.
+   An imported plan is read by the coach function and checked by the person on
+   a review screen; nothing is saved before "Use this plan". */
+function viewStartChoice(){
+  return '<h3 class="qh">How do you want to start?</h3>'
+    + '<button class="rowbtn q" data-act="qPath" data-v="build"><span class="grow"><b>Build me a plan</b><br><span class="sub">Five quick questions. Liftless picks the exercises, sets and weights.</span></span><span class="sub">›</span></button>'
+    + '<button class="rowbtn q" data-act="qPath" data-v="import"><span class="grow"><b>I already have a plan</b><br><span class="sub">From a coach, a spreadsheet or the internet. Paste it, snap a photo, or paste a Google Docs or Sheets link.</span></span><span class="sub">›</span></button>'
+    + (cloud.signedIn() && !(S.onboard && S.onboard.retake) ? '<div class="hint" style="margin-top:14px">Signed in as ' + esc(cloud.email()) + '.</div><button class="textbtn plain" data-act="qSignOut">Not you? Sign out.</button>' : '');
+}
+function viewImport(){
+  const o = S.onboard, im = (o.imp ||= { text:'', link:'' }), u = (ui.imp ||= {});
+  if(im.result && im.result.programme) return viewImportReview(im.result);
+  let h = '<h3 class="qh">Bring your plan</h3><div class="sub" style="margin:-4px 0 10px">Use one of these, or several. Liftless reads it and shows you the result to check before anything is saved.</div>';
+  if(im.result && !im.result.programme) h += '<div class="banner warn"><b>That didn’t work.</b>' + (im.result.warnings || []).map(w => '<div>' + esc(w) + '</div>').join('') + '</div>';
+  h += '<label for="impText">Paste your plan</label><textarea id="impText" data-f="impText" rows="7" placeholder="Day 1 – Upper&#10;Bench press 4×6–8, rest 3 min&#10;Rows 3×10&#10;…">' + esc(im.text) + '</textarea>'
+    + '<label>Or a photo or screenshot</label>'
+    + (u.img ? '<div class="row" style="gap:10px"><img src="' + u.img.preview + '" alt="Your plan photo" style="width:72px;height:72px;object-fit:cover;border-radius:10px"><span class="grow sub">Photo added</span><button class="btn" data-act="impPhotoDel">Remove</button></div>'
+      : '<label class="btn w100" style="display:block;text-align:center">Add a photo<input type="file" accept="image/*" data-f="impPhoto" style="display:none"></label>')
+    + '<label for="impLink">Or a Google Docs or Sheets link</label><input id="impLink" type="url" data-f="impLink" value="' + esc(im.link) + '" placeholder="https://docs.google.com/…" autocomplete="off">'
+    + '<div class="hint">The document must be shared as "Anyone with the link can view".</div>'
+    + (u.err ? '<div class="banner bad" style="margin-top:10px">' + esc(u.err) + '</div>' : '')
+    + '<button class="big primary" style="margin-top:14px" data-act="impRead"' + (u.busy || !online() ? ' disabled' : '') + '>' + (u.busy ? 'Reading your plan… about 20 seconds' : 'Read my plan') + '</button>'
+    + (online() ? '' : '<div class="hint">You’re offline. Connect to read your plan.</div>');
+  return h;
+}
+const doseLine = e => [e.kind === 'time' ? (e.note && /^\d+ s/.test(e.note) ? '' : 'timed') : e.sets + ' × ' + (e.rep ? (e.rep[0] === e.rep[1] ? e.rep[0] : e.rep[0] + '–' + e.rep[1]) : '?'),
+  e.rir != null && e.kind === 'weight' ? 'RIR ' + e.rir : '', e.rest ? 'rest ' + mmss(e.rest) : '', e.note || ''].filter(Boolean).join(' · ');
+function viewImportReview(r){
+  const p = r.programme, un = new Set((r.unmatched || []).map(n => n.toLowerCase()));
+  let h = '<h3 class="qh">Check your plan</h3><div class="sub" style="margin:-4px 0 10px"><b>' + esc(p.name) + '</b> · ' + p.days.length + ' day' + (p.days.length > 1 ? 's' : '') + ', ' + p.perWeek + ' a week. Remove anything that’s wrong; you can also start again.</div>';
+  if((r.warnings || []).length) h += '<div class="banner info"><b>Simplified</b>' + r.warnings.map(w => '<div>' + esc(w) + '</div>').join('') + '</div>';
+  p.days.forEach((d, di) => {
+    h += '<div class="card"><h3>' + esc(d.name) + '</h3>' + d.ex.map((e, i) => '<div class="prow"><div class="pmain"><b>' + esc(e.n) + '</b>' + (un.has(e.n.toLowerCase()) ? ' <span class="pill">your exercise</span>' : '')
+      + '<br><span class="sub">' + esc(doseLine(e)) + '</span></div><button class="ib" data-act="impDel" data-d="' + di + '" data-i="' + i + '" aria-label="Remove ' + esc(e.n) + '">✕</button></div>').join('') + '</div>';
+  });
+  h += '<div class="hint">Weights: the first time you do each exercise, you choose the weight. After that Liftless moves it up when you’re ready. "Your exercise" means it isn’t in the library; it still works.</div>'
+    + '<button class="big primary" style="margin-top:10px" data-act="impUse">Use this plan</button>'
+    + '<div class="center"><button class="textbtn plain" data-act="impAgain">Start again</button></div>';
+  return h;
+}
+
 function viewQuestion(){
   if(!S.onboard) S.onboard = { step:0, answers:{}, painSel:[] };
+  if(!S.onboard.path && S.onboard.step === 0) return viewStartChoice();
+  if(S.onboard.path === 'import') return viewImport();
   const o = S.onboard, a = o.answers, st = o.step, pr = ui.qPressed;
   let h = '<div class="sub">Question ' + (st + 1) + ' of ' + QN + '</div><div class="qbar">' + Array.from({ length:QN }, (_, i) => '<span' + (i <= st ? ' class="on"' : '') + '></span>').join('') + '</div>';
   if(st === 0){
@@ -1940,6 +1994,8 @@ function qAdvance(from){
 }
 function qBack(){
   const o = S.onboard; if(!o) return;
+  /* From the plan import, or question 1, back to the two doors. */
+  if(o.path && (o.path === 'import' || o.step === 0)){ if(o.imp) delete o.imp.result; delete o.path; ui.imp = {}; ui.qBusy = false; save(); render(); return; }
   if(o.step === 0){ if(o.retake){ S.onboard = null; save(); ui.page = null; ui.tab = 'settings'; render(); } return; }
   o.step--; delete o.kitFor; ui.qBusy = false; ui.qPressed = null; save(); render();
 }
@@ -2529,6 +2585,47 @@ const ACT = {
   trainLater: () => { ui.page = null; ui.pageFrom = null; ui.tab = 'log'; render(); toast('Your programme is ready. Start it from here when you’re at the gym.'); },
   siSend: () => siSend(),
   siResend: () => siSend(true),
+  qPath: el => { const o = S.onboard || (S.onboard = { step:0, answers:{}, painSel:[] }); o.path = el.dataset.v === 'import' ? 'import' : 'build'; ui.imp = {}; save(); window.scrollTo(0, 0); render(); },
+  impRead: async () => {
+    const o = S.onboard, im = o && o.imp, u = (ui.imp ||= {});
+    if(!im || u.busy) return;
+    const text = String(im.text || '').trim(), link = String(im.link || '').trim();
+    if(!text && !link && !u.img){ u.err = 'Paste your plan, add a photo or paste a link first.'; render(); return; }
+    u.busy = true; u.err = null; render();
+    try{
+      const r = await cloud.importPlan({ text, link, image: u.img ? { media_type:u.img.media_type, data:u.img.data } : undefined, library: L.EXERCISES.map(e => e.n) });
+      im.result = { programme: r.programme || null, warnings: r.warnings || [], unmatched: r.unmatched || [] };
+      save();
+    }catch(e){
+      const c = e && (e.code || (e.body && e.body.error_code));
+      u.err = e && e.offline ? 'You’re offline. Connect and try again.'
+        : e && e.status === 429 ? 'You’ve read 5 plans today. Try again tomorrow, or build a plan from the questions.'
+        : c === 'link_private' ? 'Liftless can’t open that link. In Google Docs or Sheets: Share → General access → Anyone with the link. Or paste the text instead.'
+        : c === 'bad_link' ? 'Only Google Docs and Google Sheets links work. Paste the text instead.'
+        : c === 'bad_image' ? 'That photo couldn’t be used. Try a JPEG or PNG screenshot.'
+        : c === 'too_long' ? 'That’s too long to read in one go. Paste one week of the plan.'
+        : c === 'off' ? 'Reading plans isn’t available right now. Build a plan from the questions, or try later.'
+        : 'Couldn’t read it this time. Try again, or paste the text.';
+    }
+    u.busy = false; render(); window.scrollTo(0, 0);
+  },
+  impDel: el => {
+    const r = S.onboard && S.onboard.imp && S.onboard.imp.result; if(!r || !r.programme) return;
+    const d = r.programme.days[+el.dataset.d]; if(!d) return;
+    d.ex.splice(+el.dataset.i, 1);
+    if(!d.ex.length) r.programme.days.splice(+el.dataset.d, 1);
+    if(!r.programme.days.length) delete S.onboard.imp.result;
+    save(); render();
+  },
+  impUse: () => {
+    const r = S.onboard && S.onboard.imp && S.onboard.imp.result; if(!r || !r.programme) return;
+    let prog;
+    try{ prog = E.normaliseProgramme({ ...r.programme, perWeek: r.programme.perWeek || r.programme.days.length, updatedAt: nowIso() }); }
+    catch(e){ ui.imp = { err:'This plan can’t be used as it is (' + e.message + '). Start again or remove the line that’s wrong.' }; render(); return; }
+    finishBuild(prog);
+  },
+  impAgain: () => { if(S.onboard && S.onboard.imp) delete S.onboard.imp.result; ui.imp = {}; save(); render(); },
+  impPhotoDel: () => { if(ui.imp) ui.imp.img = null; render(); },
   siStart: el => { Object.assign(ui.si, { step:'email', mode:el.dataset.mode, err:null }); window.scrollTo(0, 0); render(); const t = $('[data-f="siEmail"]'); if(t) t.focus(); },
   siChange: () => { Object.assign(ui.si, { step:'email', code:'', err:null }); delete S.signin; save(); render(); },
   progRetry: () => loadProgramme(),
@@ -2937,6 +3034,8 @@ const ACT = {
 const INPUT = {
   exnote: el => { S.draft.exercises[+el.dataset.i].note = el.value; save(); },
   libq: el => { ui.libQ = el.value; ui.exOpen = null; const l = document.getElementById('exList'); if(l) l.innerHTML = exListHTML(); },
+  impText: el => { if(S.onboard && S.onboard.imp){ S.onboard.imp.text = el.value.slice(0, 12000); save(); } },
+  impLink: el => { if(S.onboard && S.onboard.imp){ S.onboard.imp.link = el.value.slice(0, 500); save(); } },
   addq: el => { if(ui.sheet && ui.sheet.type === 'addex'){ ui.sheet.q = el.value; $('#addList').innerHTML = addExList(el.value); } },
   shval: el => { if(ui.sheet) ui.sheet.v[el.dataset.k] = num(el.value); },
   notes: el => { S.draft.notes = el.value; save(); },
@@ -2955,6 +3054,20 @@ const INPUT = {
   }
 };
 const CHANGE = {
+  /* A plan photo: shrunk on the phone to at most 1600 px (JPEG) before it is sent. */
+  impPhoto: el => {
+    const f = el.files && el.files[0]; if(!f) return;
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => {
+      const s = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      const data = c.toDataURL('image/jpeg', 0.82);
+      ui.imp = { ...(ui.imp || {}), err:null, img:{ preview:data, media_type:'image/jpeg', data:data.split(',')[1] } }; render();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ui.imp = { ...(ui.imp || {}), err:'That file isn’t a photo Liftless can read.' }; render(); };
+    img.src = url;
+  },
   findate: el => {
     if(!el.value || el.value > today()) return;
     S.draft.date = el.value; E.retarget(S.draft, aHist(), P()); save(); renderSheet(); render();

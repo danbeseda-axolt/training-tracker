@@ -102,3 +102,32 @@ export function advice(rows, today, addDays) {
   if (r.lastNight != null && r.lastNight < 360) return { level: 'note', why: ['Short night: ' + hm(r.lastNight) + '. Fine to train; end a set when form breaks.'] };
   return null;
 }
+
+/* Resting heart rate when the source app writes no resting-HR record (5-24):
+   the lowest hourly average heart rate inside each night's sleep, counted on
+   the morning it ends. With no sleep recorded that night, 01:00-06:00 local.
+   Reads a few bpm off a watch's own figure; the trend against the person's
+   usual, which is what the advice uses, holds. */
+/** @param {Obj[]} hourly {startDate, value} hourly average bpm @param {Obj[]} sleep sleep sessions @param {string} tz @returns {Obj[]} {startDate, value} one per day */
+export function restingFromHourly(hourly, sleep, tz) {
+  const hr = (hourly || []).filter(h => h && h.value >= 25 && h.value <= 200 && h.startDate);
+  /** @type {Map<string, number>} */
+  const byDay = new Map();
+  const nights = (sleep || []).filter(s => s && s.startDate && s.endDate && asleepMinutes(s) >= 120);
+  for (const n of nights) {
+    const a = Date.parse(n.startDate), b = Date.parse(n.endDate), day = localDay(n.endDate, tz);
+    const vals = hr.filter(h => { const t = Date.parse(h.startDate); return t >= a && t < b; }).map(h => h.value);
+    if (day && vals.length >= 2) byDay.set(day, Math.min(byDay.get(day) ?? Infinity, Math.min(...vals)));
+  }
+  const hourOf = (/** @type {string} */ iso) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(new Date(iso)));
+  /** @type {Map<string, number[]>} */
+  const early = new Map();
+  for (const h of hr) {
+    const d = localDay(h.startDate, tz), hh = hourOf(h.startDate);
+    if (!d || byDay.has(d) || hh < 1 || hh >= 6) continue;
+    if (!early.has(d)) early.set(d, []);
+    /** @type {number[]} */ (early.get(d)).push(h.value);
+  }
+  for (const [d, v] of early) if (v.length >= 2) byDay.set(d, Math.min(...v));
+  return [...byDay.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([day, v]) => ({ startDate: day + 'T12:00:00Z', value: Math.round(v * 10) / 10 }));
+}
