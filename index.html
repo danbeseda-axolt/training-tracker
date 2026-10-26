@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#111417">
+<meta name="theme-color" content="#ebebe9">
 <title>Liftless</title>
 <link rel="manifest" href="manifest.json">
 <style>
@@ -24,13 +24,26 @@
     --scrim:rgba(0,0,0,.6);
   }
 }
+/* 5-23 uplift: bundled fonts (SIL OFL, fonts/OFL-*.txt). Baloo 2 is rounded
+   like the logo's letters, for headings and the wordmark; Nunito Sans for
+   reading. Latin and latin-ext (Czech) only, loaded on demand by range. */
+@font-face{font-family:"Baloo 2"; font-weight:400 800; font-display:swap; src:url(fonts/baloo2-latin.woff2) format("woff2"); unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Baloo 2"; font-weight:400 800; font-display:swap; src:url(fonts/baloo2-latin-ext.woff2) format("woff2"); unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Nunito Sans"; font-weight:400 800; font-display:swap; src:url(fonts/nunitosans-latin.woff2) format("woff2"); unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Nunito Sans"; font-weight:400 800; font-display:swap; src:url(fonts/nunitosans-latin-ext.woff2) format("woff2"); unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+:root{ --f-body:"Nunito Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; --f-display:"Baloo 2","Nunito Sans",system-ui,sans-serif; }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--text); overflow-x:hidden;
-  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font:16px/1.45 var(--f-body);
   -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
 }
+h1,h2,h3,.bigv,.liftc .lv,#barT,.welcome h2{font-family:var(--f-display)}
+h3{font-size:18px; font-weight:700; margin:0 0 4px; letter-spacing:.1px}
+.big{font-family:var(--f-display); font-weight:700; font-size:19px; border-radius:16px}
+.big .lines2{font-family:var(--f-body); font-weight:600}
+.rowbtn,.liftc{border-radius:16px}
 button{font:inherit; color:inherit; cursor:pointer; touch-action:manipulation}
 input,select,textarea{font:inherit; font-size:16px}
 [hidden]{display:none !important}
@@ -41,7 +54,12 @@ header{
   border-bottom:1px solid var(--line); padding:0 6px 0 14px; padding-top:var(--safe-t);
   display:flex; align-items:center; gap:8px; min-height:calc(var(--hdr) + var(--safe-t));
 }
-header h1{font-size:17px; margin:0; flex:1; min-width:0; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+header h1{font-size:20px; font-weight:700; margin:0; flex:1; min-width:0; letter-spacing:.1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1}
+/* The wordmark: the logo's four colours, letter by letter, only when the
+   header says "Liftless". */
+header h1.wm{font-size:26px; font-weight:800; letter-spacing:.5px}
+header h1.wm span:nth-child(4n+1){color:var(--mustard)} header h1.wm span:nth-child(4n+2){color:var(--teal)}
+header h1.wm span:nth-child(4n+3){color:var(--rose)} header h1.wm span:nth-child(4n+4){color:var(--bad)}
 #datechip{font-size:12.5px; padding:3px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap}
 #datechip.amber{color:var(--warn); background:rgba(217,150,42,.15)}
 #sync{font-size:12px; padding:4px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis}
@@ -59,7 +77,7 @@ body.ses main{padding-bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(
 @keyframes appear{to{opacity:1}}
 
 /* ---- common */
-.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px; scroll-margin-top:calc(var(--hdr) + var(--safe-t) + 8px)}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:10px; scroll-margin-top:calc(var(--hdr) + var(--safe-t) + 8px); box-shadow:0 1px 2px rgba(30,25,20,.04), 0 4px 14px rgba(30,25,20,.04)}
 .card h3{margin:0; font-size:16px; line-height:1.25; overflow-wrap:anywhere}
 .sub{color:var(--dim); font-size:13px}
 .center{text-align:center}
@@ -114,8 +132,10 @@ button.exnote{display:block; width:100%; min-height:44px; text-align:left; paddi
 
 /* ---- bottom nav and session bar */
 #tabs{position:fixed; left:0; right:0; bottom:0; z-index:25; display:flex; background:var(--panel); border-top:1px solid var(--line); padding-bottom:var(--safe-b)}
-#tabs button{flex:1; min-height:var(--nav); border:none; background:none; color:var(--dim); font-size:13.5px}
-#tabs button.on{color:var(--accent); font-weight:650}
+#tabs button{flex:1; min-height:var(--nav); border:none; background:none; color:var(--dim); font-size:12.5px; font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding-top:4px}
+#tabs button svg{width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+#tabs button.on{color:var(--accent); font-weight:800}
+#tabs button.on svg{stroke-width:2.4}
 #bar{position:fixed; left:0; right:0; bottom:0; z-index:25; background:var(--panel); border-top:1px solid var(--line); padding-bottom:var(--safe-b)}
 .barin{display:flex; align-items:center; gap:8px; height:var(--bar); padding:0 12px}
 /* The timer is read from arm's length between sets, so it is the biggest
@@ -237,6 +257,11 @@ body:not(.pbarTabs) #coachFab{bottom:calc(var(--nav) + var(--safe-b) + 16px)}
 .rules{display:grid; gap:8px; margin:8px 0}
 .rule{display:grid; grid-template-columns:auto auto 1fr; gap:4px 8px; align-items:baseline}
 .rule .sub{grid-column:1 / -1}
+.advc{border-color:var(--mustard); border-width:2px}
+.advc h3{color:var(--warn)}
+.hdiag{display:grid; gap:4px; margin-top:10px; font-size:14px}
+.hdiag div{display:flex; justify-content:space-between; border-top:1px solid var(--line); padding-top:4px}
+.hdiag .ok{color:var(--ok); font-weight:700} .hdiag .warn{color:var(--warn); font-weight:700} .hdiag .bad{color:var(--bad); font-weight:700}
 .recov .rv{display:flex; gap:14px; flex-wrap:wrap; font-size:14px; color:var(--dim)}
 .recov .rv b{color:var(--text); font-size:16px; font-variant-numeric:tabular-nums}
 .recov.warnc{border-color:var(--mustard)}
@@ -305,9 +330,9 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <main id="view"><div class="empty" id="bootmsg">Liftless did not start. This can happen on a weak signal just after an update. <a href="./">Reload</a></div></main>
 
 <nav id="tabs">
-  <button data-act="tab" data-tab="log" class="on">Home</button>
-  <button data-act="tab" data-tab="history">History</button>
-  <button data-act="tab" data-tab="settings">You</button>
+  <button data-act="tab" data-tab="log" class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>Home</button>
+  <button data-act="tab" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>History</button>
+  <button data-act="tab" data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.6 3.8-5.5 7-5.5s5.8 1.9 7 5.5"/></svg>You</button>
 </nav>
 <button id="coachFab" data-act="tab" data-tab="coach" aria-label="Ask the coach" hidden>Coach</button>
 
@@ -325,15 +350,15 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-22';
-import { makeSync } from './sync.js?v=5-22';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-22';
-import * as L from './library.js?v=5-22';
-import * as G from './programme.js?v=5-22';
-import * as C from './coach.js?v=5-22';
-import * as V from './logview.js?v=5-22';
-import * as PG from './progress.js?v=5-22';
-import * as HL from './health.js?v=5-22';
+import * as E from './engine.js?v=5-23';
+import { makeSync } from './sync.js?v=5-23';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-23';
+import * as L from './library.js?v=5-23';
+import * as G from './programme.js?v=5-23';
+import * as C from './coach.js?v=5-23';
+import * as V from './logview.js?v=5-23';
+import * as PG from './progress.js?v=5-23';
+import * as HL from './health.js?v=5-23';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -636,6 +661,13 @@ async function syncWake(){
 function releaseWake(){ const w = wake; wake = null; try{ w && w.release && w.release(); }catch(e){} }
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ syncWake(); paintBar(); } });
 
+/* The header title; plain "Liftless" becomes the four-colour wordmark. */
+function setTitle(t){
+  const el = $('#title');
+  el.classList.toggle('wm', t === 'Liftless');
+  if(t === 'Liftless') el.innerHTML = [...t].map(c => '<span>' + c + '</span>').join('');
+  else el.textContent = t;
+}
 /* ---------------------------------------------------------------- render */
 function render(){
   /* Friends' full screens (start page, questions, building) and pages (your
@@ -661,7 +693,7 @@ function render(){
   $('#coachFab').hidden = !coachTab() || !(home || ui.tab === 'history');
   const title = ses ? d.name : pv ? pv.name : lift ? lift : ui.tab === 'coach' ? 'Coach' : ui.tab === 'body' ? 'Body' : ui.tab === 'lib' ? 'Exercises' : ui.tab === 'how' ? 'How it works' : 'Liftless';
   document.title = title === 'Liftless' ? 'Liftless' : 'Liftless · ' + title;
-  $('#title').textContent = title;
+  setTitle(title);
   const chip = $('#datechip');
   chip.hidden = !ses;
   if(ses){ const isToday = d.date === today(); chip.textContent = isToday ? 'Today' : E.niceDate(d.date); chip.classList.toggle('amber', !isToday); }
@@ -737,23 +769,34 @@ const currentIdx = d => { const i = d.exercises.findIndex(ex => ex.sets.some(s =
 /* Tapping a session opens this read-only look first: Dan often checks what is
    coming before the gym, and starting the clock then made a stale draft.
    Nothing is saved until "Start session". */
-function sessionDraft(key){
+function sessionDraft(key, lighter){
   const aH = aHist(), prog = P();
-  const deload = E.isLiftKey(key) && E.deloadCheck(aH, S.bw, S.settings, today(), prog).fire;
+  const deload = E.isLiftKey(key) && (lighter || E.deloadCheck(aH, S.bw, S.settings, today(), prog).fire);
   return E.newSession(key, aH, today(), nowIso(), deload, prog);
 }
+/* 5-23: health data in the decision. A pattern (two short nights in three,
+   resting HR or HRV off the person's usual) offers a lighter session, with the
+   numbers that led to it; one short night only gets a note. The engine's own
+   deload is what "lighter" means, so weights stay rule-made. */
+const recoveryAdvice = () => HL.advice(hState().rows, today(), E.addDays);
 function previewSession(key){
   try{ return sessionDraft(key); }catch(e){ return null; }
 }
 function viewPreview(d){
-  let h = d.deload ? '<div class="banner info">Deload session: lighter than usual.</div>' : '';
+  let h = d.isDeload ? '<div class="banner info">Deload session: lighter than usual.</div>' : '';
+  const adv = E.isLiftKey(d.key) && !d.isDeload ? recoveryAdvice() : null;
+  if(adv && adv.level === 'lighter') h += '<div class="card advc"><h3>Your recovery says: go lighter today</h3>' + adv.why.map(w => '<div class="sub">' + esc(w) + '</div>').join('')
+    + '<div class="sub" style="margin-top:6px">Lighter means the app’s deload: ' + Math.round(E.DELOAD.loadPct * 100) + '% of your working weight, fewer accessory sets. Progress picks up again next session.</div>'
+    + '<button class="btn primary w100" style="margin-top:10px" data-act="beginLight">Start lighter</button></div>';
+  else if(adv) h += '<div class="banner info">' + esc(adv.why[0]) + '</div>';
   h += '<div class="sub" style="margin:0 2px 10px">' + d.exercises.length + ' exercises · nothing starts until you tap Start.</div>';
   d.exercises.forEach(ex => {
     h += '<div class="card"><h3>' + esc(ex.n) + '</h3><div class="tline">' + esc(targetLine(ex)) + '</div>'
       + (ex.tplNote ? '<div class="sub">' + esc(ex.tplNote) + '</div>' : '')
       + '<div style="margin-top:6px"><a class="formlink" href="' + esc(formVideo(ex.n)) + '" target="_blank" rel="noopener">▶ Watch form on YouTube</a></div></div>';
   });
-  return h + '<div class="pbar"><button class="big primary" data-act="begin">Start session<span class="lines2">' + esc(d.name) + '</span></button></div>';
+  const light = adv && adv.level === 'lighter';
+  return h + '<div class="pbar"><button class="big' + (light ? '' : ' primary') + '" data-act="begin">' + (light ? 'Start as planned' : 'Start session') + '<span class="lines2">' + esc(d.name) + '</span></button></div>';
 }
 
 function viewLog(){
@@ -859,7 +902,8 @@ function viewHome(aH){
   h += '<div class="center" style="margin-top:6px"><button class="textbtn plain" data-act="allSessions">' + (ui.allSessions ? 'Hide other sessions' : 'Choose a different session') + '</button></div>';
   if(ui.allSessions) h += sessionListHTML();
   const nx = homeNext();
-  if(nx) h += '<div class="pbar ontabs"><button class="big primary" data-act="start" data-key="' + esc(nx.key) + '">' + esc(nx.title) + '<span class="lines2">' + esc(nx.sub) + '</span></button></div>';
+  const lightHint = nx && E.isLiftKey(nx.key) && (recoveryAdvice() || {}).level === 'lighter' ? ' · recovery: go lighter' : '';
+  if(nx) h += '<div class="pbar ontabs"><button class="big primary" data-act="start" data-key="' + esc(nx.key) + '">' + esc(nx.title) + '<span class="lines2">' + esc(nx.sub + lightHint) + '</span></button></div>';
   return h;
 }
 
@@ -1463,6 +1507,10 @@ function healthSync(force){
         const [sleep, restingHeartRate, heartRateVariability, weight] = await Promise.all([q('sleep'), q('restingHeartRate'), q('heartRateVariability'), q('weight')]);
         const steps = await hp.queryAggregated({ dataType:'steps', startDate:start.toISOString(), endDate:end.toISOString(), bucket:'day', aggregation:'sum' }).then(r => r.samples || [], () => []);
         const rows = HL.dailyRows({ sleep, restingHeartRate, heartRateVariability, steps, weight }, tzName());
+        /* What each type returned, and what Health Connect granted: shown on the
+           Health card so a missing type can be traced to the source app or to access. */
+        const granted = await hp.checkAuthorization({ read: HEALTH_TYPES }).then(a => a && a.readAuthorized || [], () => null);
+        st.diag = { at: new Date().toISOString(), granted, counts: { sleep: sleep.length, restingHeartRate: restingHeartRate.length, heartRateVariability: heartRateVariability.length, steps: steps.length, weight: weight.length } };
         mergeHealth(rows); st.lastSync = new Date().toISOString(); st.err = null; save();
         if(cloud.signedIn() && !cloud.foreign() && rows.length) await cloud.pushHealth(rows).catch(() => {});
       } else if(!hp && cloud.signedIn() && !cloud.foreign()){
@@ -1497,6 +1545,18 @@ function healthCard(){
   if(st.rows.length) h += '<div class="sub" style="margin-top:6px">Last night <b>' + HL.hm(rec.lastNight) + '</b> · resting HR <b>' + (rec.rhr7 ?? '—') + '</b>' + (rec.rhrUsual != null ? ' (usual ' + rec.rhrUsual + ')' : '') + (rec.hrv7 != null ? ' · HRV <b>' + rec.hrv7 + ' ms</b>' : '') + '</div>';
   if(hp && st.connected) h += '<div class="row" style="margin-top:10px"><span class="grow sub">' + (st.lastSync ? 'Synced ' + esc(new Date(st.lastSync).toLocaleString()) : 'Not synced yet') + '</span><button class="btn" data-act="healthSync">Sync now</button></div>'
     + '<button class="textbtn plain" data-act="healthSettings">Manage access in Health Connect</button>';
+  if(hp && st.connected && st.diag){
+    const names = { sleep:'Sleep', restingHeartRate:'Resting heart rate', heartRateVariability:'HRV', steps:'Steps', weight:'Weight' };
+    const g = st.diag.granted;
+    h += '<div class="hdiag">' + HEALTH_TYPES.map(t => {
+      const n = st.diag.counts[t] || 0, allowed = !g || g.includes(t);
+      const state = n ? '<span class="ok">✓ ' + n + '</span>' : !allowed ? '<span class="bad">no access</span>' : '<span class="warn">nothing received</span>';
+      return '<div><span>' + names[t] + '</span>' + state + '</div>';
+    }).join('') + '</div>';
+    const noAccess = HEALTH_TYPES.filter(t => g && !g.includes(t)), none = HEALTH_TYPES.filter(t => (!g || g.includes(t)) && !st.diag.counts[t]);
+    if(noAccess.length) h += '<div class="hint">No access to ' + esc(noAccess.map(t => names[t].toLowerCase()).join(', ') + '. Tap Manage access below and allow them.') + '</div>';
+    if(none.length) h += '<div class="hint">Nothing received for ' + esc(none.map(t => names[t].toLowerCase()).join(', ')) + '. In the Google Health app: Settings → Health Connect, turn sharing on for them, then tap Sync now.</div>';
+  }
   if(st.err) h += '<div class="hint" style="color:var(--bad)">' + esc(st.err) + '</div>';
   return h + '<div class="hint"><a class="formlink" href="privacy.html" target="_blank" rel="noopener">How Liftless uses health data</a></div></div>';
 }
@@ -1508,7 +1568,8 @@ function recoveryLineHTML(){
   const say = r.flags.includes('short-sleep') ? 'Two short nights. Keep more reps in reserve today, no extra sets.'
     : r.flags.includes('rhr-high') ? 'Resting heart rate is up on your usual. Take it a bit easier today.'
     : r.flags.includes('hrv-low') ? 'HRV is down on your usual. Fine to train; skip anything extra.' : '';
-  return '<div class="card recov' + (say ? ' warnc' : '') + '"><div class="rv"><span>Sleep <b>' + HL.hm(r.lastNight) + '</b></span><span>Resting HR <b>' + (r.rhr7 ?? '—') + '</b>' + (r.rhrUsual != null ? ' <small>usual ' + r.rhrUsual + '</small>' : '') + '</span>'
+  return '<div class="card recov' + (say ? ' warnc' : '') + '"><div class="rv">' + (r.lastNight != null ? '<span>Sleep <b>' + HL.hm(r.lastNight) + '</b>' + (r.sleepAvg7 != null ? ' <small>7-day ' + HL.hm(r.sleepAvg7) + '</small>' : '') + '</span>' : '')
+    + (r.rhr7 != null ? '<span>Resting HR <b>' + r.rhr7 + '</b>' + (r.rhrUsual != null ? ' <small>usual ' + r.rhrUsual + '</small>' : '') + '</span>' : '')
     + (r.hrv7 != null ? '<span>HRV <b>' + r.hrv7 + '</b> <small>ms</small></span>' : '') + '</div>' + (say ? '<div class="sub" style="margin-top:6px">' + esc(say) + '</div>' : '') + '</div>';
 }
 
@@ -1669,7 +1730,7 @@ function renderFriend(scr){
     : !scr && ui.page && !(ui.page === 'programme' && ui.pageFrom === 'build');
   $('#backBtn').hidden = !back;
   const title = !scr && ui.page === 'programme' ? 'Your programme' : !scr && ui.page === 'library' ? 'Exercises' : 'Liftless';
-  $('#title').textContent = title; document.title = title === 'Liftless' ? 'Liftless' : 'Liftless · ' + title;
+  setTitle(title); document.title = title === 'Liftless' ? 'Liftless' : 'Liftless · ' + title;
   const bar = !scr && ui.page === 'programme' && ui.pageFrom === 'build' && !d;
   document.body.classList.toggle('pbarOn', bar);
   $('#view').innerHTML = scr === 'start' ? viewStart() : scr === 'questions' ? viewQuestion() : scr === 'building' ? viewBuilding()
@@ -2429,6 +2490,16 @@ const ACT = {
     if(S.draft) return;
     ui.preview = el.dataset.key; ui.page = null; ui.tab = 'log';
     window.scrollTo(0, 0); render();
+  },
+  beginLight: () => {
+    if(S.draft || !ui.preview) return;
+    const adv = recoveryAdvice();
+    const d = sessionDraft(ui.preview, true);
+    d.id = newId();
+    /* Kept on the session so History and the coach can see why it was light. */
+    d.recoveryLight = { why: adv ? adv.why : [], at: nowIso() };
+    S.draft = d; ui.preview = null; ui.open.clear(); ui.info.clear(); ui.note.clear(); ui.rir = null;
+    save(); window.scrollTo(0, 0); render();
   },
   begin: () => {
     if(S.draft || !ui.preview) return;

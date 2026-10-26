@@ -386,6 +386,7 @@ function sessionBlock(s, inScope) {
   const head = [s.date + ' ' + E.niceDate(s.date).slice(0, 3), nm(s.name)];
   if (s.logMode) head.push(clean(s.logMode, 8));
   if (s.isDeload) head.push('DELOAD');
+  if (s.recoveryLight) head.push('made lighter by the person because of recovery (sleep, resting HR or HRV)');
   if (!E.isLiftKey(s.key)) head.push('not a lift session');
   if (suspect(s)) head.push('UNVERIFIED: saved in under 2 minutes as the untouched prefill; the app\'s rules ignore it');
   if (s.sessionRpe != null) head.push('RPE ' + clean(s.sessionRpe, 4));

@@ -49,3 +49,13 @@ test('hm formats minutes', () => {
   assert.equal(H.hm(400), '6 h 40');
   assert.equal(H.hm(null), '—');
 });
+
+test('advice: lighter on a pattern with the numbers; a single short night is only a note; nothing otherwise', () => {
+  const mk = (sleeps) => sleeps.map((m, i) => ({ day: E.addDays('2026-10-26', -i), sleep_min: m, resting_hr: null, hrv_ms: null, steps: null, weight_kg: null }));
+  const a = H.advice(mk([330, 450, 340, 450, 450]), '2026-10-26', E.addDays);
+  assert.equal(a.level, 'lighter');
+  assert.deepEqual(a.why, ['Short sleep: 5 h 30, 7 h 30, 5 h 40 in the last three nights.']);
+  assert.deepEqual(H.advice(mk([320, 450, 450]), '2026-10-26', E.addDays), { level: 'note', why: ['Short night: 5 h 20. Fine to train; end a set when form breaks.'] });
+  assert.equal(H.advice(mk([450, 450, 450]), '2026-10-26', E.addDays), null);
+  assert.equal(H.advice([], '2026-10-26', E.addDays), null);
+});

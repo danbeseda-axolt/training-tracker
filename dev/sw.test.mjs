@@ -12,10 +12,10 @@ const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const SHELL = JSON.parse(sw.match(/const SHELL\s*=\s*(\[[^\]]*\])/)[1].replace(/'/g, '"'));
 const bare = u => u.split('?')[0];
 
-test('VERSION is ledger-v5-22 and matches the ?v= on every module import', () => {
-  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-22');
+test('VERSION is ledger-v5-23 and matches the ?v= on every module import', () => {
+  assert.equal(sw.match(/const VERSION\s*=\s*'([^']+)'/)[1], 'ledger-v5-23');
   const vs = [...html.matchAll(/from '\.\/[^'?]+\?v=([^']+)'/g)].map(m => m[1]);
-  assert.deepEqual(vs, ['5-22', '5-22', '5-22', '5-22', '5-22', '5-22', '5-22', '5-22', '5-22']);
+  assert.deepEqual(vs, ['5-23', '5-23', '5-23', '5-23', '5-23', '5-23', '5-23', '5-23', '5-23']);
 });
 
 test('SHELL holds the page, the nine modules, the manifest and the icon', () => {
@@ -51,11 +51,11 @@ test('the worker never handles the GitHub API and falls back to index.html only 
 });
 
 test('the shell lists exactly the versioned module URLs the page imports, and nothing from training/ or the data repo', () => {
-  assert.deepEqual(SHELL, ['./', './index.html', './engine.js?v=5-22', './sync.js?v=5-22', './cloud.js?v=5-22', './library.js?v=5-22', './programme.js?v=5-22', './coach.js?v=5-22', './logview.js?v=5-22', './progress.js?v=5-22', './health.js?v=5-22', './manifest.json', './icon.svg', './privacy.html']);
+  assert.deepEqual(SHELL, ['./', './index.html', './engine.js?v=5-23', './sync.js?v=5-23', './cloud.js?v=5-23', './library.js?v=5-23', './programme.js?v=5-23', './coach.js?v=5-23', './logview.js?v=5-23', './progress.js?v=5-23', './health.js?v=5-23', './manifest.json', './icon.svg', './privacy.html']);
   for (const u of SHELL) assert.doesNotMatch(u, /training|log\//);
 });
 
-/* 5-22: a duplicate declaration in the inline module stopped the app at boot
+/* 5-23: a duplicate declaration in the inline module stopped the app at boot
    and no test noticed. The page's module script must parse. */
 test('the inline module script in index.html parses', async () => {
   const { execFileSync } = await import('node:child_process');

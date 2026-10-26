@@ -85,3 +85,20 @@ export function recovery(rows, today, addDays) {
 
 /** 6 h 40 min. @param {number|null} min */
 export const hm = min => min == null ? '—' : Math.floor(min / 60) + ' h ' + String(Math.round(min % 60)).padStart(2, '0');
+
+/* What the session preview says (5-23). A pattern offers a lighter session,
+   with the numbers that led to it; one short night gets a note only. */
+/** @param {Day[]} rows @param {string} today @param {(iso:string, n:number)=>string} addDays @returns {null | {level:'lighter'|'note', why:string[]}} */
+export function advice(rows, today, addDays) {
+  if (!rows || !rows.length) return null;
+  const r = recovery(rows, today, addDays), why = [];
+  if (r.flags.includes('short-sleep')) {
+    const nights = [0, 1, 2].map(i => rows.find(x => x.day === addDays(today, -i))).filter(x => x && x.sleep_min != null).map(x => hm(/** @type {number} */ (x.sleep_min)));
+    why.push('Short sleep: ' + nights.join(', ') + ' in the last three nights.');
+  }
+  if (r.flags.includes('rhr-high')) why.push('Resting heart rate ' + r.rhr7 + ' this week against your usual ' + r.rhrUsual + '.');
+  if (r.flags.includes('hrv-low')) why.push('HRV ' + r.hrv7 + ' ms this week against your usual ' + r.hrvUsual + ' ms.');
+  if (why.length) return { level: 'lighter', why };
+  if (r.lastNight != null && r.lastNight < 360) return { level: 'note', why: ['Short night: ' + hm(r.lastNight) + '. Fine to train; end a set when form breaks.'] };
+  return null;
+}
