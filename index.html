@@ -55,11 +55,10 @@ header{
   display:flex; align-items:center; gap:8px; min-height:calc(var(--hdr) + var(--safe-t));
 }
 header h1{font-size:20px; font-weight:700; margin:0; flex:1; min-width:0; letter-spacing:.1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1}
-/* The wordmark: the logo's four colours, letter by letter, only when the
-   header says "Liftless". */
+/* The wordmark (logo option A, 2026-10-26): "Lift" in teal, "less" in ink,
+   only when the header says "Liftless". */
 header h1.wm{font-size:26px; font-weight:800; letter-spacing:.5px}
-header h1.wm span:nth-child(4n+1){color:var(--mustard)} header h1.wm span:nth-child(4n+2){color:var(--teal)}
-header h1.wm span:nth-child(4n+3){color:var(--rose)} header h1.wm span:nth-child(4n+4){color:var(--bad)}
+header h1.wm .a{color:var(--teal)} header h1.wm .b{color:var(--text)}
 #datechip{font-size:12.5px; padding:3px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap}
 #datechip.amber{color:var(--warn); background:rgba(217,150,42,.15)}
 #sync{font-size:12px; padding:4px 9px; border-radius:99px; background:var(--chip); color:var(--dim); white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis}
@@ -272,8 +271,7 @@ body:not(.pbarTabs) #coachFab{bottom:calc(var(--nav) + var(--safe-b) + 16px)}
 .welcome h2{text-align:center; font-size:32px; margin:16px 0 4px; letter-spacing:-.5px}
 .welcome .wtag{text-align:center; font-size:17px; color:var(--dim); margin:0 0 22px}
 .wname{font-weight:800; letter-spacing:1px}
-.wname .c0{color:var(--mustard)} .wname .c1{color:var(--teal)} .wname .c2{color:var(--rose)} .wname .c3{color:var(--bad)}
-.wlist li:nth-child(2)::before{background:var(--mustard)} .wlist li:nth-child(3)::before{background:var(--rose)}
+.wname .a{color:var(--teal)}
 .wlist{list-style:none; padding:0; margin:0 0 24px}
 .wlist li{position:relative; padding:12px 12px 12px 44px; margin-bottom:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; font-size:15px; color:var(--dim)}
 .wlist li b{color:var(--text)}
@@ -350,15 +348,15 @@ body.ses #toast{bottom:calc(var(--bar) + var(--rirH) + var(--nextH) + var(--safe
 <div id="toast" hidden></div>
 
 <script type="module">
-import * as E from './engine.js?v=5-25';
-import { makeSync } from './sync.js?v=5-25';
-import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-25';
-import * as L from './library.js?v=5-25';
-import * as G from './programme.js?v=5-25';
-import * as C from './coach.js?v=5-25';
-import * as V from './logview.js?v=5-25';
-import * as PG from './progress.js?v=5-25';
-import * as HL from './health.js?v=5-25';
+import * as E from './engine.js?v=5-26';
+import { makeSync } from './sync.js?v=5-26';
+import { makeCloud, pendingView, routeSave, resolveStorage, claimStorage, promoteToGithub, adoptAfterPull, explain, redactSecrets } from './cloud.js?v=5-26';
+import * as L from './library.js?v=5-26';
+import * as G from './programme.js?v=5-26';
+import * as C from './coach.js?v=5-26';
+import * as V from './logview.js?v=5-26';
+import * as PG from './progress.js?v=5-26';
+import * as HL from './health.js?v=5-26';
 
 /* ---------------------------------------------------------------- utilities */
 const $ = s => document.querySelector(s);
@@ -665,7 +663,7 @@ document.addEventListener('visibilitychange', () => { if(document.visibilityStat
 function setTitle(t){
   const el = $('#title');
   el.classList.toggle('wm', t === 'Liftless');
-  if(t === 'Liftless') el.innerHTML = [...t].map(c => '<span>' + c + '</span>').join('');
+  if(t === 'Liftless') el.innerHTML = '<span class="a">Lift</span><span class="b">less</span>';
   else el.textContent = t;
 }
 /* ---------------------------------------------------------------- render */
@@ -1768,7 +1766,7 @@ function viewStart(){
   if(s.step === 'welcome'){
     return '<div class="welcome">'
       + '<img class="wlogo" src="icon.svg" alt="" width="88" height="88">'
-      + '<h2 class="wname">' + [...'Liftless'].map((c, i) => '<span class="c' + (i % 4) + '">' + c + '</span>').join('') + '</h2>'
+      + '<h2 class="wname"><span class="a">Lift</span>less</h2>'
       + '<p class="wtag">Your training plan, ready when you walk into the gym.</p>'
       + '<ul class="wlist">'
       + '<li><b>Your plan, or one built for you.</b> Bring the plan you already follow, or answer five quick questions.</li>'
